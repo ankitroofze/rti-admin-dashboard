@@ -1,7 +1,6 @@
 import React, { useEffect, useReducer } from "react";
 import { Collapse } from "react-bootstrap";
 import { Link, useLocation } from "react-router-dom";
-import logo from "../../assets/images/rti.png";
 
 const MenuList = [
   {
@@ -27,7 +26,7 @@ const MenuList = [
   {
     title: "Withdrawal",
     to: "/admin/withdrawal",
-    iconStyle: <i className="fa-solid fa-money-bill-transfer" />,
+    iconStyle: <i className="fa fa-money-bill-wave" />,
   },
   {
     title: "News",
@@ -118,9 +117,6 @@ const SideBar = () => {
   return (
     <div className="deznav">
       <div className="deznav-scroll">
-        <div className="rti-sidebar-logo">
-          <img src={logo} alt="RTI" />
-        </div>
         <ul className="metismenu" id="menu">
           {MenuList.map((data, index) => {
             const menuClass = data.classsChange;

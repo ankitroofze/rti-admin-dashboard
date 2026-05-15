@@ -44,20 +44,28 @@ const Header = ({ sidebarCollapsed = false, onToggleSidebar = () => {} }) => {
 
   return (
     <div className="header">
+      
       <div className="header-content">
         <nav className="navbar navbar-expand">
+
+          
           <div className="collapse navbar-collapse justify-content-between">
             <div className="header-left">
-              <button type="button" className="rti-mobile-logo-toggle" onClick={onToggleSidebar} aria-label="Toggle sidebar">
+              <Link to="/admin/dashboard" className="rti-header-logo rti-header-logo-start">
                 <img src={logo} alt="RTI" />
-              </button>
-              <div className={`nav-control ${sidebarCollapsed ? "is-active" : ""}`} onClick={onToggleSidebar}>
+              </Link>
+              <button
+                type="button"
+                className={`nav-control ${sidebarCollapsed ? "is-active" : ""}`}
+                onClick={onToggleSidebar}
+                aria-label="Toggle sidebar"
+              >
                 <div className={`hamburger ${sidebarCollapsed ? "is-active" : ""}`}>
                   <span className="line"></span>
                   <span className="line"></span>
                   <span className="line"></span>
                 </div>
-              </div>
+              </button>
               <div className="dashboard_bar" style={{ textTransform: "capitalize" }}>
                 {finalName.join(" ").length === 0 ? "Dashboard" : finalName.join(" ")}
               </div>
@@ -114,7 +122,7 @@ const Header = ({ sidebarCollapsed = false, onToggleSidebar = () => {} }) => {
                     <i className="fa fa-sign-out-alt text-danger" />
                     <span className="ms-2">Logout</span>
                   </button>
-                </Dropdown.Menu>
+                  </Dropdown.Menu>
               </Dropdown>
             </ul>
           </div>

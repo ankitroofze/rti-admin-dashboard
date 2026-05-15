@@ -1,12 +1,14 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Modal } from "react-bootstrap";
+import { Collapse, Modal } from "react-bootstrap";
 import Select from "react-select";
 import swal from "sweetalert";
 import profile from "../assets/images/profile/profile.png";
 import avatar1 from "../assets/images/avatar/1.jpg";
 import avatar2 from "../assets/images/avatar/2.jpg";
 import avatar3 from "../assets/images/avatar/3.jpg";
+import logo from "../assets/images/rti.png";
+import qrcode from "../assets/images/qr.png";
 import AppToast from "../components/common/AppToast";
 
 export const moduleNames = {
@@ -30,8 +32,38 @@ const pdfUrl =
   "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
 
 const todayInput = new Date().toISOString().slice(0, 10);
+const rowKey = (row = {}) => String(row._rowKey || row.id || row.profileId || row.userId || row.transactionId || row.adId || row.title || row.sr || "");
+const activeRecordKey = (slug) => `rti-active-${slug}`;
 const selectOption = (value) => ({ value, label: value });
 const toSelectOptions = (items = []) => items.map(selectOption);
+const CustomClearText = () => "clear all";
+const ClearIndicator = (props) => {
+  const {
+    children = <CustomClearText />,
+    getStyles,
+    innerProps: { ref, ...restInnerProps },
+  } = props;
+  return (
+    <div {...restInnerProps} ref={ref} style={getStyles("clearIndicator", props)}>
+      <div style={{ padding: "0px 5px" }}>{children}</div>
+    </div>
+  );
+};
+const ClearIndicatorStyles = (base, state) => ({
+  ...base,
+  cursor: "pointer",
+  color: state.isFocused ? "blue" : "black",
+});
+const readFileAsDataUrl = (file) => new Promise((resolve) => {
+  if (!(file instanceof File) || !file.size) {
+    resolve("");
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result || "");
+  reader.onerror = () => resolve("");
+  reader.readAsDataURL(file);
+});
 
 const formatDisplayDate = (value) => {
   if (!value) return "";
@@ -43,6 +75,14 @@ const formatDisplayDate = (value) => {
   const day = String(parsed.getDate()).padStart(2, "0");
   const month = parsed.toLocaleString("en-US", { month: "short" });
   return `${day}-${month}-${parsed.getFullYear()}`;
+};
+const toDateInputValue = (value) => {
+  if (!value) return "";
+  const parsed = new Date(String(value).replace(/-/g, " "));
+  if (Number.isNaN(parsed.getTime())) return "";
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  return `${parsed.getFullYear()}-${month}-${day}`;
 };
 
 const states = [
@@ -186,9 +226,8 @@ const moduleConfig = {
       ["Active Users", "1", "fa-user-check", "success", "active"],
       ["Inactive Users", "1", "fa-user-xmark", "danger", "inactive"],
       ["Premium Users", "1", "fa-crown", "warning", "premium"],
-      ["Newly Added", "1", "fa-user-plus", "info", "new"],
     ],
-    filters: ["search", "status", "userType", "state", "district", "taluka"],
+    filters: ["search", "status", "userType"],
     rows: users,
     columns: [
       ["sr", "Sr.No"],
@@ -216,7 +255,7 @@ const moduleConfig = {
   "user-profile": {
     title: "User Profile",
     add: true,
-    filters: ["search", "status", "userType", "state", "district", "taluka"],
+    filters: ["search", "status", "userType"],
     rows: users,
     columns: [
       ["sr", "Sr.No"],
@@ -226,7 +265,7 @@ const moduleConfig = {
       ["phone", "Phone Number"],
       ["status", "Status"],
     ],
-    actions: ["view", "status", "delete"],
+    actions: ["view", "update", "status", "delete"],
     details: [
       "userId",
       "email",
@@ -364,7 +403,7 @@ const moduleConfig = {
   "subscription-plan": {
     title: "Subscription Plan",
     add: true,
-    filters: ["search", "status", "state", "district", "taluka"],
+    filters: ["search", "status"],
     rows: [
       {
         sr: 1,
@@ -416,7 +455,7 @@ const moduleConfig = {
   quiz: {
     title: "Quiz",
     add: true,
-    filters: ["search", "status", "subject", "difficulty", "testType", "correctAnswer"],
+    filters: ["search", "status", "subject", "difficulty"],
     rows: [
       {
         sr: 1,
@@ -671,8 +710,17 @@ const saveStoredRows = (slug, rows) => {
   localStorage.setItem(storageKey(slug), JSON.stringify(rows));
 };
 
-const getRows = (slug) => [...getStoredRows(slug), ...(getConfig(slug).rows || [])].filter((row) => row && typeof row === "object");
-const firstRow = (slug) => getRows(slug)[0] || {};
+const getRows = (slug) => {
+  const storedRows = getStoredRows(slug);
+  const storedKeys = new Set(storedRows.map(rowKey));
+  const baseRows = (getConfig(slug).rows || []).filter((row) => !storedKeys.has(rowKey(row)));
+  return [...storedRows, ...baseRows].filter((row) => row && typeof row === "object");
+};
+const activeRow = (slug) => {
+  const rows = getRows(slug);
+  const activeKey = sessionStorage.getItem(activeRecordKey(slug));
+  return rows.find((row) => rowKey(row) === activeKey) || rows[0] || {};
+};
 
 const pickRecordTitle = (row) => {
   const record = row || {};
@@ -685,6 +733,13 @@ const pickRecordSubTitle = (row) => {
 };
 
 const isPositiveStatus = (status) => ["Active", "Approved", "Paid"].includes(status);
+const nextStatusForSlug = (slug, status = "Active") => {
+  if (slug === "withdrawal") {
+    const statuses = ["Approved", "Failed", "Pending"];
+    return statuses[(statuses.indexOf(status) + 1) % statuses.length] || "Approved";
+  }
+  return isPositiveStatus(status) ? "Inactive" : "Active";
+};
 
 const statusBadge = (status) => (
   <span className={`badge light badge-${isPositiveStatus(status) ? "success" : status === "Pending" ? "warning" : "danger"}`}>
@@ -692,14 +747,14 @@ const statusBadge = (status) => (
   </span>
 );
 
-const StatusToggle = ({ active = true, onClick = () => {} }) => (
+const StatusToggle = ({ status = "Active", onClick = () => {} }) => (
   <button
     type="button"
-    className={`rti-status-toggle ${active ? "active" : "inactive"}`}
+    className={`rti-status-toggle ${isPositiveStatus(status) ? "active" : "inactive"}`}
     onClick={onClick}
   >
     <span />
-    {active ? "Active" : "Inactive"}
+    {status || "Active"}
   </button>
 );
 
@@ -712,14 +767,16 @@ const PageHeading = ({ title, children }) => (
   </div>
 );
 
-const FilterBar = ({ filters = [], values, onChange }) => {
+const FilterBar = ({ filters = [], values, onChange, onReset, slug }) => {
+  const [open, setOpen] = useState(false);
   if (!filters.length) return null;
+  const statusOptions = slug === "withdrawal" ? ["Approved", "Failed", "Pending"] : ["Active", "Inactive"];
   const selectFilters = {
     state: ["State", states],
     district: ["District", districtMap.Maharashtra || defaultDistricts],
     taluka: ["Taluka", defaultTalukas],
-    status: ["Status", ["Active", "Inactive", "Approved", "Failed", "Pending"]],
-    filterStatus: ["Filter Status", ["Active", "Inactive", "Approved", "Failed", "Pending"]],
+    status: ["Status", statusOptions],
+    filterStatus: ["Filter Status", statusOptions],
     category: ["Category", newsCategories],
     subject: ["Subject", ["RTI", "BNS", "Journalism"]],
     difficulty: ["Difficulty", ["Easy", "Medium", "Hard"]],
@@ -729,29 +786,64 @@ const FilterBar = ({ filters = [], values, onChange }) => {
   };
 
   return (
-    <div className="rti-table-filters">
-      <div className="row g-3">
-        {filters.includes("search") && (
-          <div className="col-xl-3 col-md-6">
-            <input className="form-control" type="search" placeholder="Search..." value={values.search} onChange={(event) => onChange("search", event.target.value)} />
-          </div>
-        )}
-        {Object.entries(selectFilters).map(([name, [label, options]]) => filters.includes(name) && (
-          <div className="col-xl-3 col-md-6" key={name}>
-            <div className="card-body Cms-selecter p-0">
-              <label className="from-label">{label}</label>
-              <Select
-                options={toSelectOptions(options)}
-                className="custom-react-select"
-                classNamePrefix="rti-react-select"
-                isClearable
-                placeholder={label}
-                value={values[name] ? selectOption(values[name]) : null}
-                onChange={(option) => onChange(name, option?.value || "")}
-              />
+    <div className="row">
+      <div className="col-xl-12">
+        <div className="filter cm-content-box box-primary rti-table-filters">
+          <div className="content-title">
+            <div className="cpa">
+              <i className="fas fa-filter me-2"></i>Filter
+            </div>
+            <div className="tools">
+              <Link
+                to="#"
+                className={`SlideToolHeader ${open ? "collapse" : "expand"}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  setOpen(!open);
+                }}
+              >
+                <i className="fas fa-angle-up"></i>
+              </Link>
             </div>
           </div>
-        ))}
+
+          <Collapse in={open}>
+            <div className="cm-content-body form excerpt">
+              <div className="card-body">
+                <div className="row filter-row">
+                  {filters.includes("search") && (
+                    <div className="col-xl-3 col-xxl-6">
+                      <input className="form-control mb-xl-0 mb-3" type="search" placeholder="Search..." value={values.search} onChange={(event) => onChange("search", event.target.value)} />
+                    </div>
+                  )}
+                  {Object.entries(selectFilters).map(([name, [label, options]]) => filters.includes(name) && (
+                    <div className="col-xl-3 col-xxl-6" key={name}>
+                      <Select
+                        isSearchable={false}
+                        options={toSelectOptions(options)}
+                        className="custom-react-select mb-3 mb-xxl-0"
+                        classNamePrefix="rti-react-select"
+                        isClearable
+                        placeholder={label}
+                        value={values[name] ? selectOption(values[name]) : null}
+                        onChange={(option) => onChange(name, option?.value || "")}
+                      />
+                    </div>
+                  ))}
+                  <div className="col-xl-3 col-xxl-6">
+                    <input type="date" name="datepicker" className="form-control mb-xxl-0 mb-3" />
+                  </div>
+                  <div className="col-xl-3 col-xxl-6">
+                    <button className="btn btn-primary me-2" title="Click here to Search" type="button">
+                      <i className="fa fa-search me-1"></i>Filter
+                    </button>
+                    <button className="btn btn-danger light" title="Click here to remove filter" type="button" onClick={onReset}>Remove</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Collapse>
+        </div>
       </div>
     </div>
   );
@@ -759,7 +851,7 @@ const FilterBar = ({ filters = [], values, onChange }) => {
 
 const DashboardCards = ({ stats = [], selected = "all", onSelect }) => (
   <div className="row rti-dashboard-cards">
-    {stats.map(([label, value, icon, color, key]) => (
+    {stats.map(([label, value, icon, color, key], index) => (
       <div className="col" key={label}>
         <button type="button" className={`card avtivity-card w-100 text-start ${selected === key ? "rti-card-active" : ""}`} onClick={() => onSelect(key)}>
           <div className="card-body">
@@ -773,12 +865,58 @@ const DashboardCards = ({ stats = [], selected = "all", onSelect }) => (
               </div>
             </div>
           </div>
+          <div className="rti-card-progress">
+            <div
+              className={`progress-bar progress-bar-striped bg-${color}`}
+              style={{ width: `${[85, 70, 55, 65, 45][index] || 60}%` }}
+            />
+          </div>
           <div className={`effect bg-${color}`} />
         </button>
       </div>
     ))}
   </div>
 );
+
+const setActiveRecord = (slug, row) => {
+  sessionStorage.setItem(activeRecordKey(slug), rowKey(row));
+};
+
+const openWithdrawalInvoice = (row) => {
+  const subtotal = Number(row.amount || 0);
+  const gst = Number(row.gstAmount || 0);
+  const total = Number(row.totalAmount || subtotal + gst);
+  const invoiceHtml = `
+    <html>
+      <head>
+        <title>Invoice ${row.transactionId || ""}</title>
+        <style>
+          body{font-family:Arial,sans-serif;margin:24px;color:#111827}.card{border:1px solid #ddd;border-radius:8px}.card-header{padding:14px 18px;border-bottom:1px solid #ddd}.card-body{padding:18px}.row{display:flex;flex-wrap:wrap;margin:0 -10px}.col{padding:10px;flex:1 1 240px}.right{text-align:right}.center{text-align:center}.brand{display:flex;align-items:center;gap:10px;margin-bottom:12px}.brand img{height:52px}.qr{width:110px}.table{width:100%;border-collapse:collapse;margin:18px 0}.table th,.table td{border-bottom:1px solid #e5e7eb;padding:10px;text-align:left}.table th.right,.table td.right{text-align:right}.table th.center,.table td.center{text-align:center}.summary{margin-left:auto;width:320px}.summary td{padding:8px;border-bottom:1px solid #e5e7eb}@media print{button{display:none}}
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="card-header">Invoice <strong>${formatDisplayDate(row.paidAt || row.createdAt || new Date())}</strong><span style="float:right"><strong>Status:</strong> ${row.status || "Pending"}</span></div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col"><h6>From:</h6><strong>RTI Admin Dashboard</strong><div>Roofze Digital Hub</div><div>Email: admin@rti.com</div><div>Phone: +91 98765 43210</div></div>
+              <div class="col"><h6>To:</h6><strong>${row.userId || "User"}</strong><div>Order: ${row.orderId || "-"}</div><div>Payment: ${row.paymentId || "-"}</div><div>Method: ${row.paymentMethod || "-"}</div></div>
+              <div class="col"><div class="brand"><img src="${logo}" /><strong>RTI</strong></div><span>Please verify exact amount:<strong style="display:block">₹${total}</strong><strong>${row.transactionId || "-"}</strong></span><br/><small>Generated from withdrawal details</small><div><img src="${qrcode}" class="qr" /></div></div>
+            </div>
+            <table class="table"><thead><tr><th class="center">#</th><th>Item</th><th>Description</th><th class="right">Unit Cost</th><th class="center">Qty</th><th class="right">Total</th></tr></thead><tbody>
+              <tr><td class="center">1</td><td>Withdrawal</td><td>${row.transactionId || "Withdrawal request"}</td><td class="right">₹${subtotal}</td><td class="center">1</td><td class="right">₹${subtotal}</td></tr>
+              <tr><td class="center">2</td><td>GST</td><td>Tax Amount</td><td class="right">₹${gst}</td><td class="center">1</td><td class="right">₹${gst}</td></tr>
+            </tbody></table>
+            <table class="summary"><tbody><tr><td><strong>Subtotal</strong></td><td class="right">₹${subtotal}</td></tr><tr><td><strong>GST</strong></td><td class="right">₹${gst}</td></tr><tr><td><strong>Total</strong></td><td class="right"><strong>₹${total}</strong></td></tr></tbody></table>
+          </div>
+        </div>
+        <script>window.print()</script>
+      </body>
+    </html>`;
+  const win = window.open("", "_blank");
+  win?.document.write(invoiceHtml);
+  win?.document.close();
+};
 
 const ActionButtons = ({ slug, actions, row, onDelete, onStatus }) => (
   <div className="rti-action-buttons">
@@ -788,18 +926,18 @@ const ActionButtons = ({ slug, actions, row, onDelete, onStatus }) => (
       </a>
     )}
     {actions.includes("view") && (
-      <Link to={`/admin/${slug}/view`} className="btn btn-info shadow btn-xs sharp">
+      <Link to={`/admin/${slug}/view`} className="btn btn-info shadow btn-xs sharp" onClick={() => setActiveRecord(slug, row)}>
         <i className="fa fa-eye" />
       </Link>
     )}
     {actions.includes("update") && (
-      <Link to={`/admin/${slug}/update`} className="btn btn-primary shadow btn-xs sharp">
+      <Link to={`/admin/${slug}/update`} className="btn btn-primary shadow btn-xs sharp" onClick={() => setActiveRecord(slug, row)}>
         <i className="fas fa-pen" />
       </Link>
     )}
     {actions.includes("invoice") && (
-      <button type="button" onClick={() => window.print()} className="btn btn-secondary shadow btn-xs sharp">
-        <i className="fa fa-print" />
+      <button type="button" onClick={() => openWithdrawalInvoice(row)} className="btn btn-secondary shadow btn-xs sharp">
+        <i className="fa fa-download" />
       </button>
     )}
     {actions.includes("send") && (
@@ -834,7 +972,7 @@ const CellValue = ({ field, row, slug, onImage }) => {
   if (field === "status") return statusBadge(row.status);
   if (field === "pdfFiles") {
     return (
-      <a href={pdfUrl} target="_blank" rel="noreferrer" className="text-primary">
+      <a href={row.pdfFilesUrl || pdfUrl} target="_blank" rel="noreferrer" className="text-primary">
         <i className="fa fa-file-pdf me-1" />
         {row.pdfFiles}
       </a>
@@ -844,7 +982,7 @@ const CellValue = ({ field, row, slug, onImage }) => {
   const text = formatDisplayDate(value) || value;
   if (typeof text === "string" && text.length > 24) {
     return (
-      <Link to={`/admin/${slug}/view`} className="rti-truncate-link" title={text}>
+      <Link to={`/admin/${slug}/view`} className="rti-truncate-link" title={text} onClick={() => setActiveRecord(slug, row)}>
         {text}
       </Link>
     );
@@ -959,6 +1097,10 @@ export const ModuleList = ({ slug }) => {
     setFilters((current) => ({ ...current, [name]: value }));
     setPage(1);
   };
+  const resetFilters = () => {
+    setFilters((current) => Object.fromEntries(Object.keys(current).map((key) => [key, ""])));
+    setPage(1);
+  };
 
   const addLabel =
     slug === "user-profile" ? "Add User" :
@@ -979,9 +1121,9 @@ export const ModuleList = ({ slug }) => {
       <AppToast show={Boolean(toast)} message={toast} onClose={() => setToast("")} />
       {config.stats && <DashboardCards stats={config.stats} selected={cardFilter} onSelect={setCardFilter} />}
       <div className="col-12">
-        <div className="card">
+        <div className="card rti-module-table-card">
           <div className="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <h4 className="card-title mb-0">{config.title} List</h4>
+            <h4 className="card-title mb-0 rti-table-title-tab">{config.title} List</h4>
             {config.add && (
               <Link to={`/admin/${slug}/add`} className="btn btn-primary btn-sm">
                 <i className="fa fa-plus me-2" />
@@ -990,7 +1132,7 @@ export const ModuleList = ({ slug }) => {
             )}
           </div>
           <div className="card-body">
-            <FilterBar filters={config.filters} values={filters} onChange={onFilterChange} />
+            <FilterBar filters={config.filters} values={filters} onChange={onFilterChange} onReset={resetFilters} slug={slug} />
             <div className="table-responsive rti-desktop-table">
               <table className="table table-responsive-md">
                 <thead>
@@ -1074,11 +1216,11 @@ export const ModuleList = ({ slug }) => {
         show={Boolean(statusRow)}
         title="Status Confirmation"
         row={statusRow}
-        message={`Do you want to change ${pickRecordTitle(statusRow)} from ${statusRow?.status || "Active"} to ${isPositiveStatus(statusRow?.status || "Active") ? "Inactive" : "Active"}?`}
+        message={`Do you want to change ${pickRecordTitle(statusRow)} from ${statusRow?.status || "Active"} to ${nextStatusForSlug(slug, statusRow?.status || "Active")}?`}
         confirmText="Yes"
         onHide={() => setStatusRow(null)}
         onConfirm={() => {
-          const nextRows = moduleRows.map((item) => item === statusRow ? { ...item, status: isPositiveStatus(item.status || "Active") ? "Inactive" : "Active" } : item);
+          const nextRows = moduleRows.map((item) => item === statusRow ? { ...item, status: nextStatusForSlug(slug, item.status || "Active") } : item);
           setModuleRows(nextRows);
           saveStoredRows(slug, nextRows.filter((item) => item._local));
           setStatusRow(null);
@@ -1097,9 +1239,14 @@ const DetailGrid = ({ fields, row, onStatus }) => (
         <div className="border-bottom py-3">
           <small className="text-muted d-block">{labels[field] || field}</small>
           <strong>
-            {field === "status" ? <StatusToggle active={isPositiveStatus(row[field] || "Active")} onClick={onStatus} /> : field === "pdfFiles" || field.toLowerCase().includes("pdf") ? (
-              <a href={pdfUrl} target="_blank" rel="noreferrer">
+            {field === "status" ? <StatusToggle status={row[field] || "Active"} onClick={onStatus} /> : field === "pdfFiles" || field.toLowerCase().includes("pdf") ? (
+              <a href={row[`${field}Url`] || pdfUrl} target="_blank" rel="noreferrer">
                 <i className="fa fa-file-pdf me-1" />
+                {row[field] || labels[field]}
+              </a>
+            ) : field === "mediaFile" && row.mediaFileUrl ? (
+              <a href={row.mediaFileUrl} target="_blank" rel="noreferrer">
+                <i className="fa fa-paperclip me-1" />
                 {row[field] || labels[field]}
               </a>
             ) : (
@@ -1113,53 +1260,49 @@ const DetailGrid = ({ fields, row, onStatus }) => (
 );
 
 const ProfileDetailLayout = ({ row, config, onImage, onStatus }) => (
-  <div className="row">
-    <div className="col-xl-4">
-      <div className="card">
-        <div className="card-body text-center">
+  <div className="card rti-profile-details-card">
+    <div className="card-header d-flex align-items-center justify-content-between flex-wrap gap-3">
+      <div className="d-flex align-items-center gap-3">
+        <div>
           <button type="button" className="rti-image-button" onClick={() => onImage(row.image || profile)}>
-            <img src={row.image || profile} alt={row.name || row.username} className="rounded-circle mb-3" width="110" height="110" />
+            <img src={row.image || profile} alt={row.name || row.username} className="rounded-circle rti-profile-detail-avatar" />
           </button>
-          <h4>{row.name || row.username}</h4>
-          <p className="mb-2">{row.profileId || row.userId}</p>
+        </div>
+        <div>
+          <h4 className="card-title mb-1">{row.name || row.username}</h4>
+          <p className="mb-0 text-muted">{row.profileId || row.userId}</p>
         </div>
       </div>
+      <h4 className="card-title mb-0">{config.profileView ? "Profile Details" : "Network Details"}</h4>
     </div>
-    <div className="col-xl-8">
-      <div className="card">
-        <div className="card-header d-flex justify-content-between">
-          <h4 className="card-title mb-0">{config.profileView ? "Profile Details" : "Network Details"}</h4>
-        </div>
-        <div className="card-body">
-          <DetailGrid fields={config.details} row={row} onStatus={onStatus} />
-          {config.profileView && (
-            <div className="row mt-3">
-              <div className="col-xl-6">
-                <h5>Subscription Plan</h5>
-                <p><strong>Plan Name:</strong> {row.planName}</p>
-                <p><strong>Start Date:</strong> {row.startDate}</p>
-                <p><strong>End Date:</strong> {row.endDate}</p>
-                <p><strong>Status:</strong> {statusBadge(row.subscriptionStatus)}</p>
-              </div>
-              <div className="col-xl-6">
-                <h5>Documents</h5>
-                <div className="d-flex flex-wrap gap-2">
-                  {["User ID PDF", "Certification PDF", "Appointment Letter PDF"].map((doc) => (
-                    <a href={pdfUrl} target="_blank" rel="noreferrer" className="btn btn-outline-primary btn-sm" key={doc}>
-                      <i className="fa fa-file-pdf me-2" />
-                      {doc}
-                    </a>
-                  ))}
-                </div>
-              </div>
-              <div className="col-12 mt-3">
-                <h5>Bio</h5>
-                <p className="mb-0">{row.bio}</p>
-              </div>
+    <div className="card-body">
+      <DetailGrid fields={config.details} row={row} onStatus={onStatus} />
+      {config.profileView && (
+        <div className="row mt-3">
+          <div className="col-xl-6">
+            <h5>Subscription Plan</h5>
+            <p><strong>Plan Name:</strong> {row.planName}</p>
+            <p><strong>Start Date:</strong> {row.startDate}</p>
+            <p><strong>End Date:</strong> {row.endDate}</p>
+            <p><strong>Status:</strong> {statusBadge(row.subscriptionStatus)}</p>
+          </div>
+          <div className="col-xl-6">
+            <h5>Documents</h5>
+            <div className="d-flex flex-wrap gap-2">
+              {["User ID PDF", "Certification PDF", "Appointment Letter PDF"].map((doc) => (
+                <a href={pdfUrl} target="_blank" rel="noreferrer" className="btn btn-outline-primary btn-sm" key={doc}>
+                  <i className="fa fa-file-pdf me-2" />
+                  {doc}
+                </a>
+              ))}
             </div>
-          )}
+          </div>
+          <div className="col-12 mt-3">
+            <h5>Bio</h5>
+            <p className="mb-0">{row.bio}</p>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   </div>
 );
@@ -1248,7 +1391,7 @@ const QuizDetail = ({ row, editable = false }) => {
 
 export const ModuleView = ({ slug }) => {
   const config = getConfig(slug);
-  const [row, setRow] = useState(() => firstRow(slug));
+  const [row, setRow] = useState(() => activeRow(slug));
   const [imagePreview, setImagePreview] = useState("");
   const [confirmStatus, setConfirmStatus] = useState(false);
   const [toast, setToast] = useState("");
@@ -1269,14 +1412,13 @@ export const ModuleView = ({ slug }) => {
         <ProfileDetailLayout row={row} config={config} onImage={setImagePreview} onStatus={() => setConfirmStatus(true)} />
       ) : (
         <>
-        {slug === "withdrawal" && <WithdrawalInvoice row={row} />}
         <div className="card">
           <div className="card-header d-flex justify-content-between">
             <h4 className="card-title mb-0">{config.title} Details</h4>
             {slug === "withdrawal" && (
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => window.print()}>
-                <i className="fa fa-print me-1" />
-                Open Invoice
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => openWithdrawalInvoice(row)}>
+                <i className="fa fa-download me-1" />
+                Download Invoice
               </button>
             )}
           </div>
@@ -1295,10 +1437,10 @@ export const ModuleView = ({ slug }) => {
         show={confirmStatus}
         title="Status Confirmation"
         row={row}
-        message={`Do you want to change ${pickRecordTitle(row)} from ${row.status || "Active"} to ${isPositiveStatus(row.status || "Active") ? "Inactive" : "Active"}?`}
+        message={`Do you want to change ${pickRecordTitle(row)} from ${row.status || "Active"} to ${nextStatusForSlug(slug, row.status || "Active")}?`}
         onHide={() => setConfirmStatus(false)}
         onConfirm={() => {
-          setRow((current) => ({ ...current, status: isPositiveStatus(current.status || "Active") ? "Inactive" : "Active" }));
+          setRow((current) => ({ ...current, status: nextStatusForSlug(slug, current.status || "Active") }));
           setConfirmStatus(false);
           setToast(`${pickRecordTitle(row)} status updated successfully`);
         }}
@@ -1308,8 +1450,13 @@ export const ModuleView = ({ slug }) => {
   );
 };
 
-const Field = ({ label, name, type = "text", as = "input", options, multiple = false, required = true, readOnly = false, accept }) => {
-  const [selected, setSelected] = useState(multiple ? [] : null);
+const Field = ({ label, name, type = "text", as = "input", options, multiple = false, required = true, readOnly = false, accept, value = "", allowCustom = false, onValueChange }) => {
+  const initialSelected = multiple
+    ? String(value || "").split(",").map((item) => item.trim()).filter(Boolean).map(selectOption)
+    : value ? selectOption(value) : null;
+  const [selected, setSelected] = useState(initialSelected);
+  const [textValue, setTextValue] = useState(value || "");
+  const [inputType, setInputType] = useState(type === "date" || type === "datetime-local" ? "text" : type);
   const dateLike = type === "date" || type === "datetime-local";
   const hiddenValue = multiple ? selected.map((option) => option.value).join(", ") : selected?.value || "";
 
@@ -1319,7 +1466,23 @@ const Field = ({ label, name, type = "text", as = "input", options, multiple = f
         {label} {required && <span className="text-danger">*</span>}
       </label>
       <div className="col-lg-8">
-        {as === "select" ? (
+        {allowCustom ? (
+          <>
+            <input
+              className="form-control"
+              list={`${name}-options`}
+              id={name}
+              name={name}
+              placeholder={label}
+              value={textValue}
+              onChange={(event) => setTextValue(event.target.value)}
+              required={required}
+            />
+            <datalist id={`${name}-options`}>
+              {(options || []).map((option) => <option value={option} key={option} />)}
+            </datalist>
+          </>
+        ) : as === "select" ? (
           <div className="card-body Cms-selecter p-0">
             <label className="from-label visually-hidden">{label}</label>
             <Select
@@ -1328,32 +1491,48 @@ const Field = ({ label, name, type = "text", as = "input", options, multiple = f
               classNamePrefix="rti-react-select"
               isClearable
               isMulti={multiple}
+              closeMenuOnSelect={!multiple}
+              components={multiple ? { ClearIndicator } : undefined}
+              styles={multiple ? { clearIndicator: ClearIndicatorStyles } : undefined}
               placeholder={label}
               value={selected}
-              onChange={(value) => setSelected(value || (multiple ? [] : null))}
+              onChange={(value) => {
+                setSelected(value || (multiple ? [] : null));
+                if (!multiple) onValueChange?.(value?.value || "");
+              }}
             />
-            <input type="hidden" id={name} name={name} value={hiddenValue} />
+            <input type="hidden" id={name} name={name} value={hiddenValue} readOnly />
           </div>
         ) : as === "textarea" ? (
-          <textarea className="form-control" id={name} name={name} rows="5" placeholder={label} defaultValue="" />
+          <textarea className="form-control" id={name} name={name} rows="5" placeholder={label} value={textValue} onChange={(event) => setTextValue(event.target.value)} />
         ) : (
           <input
-            type={dateLike ? "text" : type}
+            type={inputType}
             className="form-control"
             id={name}
             name={name}
             placeholder={dateLike ? "08-May-2026" : label}
             readOnly={readOnly}
             accept={accept}
+            value={type === "file" ? undefined : textValue}
             pattern={type === "tel" ? indianPhonePattern : undefined}
             maxLength={type === "tel" ? 10 : undefined}
-            min={type === "date" ? todayInput : undefined}
+            min={dateLike ? todayInput : undefined}
             required={required}
+            onFocus={dateLike ? () => {
+              setTextValue(toDateInputValue(textValue));
+              setInputType(type);
+            } : undefined}
+            onChange={(event) => {
+              if (type !== "file") setTextValue(event.currentTarget.value);
+            }}
             onBlur={dateLike ? (event) => {
-              event.currentTarget.value = formatDisplayDate(event.currentTarget.value) || event.currentTarget.value;
+              setInputType("text");
+              setTextValue(formatDisplayDate(event.currentTarget.value) || event.currentTarget.value);
             } : undefined}
             onInput={type === "tel" ? (event) => {
               event.currentTarget.value = event.currentTarget.value.replace(/\D/g, "").slice(0, 10);
+              setTextValue(event.currentTarget.value);
             } : undefined}
           />
         )}
@@ -1362,9 +1541,19 @@ const Field = ({ label, name, type = "text", as = "input", options, multiple = f
   );
 };
 
-const makeRecordFromForm = (slug, config, form) => {
+const makeRecordFromForm = async (slug, config, form, existing = {}) => {
   const formData = new FormData(form);
-  const data = Object.fromEntries(Array.from(formData.entries()).map(([key, value]) => [key, value instanceof File ? value.name : value]));
+  const data = {};
+  for (const [key, value] of formData.entries()) {
+    if (value instanceof File) {
+      if (value.size) {
+        data[key] = value.name;
+        data[`${key}Url`] = await readFileAsDataUrl(value);
+      }
+      continue;
+    }
+    data[key] = value;
+  }
   const now = formatDisplayDate(new Date());
   const generatedId = `${slug.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-5)}`;
   const questionNumbers = Array.from(form.querySelectorAll("[data-question-number]")).map((node) => node.dataset.questionNumber);
@@ -1380,12 +1569,15 @@ const makeRecordFromForm = (slug, config, form) => {
   })).filter((question) => question.question);
 
   return {
+    ...existing,
     _local: true,
-    sr: Date.now(),
-    id: data.id || data["news-id"] || data["epaper-id"] || data["ad-id"] || data["office-id"] || generatedId,
-    userId: data["user-id"] || data["rank-user-id"] || generatedId,
-    profileId: data["user-id"] || generatedId,
-    transactionId: data["transaction-id"] || generatedId,
+    _rowKey: rowKey(existing) || generatedId,
+    sr: existing.sr || Date.now(),
+    id: data.id || data["news-id"] || data["epaper-id"] || data["ad-id"] || data["office-id"] || existing.id || generatedId,
+    adId: data["ad-id"] || existing.adId || "",
+    userId: data["user-id"] || data["rank-user-id"] || existing.userId || generatedId,
+    profileId: data["user-id"] || existing.profileId || generatedId,
+    transactionId: data["transaction-id"] || existing.transactionId || generatedId,
     orderId: data["order-id"] || "",
     name: data["full-name"] || data.name || data.title || "New Record",
     username: data.username || data["full-name"] || data.title || "New Record",
@@ -1394,7 +1586,7 @@ const makeRecordFromForm = (slug, config, form) => {
     email: data.email || "",
     phone: data.phone || data["mobile-number"] || "",
     mobileNumber: data["mobile-number"] || data.phone || "",
-    image: ["user", "ad"].includes(config.form) ? profile : undefined,
+    image: data.imageUrl || data["media-fileUrl"] || existing.image || (["user", "ad"].includes(config.form) ? profile : undefined),
     state: data.state || "",
     district: data.district || "",
     taluka: data.taluka || "",
@@ -1407,15 +1599,19 @@ const makeRecordFromForm = (slug, config, form) => {
     productName: data["product-name"] || "",
     officeName: data["office-name"] || "",
     address: data.address || "",
+    mapLink: data["map-link"] || existing.mapLink || "",
     userType: data["user-type"] || "",
-    mediaFile: data["media-file"] || "",
-    pdfFiles: data["pdf-files"] || "",
+    mediaFile: data["media-file"] || existing.mediaFile || "",
+    mediaFileUrl: data["media-fileUrl"] || existing.mediaFileUrl || "",
+    pdfFiles: data["pdf-files"] || existing.pdfFiles || "",
+    pdfFilesUrl: data["pdf-filesUrl"] || existing.pdfFilesUrl || "",
     publishDate: formatDisplayDate(data["publish-date"]) || "",
     totalPage: data["total-page"] || "",
     amount: data.amount || data.price || "",
     price: data.price || "",
     offerPrice: data["offer-price"] || "",
     message: data.message || "",
+    sentBy: data["sent-by"] || existing.sentBy || "",
     description: data.description || data.bio || "",
     bio: data.bio || data.description || "",
     status: data.status || "Active",
@@ -1435,15 +1631,15 @@ const makeRecordFromForm = (slug, config, form) => {
     startDateTime: formatDisplayDate(data["start-date-time"]) || "",
     endDateTime: formatDisplayDate(data["end-date-time"]) || "",
     sentAt: formatDisplayDate(data["sent-at"]) || "",
-    createdDate: now,
+    createdDate: existing.createdDate || now,
     createdAt: formatDisplayDate(data["created-at"]) || now,
     updatedAt: formatDisplayDate(data["updated-at"]) || now,
   };
 };
 
-const ImageUpload = ({ title = "Profile Image Upload" }) => {
+const ImageUpload = ({ title = "Profile Image Upload", value = "" }) => {
   const [file, setFile] = useState();
-  const preview = file ? URL.createObjectURL(file) : profile;
+  const preview = file ? URL.createObjectURL(file) : value || profile;
 
   return (
     <div className="form-group mb-3 row">
@@ -1455,7 +1651,7 @@ const ImageUpload = ({ title = "Profile Image Upload" }) => {
               <div id="imagePreview" style={{ backgroundImage: `url(${preview})` }} />
             </div>
             <div className="change-btn d-flex align-items-center flex-wrap">
-              <input type="file" accept="image/*" onChange={(event) => setFile(event.target.files?.[0])} id="imageUpload" className="form-control d-none" />
+              <input type="file" name="image" accept="image/*" onChange={(event) => setFile(event.target.files?.[0])} id="imageUpload" className="form-control d-none" />
               <label htmlFor="imageUpload" className="btn btn-light ms-0">Select Image</label>
             </div>
           </div>
@@ -1465,8 +1661,20 @@ const ImageUpload = ({ title = "Profile Image Upload" }) => {
   );
 };
 
-const FileUpload = ({ label, accept = ".pdf,image/*,video/*", required = true }) => (
-  <Field label={label} name={label.toLowerCase().replaceAll(" ", "-")} type="file" accept={accept} required={required} />
+const FileUpload = ({ label, accept = ".pdf,image/*,video/*", required = true, currentName = "", currentUrl = "" }) => (
+  <>
+    <Field label={label} name={label.toLowerCase().replaceAll(" ", "-")} type="file" accept={accept} required={required && !currentName} />
+    {currentName && (
+      <div className="form-group mb-3 row">
+        <div className="col-lg-8 ms-auto">
+          <a href={currentUrl || pdfUrl} target="_blank" rel="noreferrer" className="btn btn-outline-primary btn-sm">
+            <i className="fa fa-paperclip me-1" />
+            {currentName}
+          </a>
+        </div>
+      </div>
+    )}
+  </>
 );
 
 const formFields = {
@@ -1496,7 +1704,7 @@ const formFields = {
     ["Category", "category", "select", newsCategories],
     ["Status", "status", "select", ["Active", "Inactive"]],
     ["Media File", "media-file", "file"],
-    ["Created At", "created-at", "date"],
+    ["Create Date", "created-at", "date"],
     ["Description", "description", "textarea"],
   ],
   subscription: [
@@ -1548,8 +1756,9 @@ const formFields = {
   ],
 };
 
-const QuizQuestions = () => {
-  const [questions, setQuestions] = useState([1]);
+const QuizQuestions = ({ currentRow = {} }) => {
+  const existingQuestions = currentRow.questions?.length ? currentRow.questions : [];
+  const [questions, setQuestions] = useState(existingQuestions.length ? existingQuestions.map((_, index) => index + 1) : [1]);
   const totalMarks = questions.length * 5;
 
   return (
@@ -1569,16 +1778,16 @@ const QuizQuestions = () => {
               <i className="fa fa-trash" />
             </button>
           </div>
-          <Field label="Question" name={`question-${item}`} as="textarea" />
-          <Field label="Marks" name={`marks-${item}`} type="number" />
+          <Field label="Question" name={`question-${item}`} as="textarea" value={existingQuestions[item - 1]?.question || ""} />
+          <Field label="Marks" name={`marks-${item}`} type="number" value={existingQuestions[item - 1]?.marks || ""} />
           <div className="row">
-            <div className="col-xl-6"><Field label="Option A" name={`option-a-${item}`} /></div>
-            <div className="col-xl-6"><Field label="Option B" name={`option-b-${item}`} /></div>
-            <div className="col-xl-6"><Field label="Option C" name={`option-c-${item}`} /></div>
-            <div className="col-xl-6"><Field label="Option D" name={`option-d-${item}`} /></div>
+            <div className="col-xl-6"><Field label="Option A" name={`option-a-${item}`} value={existingQuestions[item - 1]?.optionA || ""} /></div>
+            <div className="col-xl-6"><Field label="Option B" name={`option-b-${item}`} value={existingQuestions[item - 1]?.optionB || ""} /></div>
+            <div className="col-xl-6"><Field label="Option C" name={`option-c-${item}`} value={existingQuestions[item - 1]?.optionC || ""} /></div>
+            <div className="col-xl-6"><Field label="Option D" name={`option-d-${item}`} value={existingQuestions[item - 1]?.optionD || ""} /></div>
           </div>
-          <Field label="Correct Answer" name={`correct-${item}`} as="select" options={["A", "B", "C", "D"]} />
-          <Field label="Explanation" name={`explanation-${item}`} as="textarea" />
+          <Field label="Correct Answer" name={`correct-${item}`} as="select" options={["A", "B", "C", "D"]} value={existingQuestions[item - 1]?.correctAnswer || ""} />
+          <Field label="Explanation" name={`explanation-${item}`} as="textarea" value={existingQuestions[item - 1]?.explanation || ""} />
         </div>
       ))}
     </>
@@ -1590,6 +1799,12 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
   const navigate = useNavigate();
   const fields = formFields[config.form] || [];
   const isQuiz = config.form === "quiz";
+  const currentRow = mode === "Update" ? activeRow(slug) : {};
+  const [locationState, setLocationState] = useState({
+    state: currentRow.state || "",
+    district: currentRow.district || "",
+    taluka: currentRow.taluka || "",
+  });
 
   const allFields = useMemo(() => {
     if (!isQuiz) return fields;
@@ -1611,6 +1826,72 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
       : `Create ${config.title}`
       : slug === "subscription-plan" ? "Create Subscription" : `Update ${config.title}`;
 
+  const fieldValue = (name) => {
+    const map = {
+      "user-id": currentRow.userId,
+      "full-name": currentRow.name,
+      "mobile-number": currentRow.mobileNumber || currentRow.phone,
+      "rank-user-id": currentRow.userId,
+      "required-referrals": currentRow.requiredReferrals,
+      "commission-percentage": currentRow.commissionPercentage || currentRow.commission,
+      "reward-amount": currentRow.rewardAmount,
+      "news-id": currentRow.id,
+      "created-at": currentRow.createdAt,
+      "epaper-id": currentRow.id,
+      "publish-date": currentRow.publishDate,
+      "total-page": currentRow.totalPage,
+      "ad-id": currentRow.adId || currentRow.id,
+      "product-name": currentRow.productName || currentRow.product,
+      "offer-price": currentRow.offerPrice,
+      "start-date": currentRow.subscriptionStartDate || currentRow.startDate,
+      "end-date": currentRow.subscriptionEndDate || currentRow.endDate,
+      "start-date-time": currentRow.startDateTime,
+      "end-date-time": currentRow.endDateTime,
+      "media-file": currentRow.mediaFile,
+      "pdf-files": currentRow.pdfFiles,
+      "office-id": currentRow.id,
+      "office-name": currentRow.officeName,
+      "map-link": currentRow.mapLink,
+      "user-type": currentRow.userType,
+      "sent-by": currentRow.sentBy,
+      "sent-at": currentRow.sentAt,
+      "updated-at": currentRow.updatedAt,
+      "test-types": currentRow.testType,
+    };
+    return map[name] ?? currentRow[name] ?? "";
+  };
+
+  const renderField = ([label, name, type, options]) => {
+    if (config.form === "subscription" && ["state", "district", "taluka"].includes(name)) {
+      const dynamicOptions = name === "state"
+        ? states
+        : name === "district"
+          ? districtMap[locationState.state] || defaultDistricts
+          : (locationState.district ? [`${locationState.district} Taluka 1`, `${locationState.district} Taluka 2`, `${locationState.district} Taluka 3`] : defaultTalukas);
+      return (
+        <Field
+          key={`${name}-${locationState.state}-${locationState.district}`}
+          label={label}
+          name={name}
+          as="select"
+          options={dynamicOptions}
+          value={locationState[name]}
+          onValueChange={(value) => setLocationState((current) => ({
+            ...current,
+            [name]: value,
+            ...(name === "state" ? { district: "", taluka: "" } : {}),
+            ...(name === "district" ? { taluka: "" } : {}),
+          }))}
+        />
+      );
+    }
+    if (type === "select") return <Field key={name} label={label} name={name} as="select" options={options} value={fieldValue(name)} allowCustom={config.form === "news" && name === "category"} />;
+    if (type === "select-multiple") return <Field key={name} label={label} name={name} as="select" options={options} multiple value={fieldValue(name)} />;
+    if (type === "textarea") return <Field key={name} label={label} name={name} as="textarea" value={fieldValue(name)} />;
+    if (type === "file") return <FileUpload key={name} label={label} currentName={fieldValue(name)} currentUrl={name === "media-file" ? currentRow.mediaFileUrl : name === "pdf-files" ? currentRow.pdfFilesUrl : ""} />;
+    return <Field key={name} label={label} name={name} type={type || "text"} value={fieldValue(name)} />;
+  };
+
   return (
     <>
       <PageHeading title={`${mode} ${config.title}`}>
@@ -1624,48 +1905,43 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
           <h4 className="card-title mb-0">{mode} Form</h4>
         </div>
         <div className="card-body">
-          <form className="form-valide" onSubmit={(event) => {
+          <form className="form-valide" onSubmit={async (event) => {
             event.preventDefault();
-            const record = makeRecordFromForm(slug, config, event.currentTarget);
+            const record = await makeRecordFromForm(slug, config, event.currentTarget, currentRow);
             const currentRows = getStoredRows(slug);
-            const nextRows = mode === "Add" ? [record, ...currentRows] : [record, ...currentRows.slice(1)];
+            const currentKey = rowKey(currentRow);
+            const nextRows = mode === "Add"
+              ? [record, ...currentRows]
+              : currentRows.some((item) => rowKey(item) === currentKey)
+                ? currentRows.map((item) => rowKey(item) === currentKey ? record : item)
+                : [record, ...currentRows];
             saveStoredRows(slug, nextRows);
+            sessionStorage.setItem(activeRecordKey(slug), rowKey(record));
             sessionStorage.setItem("moduleToast", `${pickRecordTitle(record)} ${mode === "Add" ? "added" : "updated"} successfully`);
             navigate(`/admin/${slug}`);
           }}>
             <div className="row">
               <div className="col-xl-6">
-                {allFields.slice(0, Math.ceil(allFields.length / 2)).map(([label, name, type, options]) => {
-                  if (type === "select") return <Field key={name} label={label} name={name} as="select" options={options} />;
-                  if (type === "select-multiple") return <Field key={name} label={label} name={name} as="select" options={options} multiple />;
-                  if (type === "textarea") return <Field key={name} label={label} name={name} as="textarea" />;
-                  if (type === "file") return <FileUpload key={name} label={label} />;
-                  return <Field key={name} label={label} name={name} type={type || "text"} />;
-                })}
-                {config.form === "user" && <ImageUpload title="Profile Image Upload" />}
+                {allFields.slice(0, Math.ceil(allFields.length / 2)).map(renderField)}
+                {config.form === "user" && <ImageUpload title="Profile Image Upload" value={currentRow.image} />}
               </div>
               <div className="col-xl-6">
-                {allFields.slice(Math.ceil(allFields.length / 2)).map(([label, name, type, options]) => {
-                  if (type === "select") return <Field key={name} label={label} name={name} as="select" options={options} />;
-                  if (type === "select-multiple") return <Field key={name} label={label} name={name} as="select" options={options} multiple />;
-                  if (type === "textarea") return <Field key={name} label={label} name={name} as="textarea" />;
-                  if (type === "file") return <FileUpload key={name} label={label} />;
-                  return <Field key={name} label={label} name={name} type={type || "text"} />;
-                })}
+                {allFields.slice(Math.ceil(allFields.length / 2)).map(renderField)}
                 {config.form === "user" && (
                   <>
                     <FileUpload label="Certificate Upload" />
                     <FileUpload label="Appointment Letter Upload" />
                     <FileUpload label="User ID Card Upload" />
-                    <Field label="Bio Textarea" name="bio" as="textarea" />
+                    <Field label="Bio Textarea" name="bio" as="textarea" value={currentRow.bio || ""} />
                   </>
                 )}
               </div>
             </div>
-            {isQuiz && <QuizQuestions />}
+            {isQuiz && <QuizQuestions currentRow={currentRow} />}
             <div className="form-group mb-3 row">
               <div className="col-lg-8 ms-auto">
                 <button type="submit" className="btn btn-primary">{submitLabel}</button>
+                <Link to={`/admin/${slug}`} className="btn btn-light ms-2">Cancel</Link>
               </div>
             </div>
           </form>
@@ -1691,7 +1967,7 @@ const ModalShell = ({ slug, children }) => {
 
 export const ModuleDelete = ({ slug }) => {
   const navigate = useNavigate();
-  const row = firstRow(slug);
+  const row = activeRow(slug);
 
   return (
     <ModalShell slug={slug}>
@@ -1708,7 +1984,7 @@ export const ModuleDelete = ({ slug }) => {
 };
 
 export const ModuleStatus = ({ slug }) => {
-  const row = firstRow(slug);
+  const row = activeRow(slug);
   const [active, setActive] = useState((row.status || "Active") === "Active");
 
   return (
