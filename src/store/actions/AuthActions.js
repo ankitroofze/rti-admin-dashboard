@@ -4,7 +4,10 @@ export const loadingToggleAction = (status) => ({
 });
 
 export const loginAction = (email, password, navigate) => (dispatch) => {
-  if (email && password) {
+  const loginEmail = "demo@example.com";
+  const currentPassword = localStorage.getItem("rti-demo-password") || "123456";
+
+  if (email === loginEmail && password === currentPassword) {
     localStorage.setItem("authToken", "demo-admin-token");
     localStorage.setItem("userData", JSON.stringify({ email }));
     localStorage.setItem("lastActivityAt", String(Date.now()));
@@ -15,6 +18,6 @@ export const loginAction = (email, password, navigate) => (dispatch) => {
 
   dispatch({
     type: "LOGIN_ERROR",
-    payload: "Email and password are required",
+    payload: `Please use ${loginEmail} and the current password`,
   });
 };

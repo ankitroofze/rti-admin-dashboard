@@ -705,15 +705,13 @@ a {
 
 .rti-react-select__control {
   min-height: 42px !important;
-  max-height: 104px !important;
   border-color: #d8dde6 !important;
   border-radius: 8px !important;
   box-shadow: none !important;
 }
 
 .rti-react-select__value-container {
-  max-height: 96px !important;
-  overflow-y: auto !important;
+  overflow: visible !important;
 }
 
 .rti-react-select__multi-value {
@@ -766,11 +764,12 @@ a {
 }
 
 .rti-desktop-table thead th {
-  background: #eef2f7;
+  background: #f4f6fb;
   color: #111827;
   font-weight: 800;
   letter-spacing: 0;
-  border-bottom: 1px solid #d8dde6;
+  border-color: transparent !important;
+  border-bottom: 0;
 }
 
 .rti-truncate-link {
@@ -832,6 +831,49 @@ a {
   border: 1px solid #d8dde6 !important;
 }
 
+.rti-auth-white-card {
+  background: #fff !important;
+  border-radius: 8px;
+  box-shadow: 8px 10px 18px rgba(15, 23, 42, 0.16) !important;
+}
+
+.rti-auth-white-card .auth-form {
+  background: #fff !important;
+}
+
+.rti-forgot-page .form-control {
+  min-height: 46px;
+  border: 1px solid #d8dde6;
+  border-radius: 8px;
+  color: #111827;
+  box-shadow: none;
+}
+
+.rti-forgot-page .form-control:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.rti-auth-back-link,
+a.btn.btn-light:has(.fa-arrow-left) {
+  display: inline-flex;
+  align-items: center;
+  border: 0 !important;
+  background: transparent !important;
+  color: #2563eb !important;
+  box-shadow: none !important;
+  padding-left: 0;
+  padding-right: 0;
+  font-weight: 700;
+}
+
+.rti-auth-back-link:hover,
+a.btn.btn-light:has(.fa-arrow-left):hover {
+  background: transparent !important;
+  color: #173fbd !important;
+  text-decoration: underline;
+}
+
 [data-theme-version="dark"] .auth-form input[type="submit"].btn {
   border-color: #93c5fd !important;
   box-shadow: 0 0 0 1px rgba(147, 197, 253, 0.25);
@@ -839,11 +881,29 @@ a {
 
 .rti-question-editor,
 .rti-question-card {
-  padding: 18px;
-  margin-bottom: 16px;
+  padding: 14px;
+  margin-bottom: 12px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   background: #fff;
+}
+
+.rti-question-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.rti-question-title strong {
+  min-width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #eef5ff;
+  color: #173fbd;
 }
 
 [data-theme-version="dark"] .rti-question-editor,
@@ -1114,6 +1174,19 @@ select.form-control {
   background-size: 6px 6px, 6px 6px;
   background-repeat: no-repeat;
   padding-right: 34px;
+}
+
+input[type="date"],
+input[type="datetime-local"] {
+  color-scheme: light;
+  padding-right: 12px;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  display: block;
+  opacity: 1;
+  cursor: pointer;
 }
 
 .rti-confirm-record {

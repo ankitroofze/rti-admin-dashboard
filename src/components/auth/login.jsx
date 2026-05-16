@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { connect, useDispatch } from 'react-redux';
-import { useNavigate} from 'react-router-dom'
+import { Link, useNavigate} from 'react-router-dom'
 import { loadingToggleAction,loginAction,
 } from '../../store/actions/AuthActions';
 
@@ -98,6 +98,7 @@ function Login (props) {
 													<label className="form-check-label" htmlFor="basic_checkbox_1">Remember my preference</label>
 												</div>
 											</div>
+											<Link to="/forgot-password" className="text-primary fw-bold">Forgot Password?</Link>
 										</div>
 										<div className="text-center form-group mb-3">
 											<button type="submit" className="btn btn-primary btn-block">

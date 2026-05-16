@@ -27,11 +27,12 @@ export const moduleNames = {
   "contact-us": "Contact Us",
 };
 
-const indianPhonePattern = "[6-9][0-9]{9}";
+const indianPhonePattern = "(?!([0-9])\\1{9})[6-9][0-9]{9}";
+const emailPattern = "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$";
+const googleMapsPattern = "^https?:\\/\\/(www\\.)?(google\\.[a-z.]+\\/maps|maps\\.app\\.goo\\.gl|goo\\.gl\\/maps).+";
 const pdfUrl =
   "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
 
-const todayInput = new Date().toISOString().slice(0, 10);
 const rowKey = (row = {}) => String(row._rowKey || row.id || row.profileId || row.userId || row.transactionId || row.adId || row.title || row.sr || "");
 const activeRecordKey = (slug) => `rti-active-${slug}`;
 const selectOption = (value) => ({ value, label: value });
@@ -93,16 +94,67 @@ const states = [
   "Uttar Pradesh", "Uttarakhand", "West Bengal",
 ];
 
+const unionTerritories = [
+  "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry",
+];
+
+const stateOptions = [...states, ...unionTerritories];
+
 const districtMap = {
+  "Andhra Pradesh": ["Anantapur", "Chittoor", "East Godavari", "Guntur", "Krishna", "Kurnool", "Nellore", "Visakhapatnam"],
+  "Arunachal Pradesh": ["Itanagar Capital Complex", "Tawang", "West Kameng", "Lower Subansiri", "East Siang"],
+  Assam: ["Guwahati", "Dibrugarh", "Jorhat", "Silchar", "Tezpur"],
+  Bihar: ["Patna", "Gaya", "Bhagalpur", "Muzaffarpur", "Darbhanga"],
+  Chhattisgarh: ["Raipur", "Bilaspur", "Durg", "Korba", "Raigarh"],
+  Goa: ["North Goa", "South Goa"],
   Maharashtra: ["Pune", "Mumbai", "Nagpur", "Nashik"],
   Gujarat: ["Ahmedabad", "Surat", "Vadodara", "Rajkot"],
+  Haryana: ["Gurugram", "Faridabad", "Hisar", "Karnal", "Panipat"],
+  "Himachal Pradesh": ["Shimla", "Kangra", "Mandi", "Kullu", "Solan"],
+  Jharkhand: ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro", "Hazaribagh"],
+  Karnataka: ["Bengaluru Urban", "Mysuru", "Mangaluru", "Belagavi", "Hubballi Dharwad"],
+  Kerala: ["Thiruvananthapuram", "Kochi", "Kozhikode", "Thrissur", "Kannur"],
+  "Madhya Pradesh": ["Bhopal", "Indore", "Jabalpur", "Gwalior", "Ujjain"],
+  Manipur: ["Imphal East", "Imphal West", "Thoubal", "Bishnupur"],
+  Meghalaya: ["East Khasi Hills", "West Garo Hills", "Ri Bhoi", "Jaintia Hills"],
+  Mizoram: ["Aizawl", "Lunglei", "Champhai", "Kolasib"],
+  Nagaland: ["Kohima", "Dimapur", "Mokokchung", "Wokha"],
+  Odisha: ["Bhubaneswar", "Cuttack", "Puri", "Sambalpur", "Balasore"],
+  Punjab: ["Ludhiana", "Amritsar", "Jalandhar", "Patiala", "Bathinda"],
   "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Agra"],
   Rajasthan: ["Jaipur", "Jodhpur", "Udaipur", "Kota"],
+  Sikkim: ["Gangtok", "Namchi", "Gyalshing", "Mangan"],
+  "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Salem", "Tiruchirappalli"],
+  Telangana: ["Hyderabad", "Warangal", "Karimnagar", "Nizamabad", "Khammam"],
+  Tripura: ["West Tripura", "Sepahijala", "Gomati", "North Tripura"],
+  Uttarakhand: ["Dehradun", "Haridwar", "Nainital", "Udham Singh Nagar", "Almora"],
   "West Bengal": ["Kolkata", "Howrah", "Darjeeling", "Siliguri"],
+  "Andaman and Nicobar Islands": ["South Andaman", "North and Middle Andaman", "Nicobar"],
+  Chandigarh: ["Chandigarh"],
+  "Dadra and Nagar Haveli and Daman and Diu": ["Dadra and Nagar Haveli", "Daman", "Diu"],
+  Delhi: ["New Delhi", "Central Delhi", "South Delhi", "North Delhi", "East Delhi"],
+  "Jammu and Kashmir": ["Srinagar", "Jammu", "Anantnag", "Baramulla", "Udhampur"],
+  Ladakh: ["Leh", "Kargil"],
+  Lakshadweep: ["Kavaratti", "Agatti", "Minicoy"],
+  Puducherry: ["Puducherry", "Karaikal", "Mahe", "Yanam"],
 };
 
-const defaultDistricts = ["Central", "North", "South", "East", "West"];
-const defaultTalukas = ["Taluka 1", "Taluka 2", "Taluka 3", "Taluka 4"];
+const talukaMap = {
+  Pune: ["Haveli", "Mulshi", "Maval", "Baramati", "Shirur"],
+  Mumbai: ["Andheri", "Borivali", "Kurla", "Dadar"],
+  Nagpur: ["Nagpur Urban", "Kamptee", "Hingna", "Katol"],
+  Nashik: ["Nashik", "Igatpuri", "Sinnar", "Dindori"],
+  Ahmedabad: ["Daskroi", "Sanand", "Viramgam", "Dholka"],
+  Surat: ["Chorasi", "Olpad", "Kamrej", "Bardoli"],
+  Vadodara: ["Vadodara", "Padra", "Dabhoi", "Karjan"],
+  Rajkot: ["Rajkot", "Gondal", "Jetpur", "Dhoraji"],
+};
+
+const defaultDistricts = [];
+const defaultTalukas = [];
+const getDistrictOptions = (state) => districtMap[state] || [];
+const getTalukaOptions = (district) => talukaMap[district] || (district ? [`${district} Urban`, `${district} Rural`, `${district} Sadar`] : []);
 
 const newsCategories = [
   "Politics News", "National News", "International / World News", "Breaking News",
@@ -571,7 +623,7 @@ const moduleConfig = {
   },
   "news-notification": {
     title: "News Notification",
-    add: true,
+    add: false,
     filters: ["search", "userType"],
     rows: [
       {
@@ -695,7 +747,8 @@ const labels = {
 
 const getConfig = (slug) => moduleConfig[slug] || moduleConfig.dashboard;
 
-const storageKey = (slug) => `rti-module-${slug}`;
+const dataSlug = (slug) => slug === "dashboard" ? "user-profile" : slug;
+const storageKey = (slug) => `rti-module-${dataSlug(slug)}`;
 
 const getStoredRows = (slug) => {
   try {
@@ -713,8 +766,17 @@ const saveStoredRows = (slug, rows) => {
 const getRows = (slug) => {
   const storedRows = getStoredRows(slug);
   const storedKeys = new Set(storedRows.map(rowKey));
-  const baseRows = (getConfig(slug).rows || []).filter((row) => !storedKeys.has(rowKey(row)));
+  const baseRows = (getConfig(dataSlug(slug)).rows || getConfig(slug).rows || []).filter((row) => !storedKeys.has(rowKey(row)));
   return [...storedRows, ...baseRows].filter((row) => row && typeof row === "object");
+};
+const updateStoredRow = (slug, updatedRow) => {
+  const key = rowKey(updatedRow);
+  const rows = getRows(slug);
+  const nextRows = rows.some((item) => rowKey(item) === key)
+    ? rows.map((item) => rowKey(item) === key ? updatedRow : item)
+    : [updatedRow, ...rows];
+  saveStoredRows(slug, nextRows);
+  return nextRows;
 };
 const activeRow = (slug) => {
   const rows = getRows(slug);
@@ -772,8 +834,8 @@ const FilterBar = ({ filters = [], values, onChange, onReset, slug }) => {
   if (!filters.length) return null;
   const statusOptions = slug === "withdrawal" ? ["Approved", "Failed", "Pending"] : ["Active", "Inactive"];
   const selectFilters = {
-    state: ["State", states],
-    district: ["District", districtMap.Maharashtra || defaultDistricts],
+    state: ["State", stateOptions],
+    district: ["District", Object.values(districtMap).flat()],
     taluka: ["Taluka", defaultTalukas],
     status: ["Status", statusOptions],
     filterStatus: ["Filter Status", statusOptions],
@@ -831,7 +893,7 @@ const FilterBar = ({ filters = [], values, onChange, onReset, slug }) => {
                     </div>
                   ))}
                   <div className="col-xl-3 col-xxl-6">
-                    <input type="date" name="datepicker" className="form-control mb-xxl-0 mb-3" />
+                    <input type="date" name="datepicker" className="form-control mb-xxl-0 mb-3" value={values.dateFilter} onChange={(event) => onChange("dateFilter", event.target.value)} />
                   </div>
                   <div className="col-xl-3 col-xxl-6">
                     <button className="btn btn-primary me-2" title="Click here to Search" type="button">
@@ -1049,6 +1111,7 @@ export const ModuleList = ({ slug }) => {
     officeName: "",
     email: "",
     publishDate: "",
+    dateFilter: "",
     testType: "",
     taluka: "",
     district: "",
@@ -1070,11 +1133,16 @@ export const ModuleList = ({ slug }) => {
     const sourceRows = [...moduleRows];
     return sourceRows.filter((row) => {
       const haystack = Object.values(row).join(" ").toLowerCase();
+      const dateHaystack = Object.values(row).map((value) => formatDisplayDate(value) || value).join(" ").toLowerCase();
       if (cardFilter === "active" && row.status !== "Active") return false;
       if (cardFilter === "inactive" && row.status !== "Inactive") return false;
       if (cardFilter === "premium" && row.userType !== "Premium") return false;
       if (cardFilter === "new" && !String(row.createdDate || row.createdAt || "").includes("13 May 2026")) return false;
       if (filters.search && !haystack.includes(filters.search.toLowerCase())) return false;
+      if (filters.dateFilter) {
+        const formattedDate = formatDisplayDate(filters.dateFilter).toLowerCase();
+        if (!haystack.includes(formattedDate) && !dateHaystack.includes(formattedDate) && !haystack.includes(filters.dateFilter.toLowerCase())) return false;
+      }
       if (filters.profileId && !String(row.profileId || "").toLowerCase().includes(filters.profileId.toLowerCase())) return false;
       if (filters.name && !String(row.name || row.username || "").toLowerCase().includes(filters.name.toLowerCase())) return false;
       if (filters.phone && !String(row.phone || row.mobileNumber || "").includes(filters.phone)) return false;
@@ -1207,7 +1275,7 @@ export const ModuleList = ({ slug }) => {
         onConfirm={() => {
           const nextRows = moduleRows.filter((item) => item !== deleteRow);
           setModuleRows(nextRows);
-          saveStoredRows(slug, nextRows.filter((item) => item._local));
+          saveStoredRows(slug, nextRows);
           setDeleteRow(null);
           setToast(`${pickRecordTitle(deleteRow)} deleted successfully`);
         }}
@@ -1222,7 +1290,7 @@ export const ModuleList = ({ slug }) => {
         onConfirm={() => {
           const nextRows = moduleRows.map((item) => item === statusRow ? { ...item, status: nextStatusForSlug(slug, item.status || "Active") } : item);
           setModuleRows(nextRows);
-          saveStoredRows(slug, nextRows.filter((item) => item._local));
+          saveStoredRows(slug, nextRows);
           setStatusRow(null);
           setToast(`${pickRecordTitle(statusRow)} status updated successfully`);
         }}
@@ -1325,7 +1393,7 @@ const WithdrawalInvoice = ({ row }) => (
   </div>
 );
 
-const QuizDetail = ({ row, editable = false }) => {
+const QuizDetail = ({ row, editable = false, onStatus }) => {
   const [expanded, setExpanded] = useState(false);
   const questions = row.questions?.length ? row.questions : [{
     question: row.question,
@@ -1349,7 +1417,7 @@ const QuizDetail = ({ row, editable = false }) => {
           <div className="col-md-3"><strong>Subject:</strong> {row.subject || "-"}</div>
           <div className="col-md-3"><strong>Difficulty:</strong> {row.difficulty || "-"}</div>
           <div className="col-md-3"><strong>Test Type:</strong> {row.testType || "-"}</div>
-          <div className="col-md-3"><strong>Status:</strong> {statusBadge(row.status)}</div>
+          <div className="col-md-3"><strong>Status:</strong> <StatusToggle status={row.status || "Active"} onClick={onStatus} /></div>
         </div>
         {visibleQuestions.map((question, index) => (
           <div className="rti-question-card" key={`${question.question}-${index}`}>
@@ -1407,7 +1475,7 @@ export const ModuleView = ({ slug }) => {
         <h3 className="mb-0">{config.title} Details</h3>
       </div>
       {slug === "quiz" ? (
-        <QuizDetail row={row} />
+        <QuizDetail row={row} onStatus={() => setConfirmStatus(true)} />
       ) : config.profileView || slug === "network" ? (
         <ProfileDetailLayout row={row} config={config} onImage={setImagePreview} onStatus={() => setConfirmStatus(true)} />
       ) : (
@@ -1440,7 +1508,12 @@ export const ModuleView = ({ slug }) => {
         message={`Do you want to change ${pickRecordTitle(row)} from ${row.status || "Active"} to ${nextStatusForSlug(slug, row.status || "Active")}?`}
         onHide={() => setConfirmStatus(false)}
         onConfirm={() => {
-          setRow((current) => ({ ...current, status: nextStatusForSlug(slug, current.status || "Active") }));
+          setRow((current) => {
+            const updated = { ...current, status: nextStatusForSlug(slug, current.status || "Active") };
+            updateStoredRow(slug, updated);
+            sessionStorage.setItem(activeRecordKey(slug), rowKey(updated));
+            return updated;
+          });
           setConfirmStatus(false);
           setToast(`${pickRecordTitle(row)} status updated successfully`);
         }}
@@ -1450,14 +1523,13 @@ export const ModuleView = ({ slug }) => {
   );
 };
 
-const Field = ({ label, name, type = "text", as = "input", options, multiple = false, required = true, readOnly = false, accept, value = "", allowCustom = false, onValueChange }) => {
+const Field = ({ label, name, type = "text", as = "input", options, multiple = false, required = true, readOnly = false, accept, value = "", allowCustom = false, onValueChange, disabled = false }) => {
   const initialSelected = multiple
     ? String(value || "").split(",").map((item) => item.trim()).filter(Boolean).map(selectOption)
     : value ? selectOption(value) : null;
   const [selected, setSelected] = useState(initialSelected);
-  const [textValue, setTextValue] = useState(value || "");
-  const [inputType, setInputType] = useState(type === "date" || type === "datetime-local" ? "text" : type);
-  const dateLike = type === "date" || type === "datetime-local";
+  const [textValue, setTextValue] = useState((type === "date" || type === "datetime-local") ? toDateInputValue(value) : value || "");
+  const inputType = type;
   const hiddenValue = multiple ? selected.map((option) => option.value).join(", ") : selected?.value || "";
 
   return (
@@ -1491,6 +1563,7 @@ const Field = ({ label, name, type = "text", as = "input", options, multiple = f
               classNamePrefix="rti-react-select"
               isClearable
               isMulti={multiple}
+              isDisabled={disabled}
               closeMenuOnSelect={!multiple}
               components={multiple ? { ClearIndicator } : undefined}
               styles={multiple ? { clearIndicator: ClearIndicatorStyles } : undefined}
@@ -1511,25 +1584,19 @@ const Field = ({ label, name, type = "text", as = "input", options, multiple = f
             className="form-control"
             id={name}
             name={name}
-            placeholder={dateLike ? "08-May-2026" : label}
+            placeholder={label}
             readOnly={readOnly}
             accept={accept}
             value={type === "file" ? undefined : textValue}
-            pattern={type === "tel" ? indianPhonePattern : undefined}
+            title={type === "tel" ? "Enter a 10 digit mobile number starting with 6, 7, 8 or 9. Repeated same digits are not allowed." : name === "map-link" ? "Enter a valid Google Maps link." : undefined}
             maxLength={type === "tel" ? 10 : undefined}
-            min={dateLike ? todayInput : undefined}
+            min={undefined}
             required={required}
-            onFocus={dateLike ? () => {
-              setTextValue(toDateInputValue(textValue));
-              setInputType(type);
-            } : undefined}
+            disabled={disabled}
+            pattern={name === "map-link" ? googleMapsPattern : type === "email" ? emailPattern : type === "tel" ? indianPhonePattern : undefined}
             onChange={(event) => {
               if (type !== "file") setTextValue(event.currentTarget.value);
             }}
-            onBlur={dateLike ? (event) => {
-              setInputType("text");
-              setTextValue(formatDisplayDate(event.currentTarget.value) || event.currentTarget.value);
-            } : undefined}
             onInput={type === "tel" ? (event) => {
               event.currentTarget.value = event.currentTarget.value.replace(/\D/g, "").slice(0, 10);
               setTextValue(event.currentTarget.value);
@@ -1637,6 +1704,51 @@ const makeRecordFromForm = async (slug, config, form, existing = {}) => {
   };
 };
 
+const looksLikeBadGmail = (email = "") => {
+  const domain = String(email).split("@")[1] || "";
+  return /g\s*m\s*a\s*i\s*l/i.test(domain) && domain.toLowerCase() !== "gmail.com";
+};
+
+const validateModuleForm = (slug, form) => {
+  const email = form.elements.email?.value || "";
+  if (email && (!new RegExp(emailPattern).test(email) || looksLikeBadGmail(email))) {
+    swal("Invalid Email", "Please enter a valid email address. Gmail addresses must end with @gmail.com.", "error");
+    form.elements.email?.focus();
+    return false;
+  }
+
+  const phoneInput = form.elements.phone || form.elements["mobile-number"];
+  if (phoneInput?.value && !new RegExp(`^${indianPhonePattern}$`).test(phoneInput.value)) {
+    swal("Invalid Phone Number", "Enter a unique 10 digit number starting with 6, 7, 8 or 9.", "error");
+    phoneInput.focus();
+    return false;
+  }
+
+  const mapLink = form.elements["map-link"]?.value || "";
+  if (mapLink && !new RegExp(googleMapsPattern, "i").test(mapLink)) {
+    swal("Invalid Map Link", "Please enter a valid Google Maps link.", "error");
+    form.elements["map-link"]?.focus();
+    return false;
+  }
+
+  const start = form.elements["start-date"]?.value || form.elements["start-date-time"]?.value || "";
+  const end = form.elements["end-date"]?.value || form.elements["end-date-time"]?.value || "";
+  if (start && end && new Date(end) <= new Date(start)) {
+    swal("Invalid Date Range", "End date must be after start date.", "error");
+    (form.elements["end-date"] || form.elements["end-date-time"])?.focus();
+    return false;
+  }
+
+  if (["user-profile", "subscription-plan"].includes(slug)) {
+    if (!form.elements.state?.value || !form.elements.district?.value || !form.elements.taluka?.value) {
+      swal("Location Required", "Please select state, district and taluka in order.", "error");
+      return false;
+    }
+  }
+
+  return true;
+};
+
 const ImageUpload = ({ title = "Profile Image Upload", value = "" }) => {
   const [file, setFile] = useState();
   const preview = file ? URL.createObjectURL(file) : value || profile;
@@ -1683,8 +1795,8 @@ const formFields = {
     ["Full Name", "full-name"],
     ["Email Address", "email", "email"],
     ["Mobile Number", "mobile-number", "tel"],
-    ["States", "state", "select", states],
-    ["District", "district", "select", districtMap.Maharashtra || defaultDistricts],
+    ["States", "state", "select", stateOptions],
+    ["District", "district", "select", defaultDistricts],
     ["Taluka", "taluka", "select", defaultTalukas],
     ["Status", "status", "select", ["Active", "Inactive"]],
   ],
@@ -1710,8 +1822,8 @@ const formFields = {
   subscription: [
     ["Title", "title"],
     ["Roles", "role", "select-multiple", ["Chief Editor / Publisher", "Executive Editor", "Deputy Editor (National)", "Public Relations Officer (PRO)", "National Bureau Chief", "Pratinidhi"]],
-    ["State", "state", "select", states],
-    ["District", "district", "select", districtMap.Maharashtra || defaultDistricts],
+    ["State", "state", "select", stateOptions],
+    ["District", "district", "select", defaultDistricts],
     ["Taluka", "taluka", "select", defaultTalukas],
     ["Price", "price", "number"],
     ["Subscription Start Date", "start-date", "date"],
@@ -1764,7 +1876,7 @@ const QuizQuestions = ({ currentRow = {} }) => {
   return (
     <>
       <div className="mb-3 d-flex align-items-center justify-content-between">
-        <button type="button" className="btn btn-outline-primary btn-sm" onClick={() => setQuestions((items) => [items.length + 1, ...items])}>
+        <button type="button" className="btn btn-outline-primary btn-sm" onClick={() => setQuestions((items) => [...items, Math.max(...items, 0) + 1])}>
           <i className="fa fa-plus me-1" />
           Add Question
         </button>
@@ -1773,7 +1885,7 @@ const QuizQuestions = ({ currentRow = {} }) => {
       {questions.map((item) => (
         <div className="rti-question-editor" key={item} data-question-number={item}>
           <div className="d-flex align-items-center justify-content-between">
-            <h5>Question {item}</h5>
+            <h5 className="rti-question-title"><span>Question</span><strong>{item}</strong></h5>
             <button type="button" className="btn btn-danger btn-xs" onClick={() => setQuestions((items) => items.filter((question) => question !== item))}>
               <i className="fa fa-trash" />
             </button>
@@ -1862,12 +1974,12 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
   };
 
   const renderField = ([label, name, type, options]) => {
-    if (config.form === "subscription" && ["state", "district", "taluka"].includes(name)) {
+    if (["subscription", "user"].includes(config.form) && ["state", "district", "taluka"].includes(name)) {
       const dynamicOptions = name === "state"
-        ? states
+        ? stateOptions
         : name === "district"
-          ? districtMap[locationState.state] || defaultDistricts
-          : (locationState.district ? [`${locationState.district} Taluka 1`, `${locationState.district} Taluka 2`, `${locationState.district} Taluka 3`] : defaultTalukas);
+          ? getDistrictOptions(locationState.state)
+          : getTalukaOptions(locationState.district);
       return (
         <Field
           key={`${name}-${locationState.state}-${locationState.district}`}
@@ -1876,6 +1988,7 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
           as="select"
           options={dynamicOptions}
           value={locationState[name]}
+          disabled={(name === "district" && !locationState.state) || (name === "taluka" && !locationState.district)}
           onValueChange={(value) => setLocationState((current) => ({
             ...current,
             [name]: value,
@@ -1885,7 +1998,7 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
         />
       );
     }
-    if (type === "select") return <Field key={name} label={label} name={name} as="select" options={options} value={fieldValue(name)} allowCustom={config.form === "news" && name === "category"} />;
+    if (type === "select") return <Field key={name} label={label} name={name} as="select" options={options} value={fieldValue(name)} />;
     if (type === "select-multiple") return <Field key={name} label={label} name={name} as="select" options={options} multiple value={fieldValue(name)} />;
     if (type === "textarea") return <Field key={name} label={label} name={name} as="textarea" value={fieldValue(name)} />;
     if (type === "file") return <FileUpload key={name} label={label} currentName={fieldValue(name)} currentUrl={name === "media-file" ? currentRow.mediaFileUrl : name === "pdf-files" ? currentRow.pdfFilesUrl : ""} />;
@@ -1907,6 +2020,7 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
         <div className="card-body">
           <form className="form-valide" onSubmit={async (event) => {
             event.preventDefault();
+            if (!validateModuleForm(slug, event.currentTarget)) return;
             const record = await makeRecordFromForm(slug, config, event.currentTarget, currentRow);
             const currentRows = getStoredRows(slug);
             const currentKey = rowKey(currentRow);
@@ -1986,6 +2100,7 @@ export const ModuleDelete = ({ slug }) => {
 export const ModuleStatus = ({ slug }) => {
   const row = activeRow(slug);
   const [active, setActive] = useState((row.status || "Active") === "Active");
+  const navigate = useNavigate();
 
   return (
     <ModalShell slug={slug}>
@@ -1996,11 +2111,25 @@ export const ModuleStatus = ({ slug }) => {
       <p>{row.phone || "9876543210"}</p>
       <p>Current status: {statusBadge(active ? "Active" : "Inactive")}</p>
       <div className="form-check form-switch d-inline-flex align-items-center gap-2 justify-content-center">
-        <input className="form-check-input" type="checkbox" role="switch" checked={active} onChange={() => setActive((value) => !value)} id="statusSwitch" />
+        <input
+          className="form-check-input"
+          type="checkbox"
+          role="switch"
+          checked={active}
+          onChange={() => {
+            const nextActive = !active;
+            setActive(nextActive);
+            updateStoredRow(slug, { ...row, status: nextActive ? "Active" : "Inactive" });
+          }}
+          id="statusSwitch"
+        />
         <label className="form-check-label" htmlFor="statusSwitch">
           {active ? "Active" : "Inactive"}
         </label>
       </div>
+      <button type="button" className="btn btn-primary mt-2" onClick={() => navigate(`/admin/${slug}`)}>
+        Done
+      </button>
     </ModalShell>
   );
 };
