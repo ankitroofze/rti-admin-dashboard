@@ -40,7 +40,13 @@ const AdminLayout = () => {
   return (
     <div id="main-wrapper" className={`show ${sidebarCollapsed ? "menu-toggle" : ""}`}>
       <AppToast show={Boolean(toast)} message={toast} onClose={() => setToast("")} />
-      <Sidebar />
+      <Sidebar
+        onMobileNavigate={() => {
+          if (window.matchMedia("(max-width: 700px)").matches) {
+            setSidebarCollapsed(false);
+          }
+        }}
+      />
       <Header
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={() => setSidebarCollapsed((value) => !value)}

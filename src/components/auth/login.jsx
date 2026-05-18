@@ -33,6 +33,23 @@ function Login (props) {
         if (error) {
 			return ;
 		}
+
+	
+    setErrors(errorObj);
+    if (error) return;
+
+    // ✅ HARD LOGIN CHECK (DUMMY AUTH)
+    const validEmail = "demo@example.com";
+    const validPassword = "123456";
+
+    if (email !== validEmail || password !== validPassword) {
+        setErrors({
+            email: email !== validEmail ? "Invalid Email" : "",
+            password: password !== validPassword ? "Invalid Password" : ""
+        });
+        return; // 🚫 login stop here
+    }
+	
 		dispatch(loadingToggleAction(true));	
         dispatch(loginAction(email, password, navigate));
     }

@@ -80,7 +80,7 @@ const initialState = {
   activeSubmenu: "",
 };
 
-const SideBar = () => {
+const SideBar = ({ onMobileNavigate = () => {} }) => {
   const d = new Date();
   const location = useLocation();
   const [state, setState] = useReducer(reducer, initialState);
@@ -184,6 +184,7 @@ const SideBar = () => {
                                               : ""
                                           }`}
                                           to={subItem.to}
+                                          onClick={onMobileNavigate}
                                         >
                                           {subItem.title}
                                         </Link>
@@ -198,6 +199,7 @@ const SideBar = () => {
                                 className={`${
                                   item.to?.split("/").pop() === path ? "mm-active" : ""
                                 }`}
+                                onClick={onMobileNavigate}
                               >
                                 {item.title}
                               </Link>
@@ -212,6 +214,7 @@ const SideBar = () => {
                     to={data.to}
                     className={`${data.to?.split("/").pop() === path ? "mm-active" : ""}`}
                     data-title={data.title}
+                    onClick={onMobileNavigate}
                   >
                     {data.iconStyle}{" "}
                     <span className="nav-text">

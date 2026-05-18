@@ -1404,6 +1404,33 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     display: block;
   }
 
+  #main-wrapper.menu-toggle .deznav .metismenu > li > a,
+  .deznav .metismenu > li > a {
+    display: flex;
+    align-items: center;
+    text-align: left;
+  }
+
+  #main-wrapper.menu-toggle .deznav .metismenu > li > a:hover::after {
+    content: none;
+  }
+
+  #main-wrapper.menu-toggle .deznav .metismenu > li > a i,
+  .deznav .metismenu > li > a i {
+    flex: 0 0 28px;
+    margin-right: 12px;
+    padding: 0;
+    text-align: center;
+  }
+
+  #main-wrapper.menu-toggle .deznav .metismenu > li > a .nav-text,
+  .deznav .metismenu > li > a .nav-text {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    line-height: 1.25;
+  }
+
   .deznav .deznav-scroll {
     padding-top: 1rem;
   }
