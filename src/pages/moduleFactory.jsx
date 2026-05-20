@@ -11,21 +11,30 @@ import logo from "../assets/images/rti.png";
 import qrcode from "../assets/images/qr.png";
 import AppToast from "../components/common/AppToast";
 
-export const moduleNames = {
-  dashboard: "Dashboard",
-  "user-profile": "User Profile",
-  network: "Network",
-  wallets: "Wallet",
-  withdrawal: "Withdrawal",
-  news: "News",
-  "subscription-plan": "Subscription Plan",
-  advertisement: "Advertisement",
-  "e-paper": "E-Paper",
-  quiz: "Quiz",
-  "offices-addresses": "Office Address",
-  "news-notification": "News Notification",
-  "contact-us": "Contact Us",
-};
+// export const moduleNames = {
+//   dashboard: "Dashboard",
+//   "user-profile": "User Profile",
+//   network: "Network",
+//   wallets: "Wallet",
+//   withdrawal: "Withdrawal",
+//   news: "News",
+//   "subscription-plan": "Subscription Plan",
+//   "ecommerce-subscription": "E-Commerce Subscription",
+//   "product-enquiry": "Product Enquiry",
+//   advertisement: "Advertisement",
+//   "ads-subscription": "Ads Subscription",
+//   "ads-management": "Ads Management",
+//   "ads-view-tracking": "Ads View Tracking",
+//   "reports-product-enquiry": "Product Enquiry Reports",
+//   "reports-user-wise": "User Wise Reports",
+//   "reports-subscription": "Subscription Reports",
+//   "reports-ads-view": "Ads View Reports",
+//   "e-paper": "E-Paper",
+//   quiz: "Quiz",
+//   "offices-addresses": "Office Address",
+//   "news-notification": "News Notification",
+//   "contact-us": "Contact Us",
+// };
 
 const indianPhonePattern = "(?!([0-9])\\1{9})[6-9][0-9]{9}";
 const emailPattern = "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$";
@@ -33,11 +42,34 @@ const googleMapsPattern = "^https?:\\/\\/(www\\.)?(google\\.[a-z.]+\\/maps|maps\
 const pdfUrl =
   "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
 
-const rowKey = (row = {}) => String(row._rowKey || row.id || row.profileId || row.userId || row.transactionId || row.adId || row.title || row.sr || "");
-const activeRecordKey = (slug) => `rti-active-${slug}`;
-const selectOption = (value) => ({ value, label: value });
-const toSelectOptions = (items = []) => items.map(selectOption);
-const CustomClearText = () => "clear all";
+
+
+const rowKey = (row = {}) =>
+  String(
+    row._rowKey ||
+    row.id ||
+    row.profileId ||
+    row.userId ||
+    row.transactionId ||
+    row.adId ||
+    row.title ||
+    row.sr ||
+    ""
+  );
+
+
+const activeRecordKey = (slug) => 
+  `rti-active-${slug}`;
+
+const selectOption = (value) =>
+   ({ value, label: value });
+
+const toSelectOptions = (items = []) =>
+   items.map(selectOption);
+
+const CustomClearText = () => 
+  "clear all";
+
 const ClearIndicator = (props) => {
   const {
     children = <CustomClearText />,
@@ -50,6 +82,7 @@ const ClearIndicator = (props) => {
     </div>
   );
 };
+
 const ClearIndicatorStyles = (base, state) => ({
   ...base,
   cursor: "pointer",
@@ -205,31 +238,6 @@ const users = [
     subscriptionStatus: "Active",
     bio: "Senior RTI contributor handling public awareness and publishing workflows.",
   },
-  {
-    sr: 2,
-    profileId: "USR-1002",
-    userId: "USR-1002",
-    image: avatar2,
-    profile: "Reporter",
-    name: "Priya Verma",
-    username: "Priya Verma",
-    email: "priya.verma@example.com",
-    phone: "9123456789",
-    mobileNumber: "9123456789",
-    state: "Gujarat",
-    district: "Ahmedabad",
-    taluka: "Daskroi",
-    referralCode: "RTI-PRIYA",
-    referredBy: "Amit Sharma",
-    createdDate: "10 May 2026",
-    status: "Inactive",
-    userType: "Free",
-    planName: "Basic",
-    startDate: "01 Apr 2026",
-    endDate: "01 Jul 2026",
-    subscriptionStatus: "Inactive",
-    bio: "District level reporter profile with verification documents uploaded.",
-  },
 ];
 
 const networkRows = [
@@ -250,24 +258,8 @@ const networkRows = [
     createdDate: "09 May 2026",
     bio: "Network rank configured for national referral leadership.",
   },
-  {
-    sr: 2,
-    userId: "NET-502",
-    username: "State Coordinator",
-    image: avatar1,
-    email: "state@example.com",
-    phone: "9876501234",
-    minimumReferrals: "10",
-    commission: "8",
-    commissionPercentage: "8%",
-    requiredReferrals: "10",
-    rewardAmount: "2500",
-    bonus: "1000",
-    status: "Inactive",
-    createdDate: "08 May 2026",
-    bio: "Regional network role with referral based commission.",
-  },
 ];
+
 
 const moduleConfig = {
   dashboard: {
@@ -275,9 +267,9 @@ const moduleConfig = {
     add: false,
     stats: [
       ["Total Users", "2", "fa-users", "primary", "all"],
+      ["Premium Users", "1", "fa-crown", "warning", "premium"],
       ["Active Users", "1", "fa-user-check", "success", "active"],
       ["Inactive Users", "1", "fa-user-xmark", "danger", "inactive"],
-      ["Premium Users", "1", "fa-crown", "warning", "premium"],
     ],
     filters: ["search", "status", "userType"],
     rows: users,
@@ -479,6 +471,94 @@ const moduleConfig = {
     details: ["title", "role", "state", "price", "subscriptionStartDate", "subscriptionEndDate", "status"],
     form: "subscription",
   },
+  "ecommerce-subscription": {
+    title: "E-Commerce Subscription",
+    add: true,
+    filters: ["search", "status"],
+    rows: [
+      {
+        sr: 1,
+        id: "SUB-501",
+        title: "Seller Growth Plan",
+        description: "Monthly product listing plan with enquiry credits.",
+        credits: "250",
+        creditsLeft: "180",
+        creditsUsed: "70",
+        startDate: "01 May 2026",
+        endDate: "31 May 2026",
+        status: "Active",
+      },
+      {
+        sr: 2,
+        id: "SUB-502",
+        title: "Starter Product Plan",
+        description: "Basic product enquiry subscription for new sellers.",
+        credits: "75",
+        creditsLeft: "0",
+        creditsUsed: "75",
+        startDate: "01 Apr 2026",
+        endDate: "30 Apr 2026",
+        status: "Inactive",
+      },
+    ],
+    columns: [
+      ["sr", "Sr.No"],
+      ["title", "Subscription Title"],
+      ["description", "Description"],
+      ["credits", "Credits"],
+      ["startDate", "Start Date"],
+      ["endDate", "End Date"],
+      ["status", "Status"],
+    ],
+    actions: ["view", "update", "delete", "status"],
+    details: ["title", "description", "credits", "creditsUsed", "creditsLeft", "startDate", "endDate", "status"],
+    form: "commerceSubscription",
+  },
+  "product-enquiry": {
+    title: "Product Enquiry",
+    add: false,
+    filters: ["search", "status"],
+    rows: [
+      {
+        sr: 1,
+        id: "ENQ-1001",
+        productName: "Smart Water Purifier",
+        customerName: "Rahul Patil",
+        ownerName: "Amit Sharma",
+        mobileNumber: "9876543210",
+        email: "rahul.patil@example.com",
+        productImage: avatar2,
+        message: "Please share final price and delivery availability.",
+        date: "14 May 2026",
+        dateTime: "14 May 2026 11:30 AM",
+        status: "Active",
+      },
+      {
+        sr: 2,
+        id: "ENQ-1002",
+        productName: "Office Desk Chair",
+        customerName: "Priya Verma",
+        ownerName: "National Store",
+        mobileNumber: "9123456789",
+        email: "priya.verma@example.com",
+        productImage: avatar3,
+        message: "Need bulk purchase quote for 12 chairs.",
+        date: "13 May 2026",
+        dateTime: "13 May 2026 04:15 PM",
+        status: "Inactive",
+      },
+    ],
+    columns: [
+      ["id", "Enquiry ID"],
+      ["productName", "Product Name"],
+      ["customerName", "Customer Name"],
+      ["ownerName", "Owner Name"],
+      ["date", "Date"],
+      ["status", "Status"],
+    ],
+    actions: ["view", "delete"],
+    details: ["id", "productName", "customerName", "ownerName", "mobileNumber", "email", "productImage", "message", "dateTime", "status"],
+  },
   "e-paper": {
     title: "E-Paper",
     add: true,
@@ -594,6 +674,226 @@ const moduleConfig = {
     actions: ["view", "update", "status", "delete"],
     details: ["id", "status", "productName", "mediaFile", "placement", "price", "offerPrice", "startDateTime", "endDateTime", "description"],
     form: "ad",
+  },
+  "ads-subscription": {
+    title: "Ads Subscription",
+    add: true,
+    filters: ["search", "status"],
+    rows: [
+      {
+        sr: 1,
+        id: "ADS-SUB-101",
+        title: "Banner Boost Plan",
+        description: "Sponsored banner visibility subscription.",
+        credits: "10000",
+        startDate: "01 May 2026",
+        endDate: "31 May 2026",
+        status: "Active",
+      },
+      {
+        sr: 2,
+        id: "ADS-SUB-102",
+        title: "Premium Spotlight Plan",
+        description: "Featured placement with extra ad view credits.",
+        credits: "25000",
+        startDate: "10 May 2026",
+        endDate: "10 Jun 2026",
+        status: "Active",
+      },
+      {
+        sr: 3,
+        id: "ADS-SUB-103",
+        title: "Starter Local Ads",
+        description: "Local city ad package for new advertisers.",
+        credits: "5000",
+        startDate: "01 Apr 2026",
+        endDate: "30 Apr 2026",
+        status: "Inactive",
+      },
+    ],
+    columns: [
+      ["sr", "Sr.No"],
+      ["title", "Subscription Title"],
+      ["description", "Description"],
+      ["credits", "Credits"],
+      ["startDate", "Start Date"],
+      ["endDate", "End Date"],
+      ["status", "Status"],
+    ],
+    actions: ["view", "update", "delete", "status"],
+    details: ["title", "description", "credits", "startDate", "endDate", "status"],
+    form: "adsSubscription",
+  },
+  "ads-management": {
+    title: "Ads Management",
+    add: false,
+    filters: ["search", "status"],
+    rows: [
+      {
+        sr: 1,
+        user: "Amit Sharma",
+        adTitle: "Summer Product Campaign",
+        status: "Active",
+        views: "1840",
+        startDate: "10 May 2026",
+        adDetails: "Home page product banner with city targeting.",
+      },
+      {
+        sr: 2,
+        user: "Priya Verma",
+        adTitle: "Premium Seller Launch",
+        status: "Inactive",
+        views: "620",
+        startDate: "03 May 2026",
+        adDetails: "Expired premium placement ad.",
+      },
+      {
+        sr: 3,
+        user: "National Store",
+        adTitle: "Weekend Deal Banner",
+        status: "Active",
+        views: "2195",
+        startDate: "16 May 2026",
+        adDetails: "Category banner for weekend product offers.",
+      },
+    ],
+    columns: [
+      ["sr", "Sr.No"],
+      ["user", "User"],
+      ["adTitle", "Ad Title"],
+      ["status", "Status"],
+      ["views", "Views"],
+      ["startDate", "Start Date"],
+    ],
+    actions: ["view", "delete"],
+    details: ["user", "adTitle", "status", "views", "startDate", "adDetails"],
+  },
+  "ads-view-tracking": {
+    title: "Ads View Tracking",
+    add: false,
+    filters: ["search"],
+    rows: [
+      {
+        sr: 1,
+        viewerName: "Rahul Patil",
+        adName: "Summer Product Campaign",
+        adOwner: "Amit Sharma",
+        viewDate: "15 May 2026",
+        device: "Android App",
+        viewerProfile: "Premium buyer profile from Pune.",
+        adDetails: "Home banner ad for e-commerce product promotion.",
+        viewCount: "7",
+        ipDeviceDetails: "103.45.12.18 / Android 15 / Chrome",
+      },
+      {
+        sr: 2,
+        viewerName: "Neha Shah",
+        adName: "Premium Seller Launch",
+        adOwner: "Priya Verma",
+        viewDate: "14 May 2026",
+        device: "Web",
+        viewerProfile: "Registered user from Ahmedabad.",
+        adDetails: "Seller subscription ad in listing screen.",
+        viewCount: "3",
+        ipDeviceDetails: "49.36.88.21 / Windows / Edge",
+      },
+      {
+        sr: 3,
+        viewerName: "Kiran More",
+        adName: "Weekend Deal Banner",
+        adOwner: "National Store",
+        viewDate: "16 May 2026",
+        device: "iOS App",
+        viewerProfile: "Premium user browsing product category.",
+        adDetails: "Category banner for weekend product offers.",
+        viewCount: "5",
+        ipDeviceDetails: "106.210.45.77 / iOS 18 / Safari",
+      },
+    ],
+    columns: [
+      ["sr", "Sr.No"],
+      ["viewerName", "Viewer Name"],
+      ["adName", "Ad Name"],
+      ["adOwner", "Ad Owner"],
+      ["viewDate", "View Date"],
+      ["device", "Device"],
+    ],
+    actions: ["view", "delete"],
+    details: ["viewerName", "adName", "adOwner", "viewDate", "device", "viewerProfile", "adDetails", "viewCount", "ipDeviceDetails"],
+  },
+  "reports-product-enquiry": {
+    title: "Product Enquiry Reports",
+    add: false,
+    filters: ["search"],
+    rows: [
+      { sr: 1, product: "Smart Water Purifier", totalEnquiries: "38", owner: "Amit Sharma", date: "15 May 2026" },
+      { sr: 2, product: "Office Desk Chair", totalEnquiries: "17", owner: "National Store", date: "14 May 2026" },
+      { sr: 3, product: "RTI Training Course", totalEnquiries: "29", owner: "RTI Academy", date: "16 May 2026" },
+    ],
+    columns: [
+      ["sr", "Sr.No"],
+      ["product", "Product"],
+      ["totalEnquiries", "Total Enquiries"],
+      ["owner", "Owner"],
+      ["date", "Date"],
+    ],
+    actions: ["view", "delete"],
+    details: ["product", "totalEnquiries", "owner", "date"],
+  },
+  "reports-user-wise": {
+    title: "User Wise Reports",
+    add: false,
+    filters: ["search"],
+    rows: [
+      { sr: 1, user: "Amit Sharma", productsAdded: "24", totalEnquiries: "96" },
+      { sr: 2, user: "Priya Verma", productsAdded: "11", totalEnquiries: "42" },
+      { sr: 3, user: "National Store", productsAdded: "18", totalEnquiries: "61" },
+    ],
+    columns: [
+      ["sr", "Sr.No"],
+      ["user", "User"],
+      ["productsAdded", "Products Added"],
+      ["totalEnquiries", "Total Enquiries"],
+    ],
+    actions: ["view", "delete"],
+    details: ["user", "productsAdded", "totalEnquiries"],
+  },
+  "reports-subscription": {
+    title: "Subscription Reports",
+    add: false,
+    filters: ["search"],
+    rows: [
+      { sr: 1, user: "Amit Sharma", plan: "Seller Growth Plan", creditsUsed: "70", creditsLeft: "180" },
+      { sr: 2, user: "Priya Verma", plan: "Starter Product Plan", creditsUsed: "75", creditsLeft: "0" },
+      { sr: 3, user: "National Store", plan: "Premium Spotlight Plan", creditsUsed: "1200", creditsLeft: "23800" },
+    ],
+    columns: [
+      ["sr", "Sr.No"],
+      ["user", "User"],
+      ["plan", "Plan"],
+      ["creditsUsed", "Credits Used"],
+      ["creditsLeft", "Credits Left"],
+    ],
+    actions: ["view", "delete"],
+    details: ["user", "plan", "creditsUsed", "creditsLeft"],
+  },
+  "reports-ads-view": {
+    title: "Ads View Reports",
+    add: false,
+    filters: ["search"],
+    rows: [
+      { sr: 1, adTitle: "Summer Product Campaign", totalViews: "1840", uniqueUsers: "910" },
+      { sr: 2, adTitle: "Premium Seller Launch", totalViews: "620", uniqueUsers: "280" },
+      { sr: 3, adTitle: "Weekend Deal Banner", totalViews: "2195", uniqueUsers: "1040" },
+    ],
+    columns: [
+      ["sr", "Sr.No"],
+      ["adTitle", "Ad Title"],
+      ["totalViews", "Total Views"],
+      ["uniqueUsers", "Unique Users"],
+    ],
+    actions: ["view", "delete"],
+    details: ["adTitle", "totalViews", "uniqueUsers"],
   },
   "offices-addresses": {
     title: "Office Address",
@@ -743,6 +1043,35 @@ const labels = {
   totalAmount: "Total Amount",
   paymentMethod: "Payment Method",
   paidAt: "Paid At",
+  credits: "Credits",
+  creditsUsed: "Credits Used",
+  creditsLeft: "Credits Left",
+  startDate: "Start Date",
+  endDate: "End Date",
+  customerName: "Customer Name",
+  ownerName: "Owner Name",
+  productImage: "Product Image",
+  date: "Date",
+  dateTime: "Date & Time",
+  user: "User",
+  adTitle: "Ad Title",
+  views: "Views",
+  adDetails: "Ad Details",
+  viewerName: "Viewer Name",
+  adName: "Ad Name",
+  adOwner: "Ad Owner",
+  viewDate: "View Date",
+  device: "Device",
+  viewerProfile: "Viewer User Profile",
+  viewCount: "View Count",
+  ipDeviceDetails: "IP / Device Details",
+  product: "Product",
+  totalEnquiries: "Total Enquiries",
+  owner: "Owner",
+  productsAdded: "Products Added",
+  plan: "Plan",
+  totalViews: "Total Views",
+  uniqueUsers: "Unique Users",
 };
 
 const getConfig = (slug) => moduleConfig[slug] || moduleConfig.dashboard;
@@ -851,23 +1180,21 @@ const FilterBar = ({ filters = [], values, onChange, onReset, slug }) => {
     <div className="row">
       <div className="col-xl-12">
         <div className="filter cm-content-box box-primary rti-table-filters">
-          <div className="content-title">
+          <button
+            type="button"
+            className="content-title rti-filter-toggle"
+            onClick={() => setOpen((value) => !value)}
+            aria-expanded={open}
+          >
             <div className="cpa">
               <i className="fas fa-filter me-2"></i>Filter
             </div>
             <div className="tools">
-              <Link
-                to="#"
-                className={`SlideToolHeader ${open ? "collapse" : "expand"}`}
-                onClick={(event) => {
-                  event.preventDefault();
-                  setOpen(!open);
-                }}
-              >
-                <i className="fas fa-angle-up"></i>
-              </Link>
+              <span className="SlideToolHeader">
+                <i className={`fas ${open ? "fa-angle-up" : "fa-angle-down"}`}></i>
+              </span>
             </div>
-          </div>
+          </button>
 
           <Collapse in={open}>
             <div className="cm-content-body form excerpt">
@@ -1031,6 +1358,9 @@ const CellValue = ({ field, row, slug, onImage }) => {
   if (field === "imageThumb") {
     return <button type="button" className="rti-image-button" onClick={() => onImage(row.image || profile)}><img src={row.image || profile} alt={row.product} className="rounded" width="44" height="34" /></button>;
   }
+  if (field === "productImage") {
+    return <button type="button" className="rti-image-button" onClick={() => onImage(row.productImage || row.image || profile)}><img src={row.productImage || row.image || profile} alt={row.productName || "Product"} className="rounded" width="44" height="34" /></button>;
+  }
   if (field === "status") return statusBadge(row.status);
   if (field === "pdfFiles") {
     return (
@@ -1136,7 +1466,12 @@ export const ModuleList = ({ slug }) => {
       const dateHaystack = Object.values(row).map((value) => formatDisplayDate(value) || value).join(" ").toLowerCase();
       if (cardFilter === "active" && row.status !== "Active") return false;
       if (cardFilter === "inactive" && row.status !== "Inactive") return false;
-      if (cardFilter === "premium" && row.userType !== "Premium") return false;
+      if (
+        cardFilter === "premium" &&
+        row.userType !== "Premium" &&
+        row.planName !== "Premium" &&
+        row.subscriptionStatus !== "Active"
+      ) return false;
       if (cardFilter === "new" && !String(row.createdDate || row.createdAt || "").includes("13 May 2026")) return false;
       if (filters.search && !haystack.includes(filters.search.toLowerCase())) return false;
       if (filters.dateFilter) {
@@ -1174,6 +1509,8 @@ export const ModuleList = ({ slug }) => {
     slug === "user-profile" ? "Add User" :
     slug === "news" ? "Add News" :
     slug === "advertisement" ? "Add Advertisement" :
+    slug === "ecommerce-subscription" ? "Add Plan" :
+    slug === "ads-subscription" ? "Add Plan" :
     slug === "offices-addresses" ? "Add Office Address" :
     slug === "e-paper" ? "Add E-Paper" :
     slug === "subscription-plan" ? "Add Subscription" :
@@ -1181,13 +1518,33 @@ export const ModuleList = ({ slug }) => {
     slug === "news-notification" ? "Add Notification" :
     "Add";
 
+  const liveStats = useMemo(() => {
+    if (slug !== "dashboard" || !config.stats) return config.stats;
+    return config.stats.map(([label, , icon, color, key]) => {
+      const count = key === "all"
+        ? moduleRows.length
+        : key === "active"
+          ? moduleRows.filter((row) => row.status === "Active").length
+          : key === "inactive"
+            ? moduleRows.filter((row) => row.status === "Inactive").length
+            : key === "premium"
+              ? moduleRows.filter((row) => (
+                row.userType === "Premium" ||
+                row.planName === "Premium" ||
+                row.subscriptionStatus === "Active"
+              )).length
+              : 0;
+      return [label, String(count), icon, color, key];
+    });
+  }, [config.stats, moduleRows, slug]);
+
   return (
     <div className="row">
       <div className="col-12">
         <PageHeading title={config.title} />
       </div>
       <AppToast show={Boolean(toast)} message={toast} onClose={() => setToast("")} />
-      {config.stats && <DashboardCards stats={config.stats} selected={cardFilter} onSelect={setCardFilter} />}
+      {config.stats && <DashboardCards stats={liveStats} selected={cardFilter} onSelect={setCardFilter} />}
       <div className="col-12">
         <div className="card rti-module-table-card">
           <div className="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -1317,6 +1674,8 @@ const DetailGrid = ({ fields, row, onStatus }) => (
                 <i className="fa fa-paperclip me-1" />
                 {row[field] || labels[field]}
               </a>
+            ) : field === "productImage" ? (
+              <img src={row.productImage || row.image || profile} alt={row.productName || "Product"} className="rti-detail-image" />
             ) : (
               row[field] || "-"
             )}
@@ -1676,6 +2035,9 @@ const makeRecordFromForm = async (slug, config, form, existing = {}) => {
     totalPage: data["total-page"] || "",
     amount: data.amount || data.price || "",
     price: data.price || "",
+    credits: data.credits || existing.credits || "",
+    creditsUsed: data["credits-used"] || existing.creditsUsed || "",
+    creditsLeft: data["credits-left"] || existing.creditsLeft || "",
     offerPrice: data["offer-price"] || "",
     message: data.message || "",
     sentBy: data["sent-by"] || existing.sentBy || "",
@@ -1830,6 +2192,16 @@ const formFields = {
     ["Subscription End Date", "end-date", "date"],
     ["Status", "status", "select", ["Active", "Inactive"]],
   ],
+  commerceSubscription: [
+    ["Subscription Title", "title"],
+    ["Description", "description", "textarea"],
+    ["Credits", "credits", "number"],
+    ["Credits Used", "credits-used", "number"],
+    ["Credits Left", "credits-left", "number"],
+    ["Start Date", "start-date", "date"],
+    ["End Date", "end-date", "date"],
+    ["Status", "status", "select", ["Active", "Inactive"]],
+  ],
   epaper: [
     ["E-Paper ID", "epaper-id"],
     ["Title", "title"],
@@ -1847,6 +2219,14 @@ const formFields = {
     ["Start Date & Time", "start-date-time", "datetime-local"],
     ["End Date & Time", "end-date-time", "datetime-local"],
     ["Description", "description", "textarea"],
+  ],
+  adsSubscription: [
+    ["Subscription Title", "title"],
+    ["Description", "description", "textarea"],
+    ["Credits", "credits", "number"],
+    ["Start Date", "start-date", "date"],
+    ["End Date", "end-date", "date"],
+    ["Status", "status", "select", ["Active", "Inactive"]],
   ],
   office: [
     ["Office ID", "office-id"],
@@ -1934,6 +2314,7 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
     mode === "Add"
       ? slug === "news" ? "Create News"
       : slug === "subscription-plan" ? "Create Subscription"
+      : ["ecommerce-subscription", "ads-subscription"].includes(slug) ? "Create Plan"
       : slug === "quiz" ? "Submit All Questions"
       : `Create ${config.title}`
       : slug === "subscription-plan" ? "Create Subscription" : `Update ${config.title}`;
@@ -1955,6 +2336,8 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
       "ad-id": currentRow.adId || currentRow.id,
       "product-name": currentRow.productName || currentRow.product,
       "offer-price": currentRow.offerPrice,
+      "credits-used": currentRow.creditsUsed,
+      "credits-left": currentRow.creditsLeft,
       "start-date": currentRow.subscriptionStartDate || currentRow.startDate,
       "end-date": currentRow.subscriptionEndDate || currentRow.endDate,
       "start-date-time": currentRow.startDateTime,

@@ -100,6 +100,7 @@ import NotificationAdd from "../pages/news-notification/notification-add";
 import NotificationUpdate from "../pages/news-notification/notification-update";
 import NotificationDeleted from "../pages/news-notification/notification-deleted";
 import NotificationStatus from "../pages/news-notification/notification-status";
+import { ModuleDelete, ModuleForm, ModuleList, ModuleStatus, ModuleView } from "../pages/moduleFactory";
 
 const moduleRoutes = [
   ["dashboard", Dashboard, DashboardView, DashboardAdd, DashboardUpdate, DashboardDeleted, DashboardStatus],
@@ -115,6 +116,18 @@ const moduleRoutes = [
   ["offices-addresses", OfficesAddresses, OfficesAddressesView, OfficesAddressesAdd, OfficesAddressesUpdate, OfficesAddressesDeleted, OfficesAddressesStatus],
   ["news-notification", Notification, NotificationView, NotificationAdd, NotificationUpdate, NotificationDeleted, NotificationStatus],
   ["contact-us", ContactUs, ContactUsView, ContactUsAdd, ContactUsUpdate, ContactUsDeleted, ContactUsStatus],
+];
+
+const newModuleSlugs = [
+  "ecommerce-subscription",
+  "product-enquiry",
+  "ads-subscription",
+  "ads-management",
+  "ads-view-tracking",
+  "reports-product-enquiry",
+  "reports-user-wise",
+  "reports-subscription",
+  "reports-ads-view",
 ];
 
 const PublicOnly = ({ children }) => {
@@ -146,6 +159,16 @@ const AppRoutes = () => {
               <Route path={`${slug}/update`} element={<Update />} />
               <Route path={`${slug}/deleted`} element={<Deleted />} />
               <Route path={`${slug}/status`} element={<Status />} />
+            </React.Fragment>
+          ))}
+          {newModuleSlugs.map((slug) => (
+            <React.Fragment key={slug}>
+              <Route path={slug} element={<ModuleList slug={slug} />} />
+              <Route path={`${slug}/view`} element={<ModuleView slug={slug} />} />
+              <Route path={`${slug}/add`} element={<ModuleForm slug={slug} mode="Add" />} />
+              <Route path={`${slug}/update`} element={<ModuleForm slug={slug} mode="Update" />} />
+              <Route path={`${slug}/deleted`} element={<ModuleDelete slug={slug} />} />
+              <Route path={`${slug}/status`} element={<ModuleStatus slug={slug} />} />
             </React.Fragment>
           ))}
           <Route path="inbox" element={<NotFound />} />

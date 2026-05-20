@@ -5,6 +5,7 @@ import avatar1 from "../../assets/images/avatar/1.jpg";
 import avatar2 from "../../assets/images/avatar/2.jpg";
 import avatar3 from "../../assets/images/avatar/3.jpg";
 
+// Legacy demo table kept only as a reference; active module lists are rendered from moduleFactory.jsx.
 const BootstrapTable = ({ moduleSlug }) => {
   const chackboxFun = (type) => {
     setTimeout(() => {
@@ -81,22 +82,7 @@ const BootstrapTable = ({ moduleSlug }) => {
                     ></label>
                   </div>
                 </td>
-                <td>
-                  <strong>542</strong>
-                </td>
-                <td>
-                  <div className="d-flex align-items-center">
-                    <img src={avatar1} className="rounded-lg me-2" width="24" alt="" />{" "}
-                    <span className="w-space-no">Dr. Jackson</span>
-                  </div>
-                </td>
-                <td>example@example.com </td>
-                <td>01 August 2023</td>
-                <td>
-                  <div className="d-flex align-items-center">
-                    <i className="fa fa-circle text-success me-1"></i> Successful
-                  </div>
-                </td>
+              
                 <td>
                   <div className="d-flex">
                     <Link

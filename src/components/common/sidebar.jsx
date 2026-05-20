@@ -34,9 +34,18 @@ const MenuList = [
     iconStyle: <i className="fa fa-newspaper" />,
   },
   {
-    title: "Subscription Plan",
-    to: "/admin/subscription-plan",
-    iconStyle: <i className="fa fa-tags" />,
+    title: "E-Commerce",
+    iconStyle: <i className="fa fa-cart-shopping" />,
+    content: [
+      {
+        title: "Subscription Module",
+        to: "/admin/ecommerce-subscription",
+      },
+      {
+        title: "Product Enquiry",
+        to: "/admin/product-enquiry",
+      },
+    ],
   },
   {
     title: "E-Paper",
@@ -44,9 +53,44 @@ const MenuList = [
     iconStyle: <i className="fa fa-file-pdf" />,
   },
   {
-    title: "Advertisement",
-    to: "/admin/advertisement",
+    title: "Ads",
     iconStyle: <i className="fa fa-rectangle-ad" />,
+    content: [
+      {
+        title: "Ads Subscription",
+        to: "/admin/ads-subscription",
+      },
+      {
+        title: "Ads Management",
+        to: "/admin/ads-management",
+      },
+      {
+        title: "Ads View Tracking",
+        to: "/admin/ads-view-tracking",
+      },
+    ],
+  },
+  {
+    title: "Reports List",
+    iconStyle: <i className="fa fa-chart-column" />,
+    content: [
+      {
+        title: "Product Enquiry Reports",
+        to: "/admin/reports-product-enquiry",
+      },
+      {
+        title: "User Wise Reports",
+        to: "/admin/reports-user-wise",
+      },
+      {
+        title: "Subscription Reports",
+        to: "/admin/reports-subscription",
+      },
+      {
+        title: "Ads View Reports",
+        to: "/admin/reports-ads-view",
+      },
+    ],
   },
   {
     title: "Quiz",
@@ -80,6 +124,12 @@ const initialState = {
   activeSubmenu: "",
 };
 
+const isRouteActive = (to, pathname) => to && to !== "#" && (pathname === to || pathname.startsWith(`${to}/`));
+
+const hasActiveRoute = (item, pathname) => (
+  isRouteActive(item.to, pathname) || item.content?.some((child) => hasActiveRoute(child, pathname))
+);
+
 const SideBar = ({ onMobileNavigate = () => {} }) => {
   const d = new Date();
   const location = useLocation();
@@ -93,26 +143,31 @@ const SideBar = ({ onMobileNavigate = () => {} }) => {
     setState({ activeSubmenu: state.activeSubmenu === status ? "" : status });
   };
 
-  const activeModule = MenuList.find((item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`));
-  const path = activeModule?.to.split("/").pop() || "";
+  const activeModule = MenuList.find((item) => hasActiveRoute(item, location.pathname));
+  const activeSubmenu = activeModule?.content?.find((item) => item.content?.some((ele) => isRouteActive(ele.to, location.pathname)));
+  const activeLeaf = [
+    ...(activeModule?.content || []),
+    ...(activeSubmenu?.content || []),
+  ].find((item) => isRouteActive(item.to, location.pathname));
+  const path = activeLeaf?.to?.split("/").pop() || activeModule?.to?.split("/").pop() || "";
 
   useEffect(() => {
     MenuList.forEach((data) => {
-      if (data.to?.split("/").pop() === path) {
+      if (isRouteActive(data.to, location.pathname)) {
         setState({ active: data.title });
       }
       data.content?.forEach((item) => {
-        if (item.to?.split("/").pop() === path) {
+        if (isRouteActive(item.to, location.pathname)) {
           setState({ active: data.title });
         }
         item.content?.forEach((ele) => {
-          if (ele.to?.split("/").pop() === path) {
+          if (isRouteActive(ele.to, location.pathname)) {
             setState({ activeSubmenu: item.title, active: data.title });
           }
         });
       });
     });
-  }, [path]);
+  }, [location.pathname]);
 
   return (
     <div className="deznav">
@@ -121,7 +176,7 @@ const SideBar = ({ onMobileNavigate = () => {} }) => {
           {MenuList.map((data, index) => {
             const menuClass = data.classsChange;
             const isActive =
-              state.active === data.title || location.pathname === data.to || location.pathname.startsWith(`${data.to}/`);
+              state.active === data.title || isRouteActive(data.to, location.pathname) || hasActiveRoute(data, location.pathname);
 
             if (menuClass === "menu-title") {
               return (

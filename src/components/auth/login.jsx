@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { connect, useDispatch } from 'react-redux';
-import { Link, useNavigate} from 'react-router-dom'
+import { useNavigate} from 'react-router-dom'
 import { loadingToggleAction,loginAction,
 } from '../../store/actions/AuthActions';
 
@@ -40,7 +40,9 @@ function Login (props) {
 
     // ✅ HARD LOGIN CHECK (DUMMY AUTH)
     const validEmail = "demo@example.com";
-    const validPassword = "123456";
+    // const validPassword = "123456";
+	const validPassword =
+  localStorage.getItem("rti-demo-password") || "123456";
 
     if (email !== validEmail || password !== validPassword) {
         setErrors({
@@ -115,7 +117,6 @@ function Login (props) {
 													<label className="form-check-label" htmlFor="basic_checkbox_1">Remember my preference</label>
 												</div>
 											</div>
-											<Link to="/forgot-password" className="text-primary fw-bold">Forgot Password?</Link>
 										</div>
 										<div className="text-center form-group mb-3">
 											<button type="submit" className="btn btn-primary btn-block">
