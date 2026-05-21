@@ -4,6 +4,9 @@ import { Dropdown } from "react-bootstrap";
 import profile from "../../assets/images/profile/17.jpg";
 import logo from "../../assets/images/rti.png";
 import { ThemeContext } from "../../context/ThemeContext.jsx";
+import axios from "axios";
+import API from "../../api/api";
+import { toast } from "react-toastify";
 
 const Header = ({ sidebarCollapsed = false, onToggleSidebar = () => {} }) => {
   const navigate = useNavigate();
@@ -36,11 +39,35 @@ const Header = ({ sidebarCollapsed = false, onToggleSidebar = () => {} }) => {
     }
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("lastActivityAt");
-    navigate("/");
-  };
+  const handleLogout = async () => {
+  try {
+    const token = localStorage.getItem("authToken");
+
+    await axios.post(
+      API.LOGOUT,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      }
+    );
+
+    toast.success("Logged out successfully");
+  } catch (err) {
+    console.log(err.response?.data || err.message);
+    toast.error("Logout failed, but session cleared");
+  }
+
+  // ALWAYS clear local session
+  localStorage.removeItem("authToken");
+  localStorage.removeItem("lastActivityAt");
+  localStorage.removeItem("user");
+
+  navigate("/");
+};
+
 
   return (
     <div className="header">

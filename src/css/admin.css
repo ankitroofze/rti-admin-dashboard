@@ -892,14 +892,16 @@ a {
 .rti-auth-back-link,
 a.btn.btn-light:has(.fa-arrow-left) {
   display: inline-flex;
+  align-items: flex-start; 
   align-items: center;
   border: 0 !important;
   background: transparent !important;
-  color: #2563eb !important;
+  color: #184dbe !important;
   box-shadow: none !important;
-  padding-left: 0;
+  padding-left: 0px;
   padding-right: 0;
   font-weight: 700;
+  
 }
 
 .rti-auth-back-link:hover,

@@ -1,154 +1,227 @@
 import React, { useState } from "react";
 import logo from "../../assets/images/rti.png";
 import { Link, useNavigate } from "react-router-dom";
-import AppToast from "../common/AppToast";
+import axios from "axios";
+import { toast } from "react-toastify";
+import API from "../../api/api";
 
 const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const loginEmail = "demo@example.com";
 
 const ForgotPassword = () => {
   const [step, setStep] = useState("email");
-  const [email, setEmail] = useState(loginEmail);
+  const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
-  const [toast, setToast] = useState("");
+  const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
+
+    setMessage("");
+
+    // =========================
+    // STEP 1: SEND OTP
+    // =========================
     if (step === "email") {
       if (!validEmail.test(email)) {
-        setMessage("Please enter a valid email address");
+        setMessage("Enter valid email");
         return;
       }
-      if (email !== loginEmail) {
-        setMessage("Please use the same email address used for login.");
-        return;
+
+      try {
+        setLoading(true);
+
+        const res = await axios.post(API.REQUEST_OTP, { email });
+
+        toast.success(res.data?.message || "OTP sent successfully");
+
+        setStep("otp");
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to send OTP");
+      } finally {
+        setLoading(false);
       }
-      setMessage("");
-      setStep("otp");
+
       return;
     }
 
+    // =========================
+    // STEP 2: VERIFY OTP
+    // =========================
     if (step === "otp") {
-      if (otp !== "123456") {
-        setMessage("Please enter valid dummy OTP: 123456");
+      if (!otp || otp.length !== 6) {
+        setMessage("Enter valid 6-digit OTP");
         return;
       }
-      setMessage("");
-      setStep("reset");
+
+      try {
+        setLoading(true);
+
+        const res = await axios.post(API.VERIFY_OTP, {
+          email,
+          otp,
+        });
+
+        toast.success(res.data?.message || "OTP verified");
+
+        setStep("reset");
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Invalid OTP");
+      } finally {
+        setLoading(false);
+      }
+
       return;
     }
 
+    // =========================
+    // STEP 3: RESET PASSWORD
+    // =========================
     if (password.length < 6) {
       setMessage("Password must be at least 6 characters");
       return;
     }
 
-    if (!password || password !== confirmPassword) {
-      setMessage("Password and confirm password must match");
+    if (password !== confirmPassword) {
+      setMessage("Passwords do not match");
       return;
     }
 
-    localStorage.setItem("rti-demo-password", password);
-    setToast("Password changed successfully");
-    setTimeout(() => navigate("/"), 900);
+    try {
+      setLoading(true);
+
+      const res = await axios.post(API.RESET_PASSWORD, {
+        email,
+        password,
+        otp,
+      });
+
+      toast.success(res.data?.message || "Password reset successful");
+
+      setTimeout(() => {
+        navigate("/");
+      }, 1000);
+
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Reset failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="authincation h-100 p-meddle rti-forgot-page">
       <div className="container h-100">
-        {" "}
         <div className="row justify-content-center h-100 align-items-center">
           <div className="col-md-6">
+
             <div className="authincation-content rti-auth-white-card">
-              <div className="row no-gutters">
-                <div className="col-xl-12">
-                  <div className="auth-form">
-                    <AppToast show={Boolean(toast)} message={toast} onClose={() => setToast("")} />
-                    <div className="text-center mb-3">
-                      <Link to="/admin/dashboard">
-                        <img src={logo} alt="RTI" className="rti-auth-logo" />
-                      </Link>
+              <div className="auth-form">
+
+                {/* LOGO */}
+                <div className="text-center mb-3">
+                  <Link to="/">
+                    <img src={logo} alt="RTI" className="rti-auth-logo" />
+                  </Link>
+                </div>
+
+                {/* BACK LINK */}
+                <Link to="/" className="rti-auth-back-link">
+                  <i className="fa fa-arrow-left me-2" />
+                  Back
+                </Link>
+
+                <h4 className="text-center mb-4 text-black">
+                  Forgot Password
+                </h4>
+
+                <form onSubmit={onSubmit}>
+
+                  {/* STEP 1 */}
+                  {step === "email" && (
+                    <div className="form-group">
+                      <label><strong>Email</strong></label>
+                      <input
+                        type="email"
+                        placeholder="Enter email"
+                        className="form-control"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
                     </div>
-                    <Link to="/" className="rti-auth-back-link">
-                      <i className="fa fa-arrow-left me-2" />
-                      Back
-                    </Link>
-                    <h4 className="text-center mb-4 text-black">
-                      Forgot Password
-                    </h4>
-                    <form onSubmit={(e) => onSubmit(e)}>
-                      {step === "email" ? (
-                        <div className="form-group">
-                          <label className="text-black">
-                            <strong>Email</strong>
-                          </label>
-                          <input
-                            type="email"
-                            className={`form-control ${message ? "is-invalid" : ""}`}
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                          />
-                        </div>
-                      ) : step === "otp" ? (
-                        <div className="form-group">
-                          <label className="text-black">
-                            <strong>OTP</strong>
-                          </label>
-                          <input
-                            type="text"
-                            className={`form-control ${message ? "is-invalid" : ""}`}
-                            placeholder="Enter OTP 123456"
-                            value={otp}
-                            onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                          />
-                        </div>
-                      ) : (
-                        <>
-                          <div className="form-group">
-                            <label className="text-black">
-                              <strong>Reset Password</strong>
-                            </label>
-                            <input
-                              type="password"
-                              className={`form-control ${message && password.length < 6 ? "is-invalid" : ""}`}
-                              value={password}
-                              onChange={(e) => setPassword(e.target.value)}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label className="text-black">
-                              <strong>Confirm Password</strong>
-                            </label>
-                            <input
-                              type="password"
-                              className={`form-control ${message && password !== confirmPassword ? "is-invalid" : ""}`}
-                              value={confirmPassword}
-                              onChange={(e) => setConfirmPassword(e.target.value)}
-                            />
-                          </div>
-                        </>
-                      )}
-                      {message && (
-                        <div className="text-danger text-center mb-3">
-                          {message}
-                        </div>
-                      )}
-                      <div className="text-center">
+                  )}
+
+                  {/* STEP 2 */}
+                  {step === "otp" && (
+                    <div className="form-group">
+                      <label><strong>OTP</strong></label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={otp}
+                        maxLength={6}
+                        onChange={(e) =>
+                          setOtp(e.target.value.replace(/\D/g, ""))
+                        }
+                        placeholder="Enter 6-digit OTP"
+                      />
+                    </div>
+                  )}
+
+                  {/* STEP 3 */}
+                  {step === "reset" && (
+                    <>
+                      <div className="form-group">
+                        <label><strong>New Password</strong></label>
                         <input
-                          type="submit"
-                          value="SUBMIT"
-                          className="btn btn-primary btn-block"
+                          type="password"
+                          className="form-control"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
                         />
                       </div>
-                    </form>
+
+                      <div className="form-group">
+                        <label><strong>Confirm Password</strong></label>
+                        <input
+                          type="password"
+                          className="form-control"
+                          value={confirmPassword}
+                          onChange={(e) =>
+                            setConfirmPassword(e.target.value)
+                          }
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* ERROR MESSAGE */}
+                  {message && (
+                    <div className="text-danger text-center mb-2">
+                      {message}
+                    </div>
+                  )}
+
+                  {/* SUBMIT BUTTON */}
+                  <div className="text-center">
+                    <button
+                      type="submit"
+                      className="btn btn-primary btn-block"
+                      disabled={loading}
+                    >
+                      {loading ? "Please wait..." : "SUBMIT"}
+                    </button>
                   </div>
-                </div>
+
+                </form>
+
               </div>
             </div>
+
           </div>
         </div>
       </div>

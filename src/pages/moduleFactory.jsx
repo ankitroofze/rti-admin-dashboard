@@ -1079,6 +1079,7 @@ const getConfig = (slug) => moduleConfig[slug] || moduleConfig.dashboard;
 const dataSlug = (slug) => slug === "dashboard" ? "user-profile" : slug;
 const storageKey = (slug) => `rti-module-${dataSlug(slug)}`;
 
+
 const getStoredRows = (slug) => {
   try {
     const rows = JSON.parse(localStorage.getItem(storageKey(slug)) || "[]");
@@ -1087,6 +1088,7 @@ const getStoredRows = (slug) => {
     return [];
   }
 };
+
 
 const saveStoredRows = (slug, rows) => {
   localStorage.setItem(storageKey(slug), JSON.stringify(rows));
