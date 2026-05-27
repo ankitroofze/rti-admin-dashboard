@@ -1,3 +1,5 @@
+import { setAuthSession } from "../../services/authSession";
+
 export const loadingToggleAction = (status) => ({
   type: "LOADING_TOGGLE",
   payload: status,
@@ -8,9 +10,7 @@ export const loginAction = (email, password, navigate) => (dispatch) => {
   const currentPassword = localStorage.getItem("rti-demo-password") || "123456";
 
   if (email === loginEmail && password === currentPassword) {
-    localStorage.setItem("authToken", "demo-admin-token");
-    localStorage.setItem("userData", JSON.stringify({ email }));
-    localStorage.setItem("lastActivityAt", String(Date.now()));
+    setAuthSession({ token: "demo-admin-token", user: { email } });
     dispatch({ type: "LOGIN_SUCCESS" });
     navigate("/admin/dashboard", { replace: true });
     return;

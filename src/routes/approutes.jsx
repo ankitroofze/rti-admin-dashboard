@@ -9,11 +9,10 @@ import Error400 from "../pages/Error400";
 import Error403 from "../pages/Error403";
 import Error500 from "../pages/Error500";
 import Error503 from "../pages/Error503";
+import { hasAuthSession } from "../services/authSession";
 
 import Dashboard from "../pages/dashboard/dashboard";
 import DashboardView from "../pages/dashboard/dashboard-view";
-import DashboardAdd from "../pages/dashboard/dashboard-add";
-import DashboardUpdate from "../pages/dashboard/dashboard-update";
 import DashboardDeleted from "../pages/dashboard/dashboard-deleted";
 import DashboardStatus from "../pages/dashboard/dashboard-status";
 
@@ -26,24 +25,16 @@ import ProfileStatus from "../pages/user-profile/profile-status";
 
 import Network from "../pages/network/network";
 import NetworkView from "../pages/network/network-view";
-import NetworkAdd from "../pages/network/network-add";
-import NetworkUpdate from "../pages/network/network-update";
 import NetworkDeleted from "../pages/network/network-deleted";
 import NetworkStatus from "../pages/network/network-status";
 
 import Wallets from "../pages/wallets/wallets";
 import WalletsView from "../pages/wallets/wallets-view";
-import WalletsAdd from "../pages/wallets/wallets-add";
-import WalletsUpdate from "../pages/wallets/wallets-update";
 import WalletsDeleted from "../pages/wallets/wallets-deleted";
-import WalletsStatus from "../pages/wallets/wallets-status";
 
 import Withdrawal from "../pages/withdrawal/withdrawal";
 import WithdrawalView from "../pages/withdrawal/withdrawal-view";
-import WithdrawalAdd from "../pages/withdrawal/withdrawal-add";
-import WithdrawalUpdate from "../pages/withdrawal/withdrawal-update";
 import WithdrawalDeleted from "../pages/withdrawal/withdrawal-deleted";
-import WithdrawalStatus from "../pages/withdrawal/withdrawal-status";
 
 import News from "../pages/news/news";
 import NewsView from "../pages/news/news-view";
@@ -71,7 +62,6 @@ import EPaperView from "../pages/e-paper/e-paper-view";
 import EPaperAdd from "../pages/e-paper/e-paper-add";
 import EPaperUpdate from "../pages/e-paper/e-paper-update";
 import EPaperDeleted from "../pages/e-paper/e-paper-deleted";
-import EPaperStatus from "../pages/e-paper/e-paper-status";
 
 import Quiz from "../pages/quiz/quiz";
 import QuizView from "../pages/quiz/quiz-view";
@@ -85,57 +75,90 @@ import OfficesAddressesView from "../pages/offices-addresses/offices-addresses-v
 import OfficesAddressesAdd from "../pages/offices-addresses/offices-addresses-add";
 import OfficesAddressesUpdate from "../pages/offices-addresses/offices-addresses-update";
 import OfficesAddressesDeleted from "../pages/offices-addresses/offices-addresses-deleted";
-import OfficesAddressesStatus from "../pages/offices-addresses/offices-addresses-status";
-
-import ContactUs from "../pages/contact-us/contact-us";
-import ContactUsView from "../pages/contact-us/contact-us-view";
-import ContactUsAdd from "../pages/contact-us/contact-us-add";
-import ContactUsUpdate from "../pages/contact-us/contact-us-update";
-import ContactUsDeleted from "../pages/contact-us/contact-us-deleted";
-import ContactUsStatus from "../pages/contact-us/contact-us-status";
 
 import Notification from "../pages/news-notification/notification";
 import NotificationView from "../pages/news-notification/notification-view";
-import NotificationAdd from "../pages/news-notification/notification-add";
-import NotificationUpdate from "../pages/news-notification/notification-update";
 import NotificationDeleted from "../pages/news-notification/notification-deleted";
-import NotificationStatus from "../pages/news-notification/notification-status";
-import { ModuleDelete, ModuleForm, ModuleList, ModuleStatus, ModuleView } from "../pages/moduleFactory";
+
+import ContactUs from "../pages/contact-us/contact-us";
+import ContactUsView from "../pages/contact-us/contact-us-view";
+import ContactUsDeleted from "../pages/contact-us/contact-us-deleted";
+
+import EcommerceSubscription from "../pages/ecommerce-subscription/ecommerce-subscription";
+import EcommerceSubscriptionView from "../pages/ecommerce-subscription/ecommerce-subscription-view";
+import EcommerceSubscriptionAdd from "../pages/ecommerce-subscription/ecommerce-subscription-add";
+import EcommerceSubscriptionUpdate from "../pages/ecommerce-subscription/ecommerce-subscription-update";
+import EcommerceSubscriptionDeleted from "../pages/ecommerce-subscription/ecommerce-subscription-deleted";
+import EcommerceSubscriptionStatus from "../pages/ecommerce-subscription/ecommerce-subscription-status";
+
+import ProductEnquiry from "../pages/product-enquiry/product-enquiry";
+import ProductEnquiryView from "../pages/product-enquiry/product-enquiry-view";
+import ProductEnquiryDeleted from "../pages/product-enquiry/product-enquiry-deleted";
+
+import AdsSubscription from "../pages/ads-subscription/ads-subscription";
+import AdsSubscriptionView from "../pages/ads-subscription/ads-subscription-view";
+import AdsSubscriptionAdd from "../pages/ads-subscription/ads-subscription-add";
+import AdsSubscriptionUpdate from "../pages/ads-subscription/ads-subscription-update";
+import AdsSubscriptionDeleted from "../pages/ads-subscription/ads-subscription-deleted";
+import AdsSubscriptionStatus from "../pages/ads-subscription/ads-subscription-status";
+
+import AdsManagement from "../pages/ads-management/ads-management";
+import AdsManagementView from "../pages/ads-management/ads-management-view";
+import AdsManagementDeleted from "../pages/ads-management/ads-management-deleted";
+
+import AdsViewTracking from "../pages/ads-view-tracking/ads-view-tracking";
+import AdsViewTrackingView from "../pages/ads-view-tracking/ads-view-tracking-view";
+import AdsViewTrackingDeleted from "../pages/ads-view-tracking/ads-view-tracking-deleted";
+
+import ReportsProductEnquiry from "../pages/reports-product-enquiry/reports-product-enquiry";
+import ReportsProductEnquiryView from "../pages/reports-product-enquiry/reports-product-enquiry-view";
+import ReportsProductEnquiryDeleted from "../pages/reports-product-enquiry/reports-product-enquiry-deleted";
+
+import ReportsUserWise from "../pages/reports-user-wise/reports-user-wise";
+import ReportsUserWiseView from "../pages/reports-user-wise/reports-user-wise-view";
+import ReportsUserWiseDeleted from "../pages/reports-user-wise/reports-user-wise-deleted";
+
+import ReportsSubscription from "../pages/reports-subscription/reports-subscription";
+import ReportsSubscriptionView from "../pages/reports-subscription/reports-subscription-view";
+import ReportsSubscriptionDeleted from "../pages/reports-subscription/reports-subscription-deleted";
+
+import ReportsAdsView from "../pages/reports-ads-view/reports-ads-view";
+import ReportsAdsViewView from "../pages/reports-ads-view/reports-ads-view-view";
+import ReportsAdsViewDeleted from "../pages/reports-ads-view/reports-ads-view-deleted";
 
 const moduleRoutes = [
-  ["dashboard", Dashboard, DashboardView, DashboardAdd, DashboardUpdate, DashboardDeleted, DashboardStatus],
-  ["user-profile", UserProfile, ProfileView, ProfileAdd, ProfileUpdate, ProfileDeleted, ProfileStatus],
-  ["network", Network, NetworkView, NetworkAdd, NetworkUpdate, NetworkDeleted, NetworkStatus],
-  ["wallets", Wallets, WalletsView, WalletsAdd, WalletsUpdate, WalletsDeleted, WalletsStatus],
-  ["withdrawal", Withdrawal, WithdrawalView, WithdrawalAdd, WithdrawalUpdate, WithdrawalDeleted, WithdrawalStatus],
-  ["news", News, NewsView, NewsAdd, NewsUpdate, NewsDeleted, NewsStatus],
-  ["subscription-plan", SubscriptionPlan, SubscriptionPlanView, SubscriptionPlanAdd, SubscriptionPlanUpdate, SubscriptionPlanDeleted, SubscriptionPlanStatus],
-  ["advertisement", Advertisement, AdvertisementView, AdvertisementAdd, AdvertisementUpdate, AdvertisementDeleted, AdvertisementStatus],
-  ["e-paper", EPaper, EPaperView, EPaperAdd, EPaperUpdate, EPaperDeleted, EPaperStatus],
-  ["quiz", Quiz, QuizView, QuizAdd, QuizUpdate, QuizDeleted, QuizStatus],
-  ["offices-addresses", OfficesAddresses, OfficesAddressesView, OfficesAddressesAdd, OfficesAddressesUpdate, OfficesAddressesDeleted, OfficesAddressesStatus],
-  ["news-notification", Notification, NotificationView, NotificationAdd, NotificationUpdate, NotificationDeleted, NotificationStatus],
-  ["contact-us", ContactUs, ContactUsView, ContactUsAdd, ContactUsUpdate, ContactUsDeleted, ContactUsStatus],
+  { slug: "dashboard", List: Dashboard, View: DashboardView, Deleted: DashboardDeleted, Status: DashboardStatus },
+  { slug: "user-profile", List: UserProfile, View: ProfileView, Add: ProfileAdd, Update: ProfileUpdate, Deleted: ProfileDeleted, Status: ProfileStatus },
+  { slug: "network", List: Network, View: NetworkView, Deleted: NetworkDeleted, Status: NetworkStatus },
+  { slug: "wallets", List: Wallets, View: WalletsView, Deleted: WalletsDeleted },
+  { slug: "withdrawal", List: Withdrawal, View: WithdrawalView, Deleted: WithdrawalDeleted },
+  { slug: "news", List: News, View: NewsView, Add: NewsAdd, Update: NewsUpdate, Deleted: NewsDeleted, Status: NewsStatus },
+  { slug: "subscription-plan", List: SubscriptionPlan, View: SubscriptionPlanView, Add: SubscriptionPlanAdd, Update: SubscriptionPlanUpdate, Deleted: SubscriptionPlanDeleted, Status: SubscriptionPlanStatus },
+  { slug: "advertisement", List: Advertisement, View: AdvertisementView, Add: AdvertisementAdd, Update: AdvertisementUpdate, Deleted: AdvertisementDeleted, Status: AdvertisementStatus },
+  { slug: "e-paper", List: EPaper, View: EPaperView, Add: EPaperAdd, Update: EPaperUpdate, Deleted: EPaperDeleted },
+  { slug: "quiz", List: Quiz, View: QuizView, Add: QuizAdd, Update: QuizUpdate, Deleted: QuizDeleted, Status: QuizStatus },
+  { slug: "offices-addresses", List: OfficesAddresses, View: OfficesAddressesView, Add: OfficesAddressesAdd, Update: OfficesAddressesUpdate, Deleted: OfficesAddressesDeleted },
+  { slug: "news-notification", List: Notification, View: NotificationView, Deleted: NotificationDeleted },
+  { slug: "contact-us", List: ContactUs, View: ContactUsView, Deleted: ContactUsDeleted },
+  { slug: "ecommerce-subscription", List: EcommerceSubscription, View: EcommerceSubscriptionView, Add: EcommerceSubscriptionAdd, Update: EcommerceSubscriptionUpdate, Deleted: EcommerceSubscriptionDeleted, Status: EcommerceSubscriptionStatus },
+  { slug: "product-enquiry", List: ProductEnquiry, View: ProductEnquiryView, Deleted: ProductEnquiryDeleted },
+  { slug: "ads-subscription", List: AdsSubscription, View: AdsSubscriptionView, Add: AdsSubscriptionAdd, Update: AdsSubscriptionUpdate, Deleted: AdsSubscriptionDeleted, Status: AdsSubscriptionStatus },
+  { slug: "ads-management", List: AdsManagement, View: AdsManagementView, Deleted: AdsManagementDeleted },
+  { slug: "ads-view-tracking", List: AdsViewTracking, View: AdsViewTrackingView, Deleted: AdsViewTrackingDeleted },
+  { slug: "reports-product-enquiry", List: ReportsProductEnquiry, View: ReportsProductEnquiryView, Deleted: ReportsProductEnquiryDeleted },
+  { slug: "reports-user-wise", List: ReportsUserWise, View: ReportsUserWiseView, Deleted: ReportsUserWiseDeleted },
+  { slug: "reports-subscription", List: ReportsSubscription, View: ReportsSubscriptionView, Deleted: ReportsSubscriptionDeleted },
+  { slug: "reports-ads-view", List: ReportsAdsView, View: ReportsAdsViewView, Deleted: ReportsAdsViewDeleted }
 ];
 
-const newModuleSlugs = [
-  "ecommerce-subscription",
-  "product-enquiry",
-  "ads-subscription",
-  "ads-management",
-  "ads-view-tracking",
-  "reports-product-enquiry",
-  "reports-user-wise",
-  "reports-subscription",
-  "reports-ads-view",
-];
+const isLoggedIn = hasAuthSession;
 
 const PublicOnly = ({ children }) => {
-  return localStorage.getItem("authToken") ? <Navigate to="/admin/dashboard" replace /> : children;
+  return isLoggedIn() ? <Navigate to="/admin/dashboard" replace /> : children;
 };
 
 const ProtectedLayout = () => {
-  return localStorage.getItem("authToken") ? <AdminLayout /> : <Navigate to="/" replace />;
+  return isLoggedIn() ? <AdminLayout /> : <Navigate to="/" replace />;
 };
 
 const AppRoutes = () => {
@@ -151,24 +174,14 @@ const AppRoutes = () => {
 
         <Route path="/admin" element={<ProtectedLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
-          {moduleRoutes.map(([slug, List, View, Add, Update, Deleted, Status]) => (
+          {moduleRoutes.map(({ slug, List, View, Add, Update, Deleted, Status }) => (
             <React.Fragment key={slug}>
               <Route path={slug} element={<List />} />
               <Route path={`${slug}/view`} element={<View />} />
-              <Route path={`${slug}/add`} element={<Add />} />
-              <Route path={`${slug}/update`} element={<Update />} />
-              <Route path={`${slug}/deleted`} element={<Deleted />} />
-              <Route path={`${slug}/status`} element={<Status />} />
-            </React.Fragment>
-          ))}
-          {newModuleSlugs.map((slug) => (
-            <React.Fragment key={slug}>
-              <Route path={slug} element={<ModuleList slug={slug} />} />
-              <Route path={`${slug}/view`} element={<ModuleView slug={slug} />} />
-              <Route path={`${slug}/add`} element={<ModuleForm slug={slug} mode="Add" />} />
-              <Route path={`${slug}/update`} element={<ModuleForm slug={slug} mode="Update" />} />
-              <Route path={`${slug}/deleted`} element={<ModuleDelete slug={slug} />} />
-              <Route path={`${slug}/status`} element={<ModuleStatus slug={slug} />} />
+              {Add && <Route path={`${slug}/add`} element={<Add />} />}
+              {Update && <Route path={`${slug}/update`} element={<Update />} />}
+              {Deleted && <Route path={`${slug}/deleted`} element={<Deleted />} />}
+              {Status && <Route path={`${slug}/status`} element={<Status />} />}
             </React.Fragment>
           ))}
           <Route path="inbox" element={<NotFound />} />

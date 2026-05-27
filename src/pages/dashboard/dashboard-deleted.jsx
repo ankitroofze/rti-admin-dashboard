@@ -1,6 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleDelete } from "../moduleFactory";
 
-const DashboardDeleted = () => <ModuleDelete slug="dashboard" />;
+const ModulePage = () => <ModuleDelete slug="dashboard" />;
 
-export default DashboardDeleted;
+export default ModulePage;

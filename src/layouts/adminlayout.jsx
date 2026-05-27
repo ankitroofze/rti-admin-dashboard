@@ -4,6 +4,7 @@ import Sidebar from "../components/common/sidebar";
 import Footer from "../components/common/footer";
 import { Outlet, useNavigate } from "react-router-dom";
 import AppToast from "../components/common/AppToast";
+import { clearAuthSession, SESSION_TIMEOUT_MS } from "../services/authSession";
 
 const AdminLayout = () => {
   const navigate = useNavigate();
@@ -15,7 +16,6 @@ const AdminLayout = () => {
   }, [toast]);
 
   useEffect(() => {
-    const expireAfter = 5 * 60 * 1000;
     const touch = () => localStorage.setItem("lastActivityAt", String(Date.now()));
     const events = ["click", "keydown", "mousemove", "scroll", "touchstart"];
     events.forEach((eventName) => window.addEventListener(eventName, touch));
@@ -23,10 +23,8 @@ const AdminLayout = () => {
 
     const timer = window.setInterval(() => {
       const lastActivity = Number(localStorage.getItem("lastActivityAt") || 0);
-      if (Date.now() - lastActivity >= expireAfter) {
-        localStorage.removeItem("authToken");
-        localStorage.removeItem("userData");
-        localStorage.removeItem("lastActivityAt");
+      if (Date.now() - lastActivity >= SESSION_TIMEOUT_MS) {
+        clearAuthSession();
         navigate("/", { replace: true });
       }
     }, 1000);

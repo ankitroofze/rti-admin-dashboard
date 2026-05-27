@@ -1,6 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleView } from "../moduleFactory";
 
-const DashboardView = () => <ModuleView slug="dashboard" />;
+const ModulePage = () => <ModuleView slug="dashboard" />;
 
-export default DashboardView;
+export default ModulePage;

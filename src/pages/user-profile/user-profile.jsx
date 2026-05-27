@@ -1,6 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleList } from "../moduleFactory";
 
-const UserProfile = () => <ModuleList slug="user-profile" />;
+const ModulePage = () => <ModuleList slug="user-profile" />;
 
-export default UserProfile;
+export default ModulePage;

@@ -1,6 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleStatus } from "../moduleFactory";
 
-const DashboardStatus = () => <ModuleStatus slug="dashboard" />;
+const ModulePage = () => <ModuleStatus slug="dashboard" />;
 
-export default DashboardStatus;
+export default ModulePage;

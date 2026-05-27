@@ -846,20 +846,36 @@ a {
 }
 
 #main-wrapper.menu-toggle .deznav .metismenu > li > a:hover::after {
-  content: attr(data-title);
-  position: absolute;
-  left: calc(100% + 10px);
-  top: 50%;
+  content: none;
+}
+
+.rti-sidebar-tooltip {
+  position: fixed;
   transform: translateY(-50%);
+  z-index: 99999;
   min-width: max-content;
-  padding: 8px 12px;
+  max-width: min(240px, calc(100vw - 110px));
+  padding: 8px 13px;
   border-radius: 6px;
   background: #111827;
   color: #fff;
   font-size: 13px;
   font-weight: 700;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
-  z-index: 9999;
+  line-height: 1.2;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.26);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.rti-sidebar-tooltip::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-right: 5px solid #111827;
 }
 
 .auth-form input[type="submit"].btn {
@@ -1044,6 +1060,32 @@ a.btn.btn-light:has(.fa-arrow-left):hover {
 
 #main-wrapper.menu-toggle .content-body {
   margin-left: 5.5rem;
+}
+
+#main-wrapper.show {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-body {
+  flex: 1 0 auto;
+  min-height: calc(100vh - 6rem);
+}
+
+.content-body > .container-fluid {
+  min-height: inherit;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-body > .container-fluid > .row {
+  flex: 1 0 auto;
+  align-content: flex-start;
+}
+
+.footer {
+  flex-shrink: 0;
 }
 
 #main-wrapper.menu-toggle .deznav .nav-text,
@@ -1293,6 +1335,30 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   z-index: 1;
 }
 
+.rti-table-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+  position: relative;
+  z-index: 2;
+}
+
+.rti-filter-header-btn {
+  white-space: nowrap;
+}
+
+.rti-filter-modal .modal-content {
+  border: 0;
+  border-radius: 8px;
+}
+
+.rti-filter-modal .modal-header,
+.rti-filter-modal .modal-footer {
+  border-color: #e5e7eb;
+}
+
 .rti-table-filters {
   margin-bottom: 18px;
   padding-bottom: 0;
@@ -1536,24 +1602,46 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     min-height: 58px;
     flex-wrap: nowrap !important;
     gap: 8px !important;
-    padding: 0 10px 0 0;
+    padding: 0 8px 0 0;
     background: #173fbd;
   }
 
   .rti-table-title-tab {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     width: auto;
     min-width: 0;
     margin-left: 0;
-    padding: 16px 18px;
+    padding: 15px 12px;
     border-radius: 2px 2px 0 0;
-    font-size: 17px;
+    font-size: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .rti-module-table-card > .card-header .btn {
     flex: 0 0 auto;
     margin-left: auto;
     white-space: nowrap;
+  }
+
+  .rti-table-header-actions {
+    flex: 0 0 auto;
+    gap: 6px;
+    margin-left: 0;
+    max-width: 52%;
+  }
+
+  .rti-table-header-actions .btn {
+    margin-left: 0;
+    min-height: 34px;
+    padding: 7px 9px;
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .rti-table-header-actions .btn i {
+    margin-right: 4px !important;
   }
 
   .rti-table-title-tab::after {
@@ -1570,6 +1658,26 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 
   .authincation .container.p-7 {
     padding: 1.25rem !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .rti-table-header-actions .btn {
+    width: 34px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .rti-table-header-actions .btn i {
+    margin-right: 0 !important;
+  }
+
+  .rti-table-header-actions .btn {
+    font-size: 0;
+  }
+
+  .rti-table-title-tab {
+    font-size: 14px;
   }
 }
 

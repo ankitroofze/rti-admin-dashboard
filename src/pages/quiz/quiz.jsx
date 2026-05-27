@@ -1,4 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleList } from "../moduleFactory";
-const Quiz = () => <ModuleList slug="quiz" />;
-export default Quiz;
+
+const ModulePage = () => <ModuleList slug="quiz" />;
+
+export default ModulePage;

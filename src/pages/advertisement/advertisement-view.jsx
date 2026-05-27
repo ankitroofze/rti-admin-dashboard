@@ -1,4 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleView } from "../moduleFactory";
-const AdvertisementView = () => <ModuleView slug="advertisement" />;
-export default AdvertisementView;
+
+const ModulePage = () => <ModuleView slug="advertisement" />;
+
+export default ModulePage;

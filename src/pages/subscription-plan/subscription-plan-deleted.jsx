@@ -1,6 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleDelete } from "../moduleFactory";
 
-const SubscriptionPlanDeleted = () => <ModuleDelete slug="subscription-plan" />;
+const ModulePage = () => <ModuleDelete slug="subscription-plan" />;
 
-export default SubscriptionPlanDeleted;
+export default ModulePage;

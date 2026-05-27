@@ -1,4 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleDelete } from "../moduleFactory";
-const NetworkDeleted = () => <ModuleDelete slug="network" />;
-export default NetworkDeleted;
+
+const ModulePage = () => <ModuleDelete slug="network" />;
+
+export default ModulePage;

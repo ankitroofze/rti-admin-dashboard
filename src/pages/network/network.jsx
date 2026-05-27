@@ -1,4 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleList } from "../moduleFactory";
-const Network = () => <ModuleList slug="network" />;
-export default Network;
+
+const ModulePage = () => <ModuleList slug="network" />;
+
+export default ModulePage;

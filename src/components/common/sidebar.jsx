@@ -1,4 +1,5 @@
 import React, { useEffect, useReducer } from "react";
+import { createPortal } from "react-dom";
 import { Collapse } from "react-bootstrap";
 import { Link, useLocation } from "react-router-dom";
 
@@ -134,6 +135,7 @@ const SideBar = ({ onMobileNavigate = () => {} }) => {
   const d = new Date();
   const location = useLocation();
   const [state, setState] = useReducer(reducer, initialState);
+  const [tooltip, setTooltip] = React.useState(null);
 
   const handleMenuActive = (status) => {
     setState({ active: state.active === status ? "" : status });
@@ -142,6 +144,22 @@ const SideBar = ({ onMobileNavigate = () => {} }) => {
   const handleSubmenuActive = (status) => {
     setState({ activeSubmenu: state.activeSubmenu === status ? "" : status });
   };
+
+  const showCollapsedTooltip = (event, title) => {
+    const wrapper = document.getElementById("main-wrapper");
+    const isCollapsed = wrapper?.classList.contains("menu-toggle");
+    const isMobile = window.matchMedia("(max-width: 700px)").matches;
+    if (!isCollapsed || isMobile) return;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    setTooltip({
+      title,
+      top: rect.top + rect.height / 2,
+      left: rect.right + 12,
+    });
+  };
+
+  const hideCollapsedTooltip = () => setTooltip(null);
 
   const activeModule = MenuList.find((item) => hasActiveRoute(item, location.pathname));
   const activeSubmenu = activeModule?.content?.find((item) => item.content?.some((ele) => isRouteActive(ele.to, location.pathname)));
@@ -194,7 +212,12 @@ const SideBar = ({ onMobileNavigate = () => {} }) => {
                       to="#"
                       className="has-arrow ai-icon"
                       data-title={data.title}
+                      title={data.title}
                       onClick={() => handleMenuActive(data.title)}
+                      onMouseEnter={(event) => showCollapsedTooltip(event, data.title)}
+                      onMouseLeave={hideCollapsedTooltip}
+                      onFocus={(event) => showCollapsedTooltip(event, data.title)}
+                      onBlur={hideCollapsedTooltip}
                     >
                       {data.iconStyle}{" "}
                       <span className="nav-text">
@@ -220,6 +243,8 @@ const SideBar = ({ onMobileNavigate = () => {} }) => {
                                 <Link
                                   to={item.to}
                                   className={item.hasMenu ? "has-arrow" : ""}
+                                  data-title={item.title}
+                                  title={item.title}
                                   onClick={() => handleSubmenuActive(item.title)}
                                 >
                                   {item.title}
@@ -239,6 +264,8 @@ const SideBar = ({ onMobileNavigate = () => {} }) => {
                                               : ""
                                           }`}
                                           to={subItem.to}
+                                          data-title={subItem.title}
+                                          title={subItem.title}
                                           onClick={onMobileNavigate}
                                         >
                                           {subItem.title}
@@ -254,6 +281,8 @@ const SideBar = ({ onMobileNavigate = () => {} }) => {
                                 className={`${
                                   item.to?.split("/").pop() === path ? "mm-active" : ""
                                 }`}
+                                data-title={item.title}
+                                title={item.title}
                                 onClick={onMobileNavigate}
                               >
                                 {item.title}
@@ -269,7 +298,12 @@ const SideBar = ({ onMobileNavigate = () => {} }) => {
                     to={data.to}
                     className={`${data.to?.split("/").pop() === path ? "mm-active" : ""}`}
                     data-title={data.title}
+                    title={data.title}
                     onClick={onMobileNavigate}
+                    onMouseEnter={(event) => showCollapsedTooltip(event, data.title)}
+                    onMouseLeave={hideCollapsedTooltip}
+                    onFocus={(event) => showCollapsedTooltip(event, data.title)}
+                    onBlur={hideCollapsedTooltip}
                   >
                     {data.iconStyle}{" "}
                     <span className="nav-text">
@@ -295,6 +329,15 @@ const SideBar = ({ onMobileNavigate = () => {} }) => {
           <p>Made by Roofze Digital Hub</p>
         </div>
       </div>
+      {tooltip && createPortal(
+        <div
+          className="rti-sidebar-tooltip"
+          style={{ top: `${tooltip.top}px`, left: `${tooltip.left}px` }}
+        >
+          {tooltip.title}
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

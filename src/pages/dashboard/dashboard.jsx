@@ -1,6 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleList } from "../moduleFactory";
 
-const Dashboard = () => <ModuleList slug="dashboard" />;
+const ModulePage = () => <ModuleList slug="dashboard" />;
 
-export default Dashboard;
+export default ModulePage;

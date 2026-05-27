@@ -1,6 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleList } from "../moduleFactory";
 
-const SubscriptionPlan = () => <ModuleList slug="subscription-plan" />;
+const ModulePage = () => <ModuleList slug="subscription-plan" />;
 
-export default SubscriptionPlan;
+export default ModulePage;

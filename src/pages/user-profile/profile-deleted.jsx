@@ -1,6 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleDelete } from "../moduleFactory";
 
-const ProfileDeleted = () => <ModuleDelete slug="user-profile" />;
+const ModulePage = () => <ModuleDelete slug="user-profile" />;
 
-export default ProfileDeleted;
+export default ModulePage;

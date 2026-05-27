@@ -1,4 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleList } from "../moduleFactory";
-const OfficesAddresses = () => <ModuleList slug="offices-addresses" />;
-export default OfficesAddresses;
+
+const ModulePage = () => <ModuleList slug="offices-addresses" />;
+
+export default ModulePage;

@@ -1,6 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleDelete } from "../moduleFactory";
 
-const NotificationDeleted = () => <ModuleDelete slug="news-notification" />;
+const ModulePage = () => <ModuleDelete slug="news-notification" />;
 
-export default NotificationDeleted;
+export default ModulePage;

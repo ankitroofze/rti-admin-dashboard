@@ -1,4 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleView } from "../moduleFactory";
-const NetworkView = () => <ModuleView slug="network" />;
-export default NetworkView;
+
+const ModulePage = () => <ModuleView slug="network" />;
+
+export default ModulePage;

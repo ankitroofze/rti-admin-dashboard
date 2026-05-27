@@ -4,9 +4,13 @@ import { Dropdown } from "react-bootstrap";
 import profile from "../../assets/images/profile/17.jpg";
 import logo from "../../assets/images/rti.png";
 import { ThemeContext } from "../../context/ThemeContext.jsx";
-import axios from "axios";
-import API from "../../api/api";
 import { toast } from "react-toastify";
+import apiClient from "../../api/axiosClient";
+import { clearAuthSession } from "../../services/authSession";
+
+const isMissingApiRoute = (err) =>
+  err.response?.status === 404 &&
+  String(err.response?.data?.message || "").toLowerCase().includes("route");
 
 const Header = ({ sidebarCollapsed = false, onToggleSidebar = () => {} }) => {
   const navigate = useNavigate();
@@ -39,43 +43,27 @@ const Header = ({ sidebarCollapsed = false, onToggleSidebar = () => {} }) => {
     }
   }
 
+  // 🔥 CLEAN LOGOUT LOGIC: Interceptor handles the token automatically now!
   const handleLogout = async () => {
   try {
-    const token = localStorage.getItem("authToken");
-
-    await axios.post(
-      API.LOGOUT,
-      {},
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      }
-    );
-
+    // ⚠️ Sirf '/logout' likhna hai, apiClient khud aage 'https://rtiapi.roofze.in/api/rti-admin' jod dega
+    await apiClient.post("/logout", {});
     toast.success("Logged out successfully");
   } catch (err) {
-    console.log(err.response?.data || err.message);
-    toast.error("Logout failed, but session cleared");
+    console.error("Logout API Error =>", err.response?.data || err.message);
+    if (!isMissingApiRoute(err)) {
+      toast.error("Logout failed on server, but cleaning local session...");
+    }
+  } finally {
+    clearAuthSession();
+    navigate("/", { replace: true });
   }
-
-  // ALWAYS clear local session
-  localStorage.removeItem("authToken");
-  localStorage.removeItem("lastActivityAt");
-  localStorage.removeItem("user");
-
-  navigate("/");
 };
-
 
   return (
     <div className="header">
-      
       <div className="header-content">
         <nav className="navbar navbar-expand">
-
-          
           <div className="collapse navbar-collapse justify-content-between">
             <div className="header-left">
               <Link to="/admin/dashboard" className="rti-header-logo rti-header-logo-start">
@@ -149,7 +137,7 @@ const Header = ({ sidebarCollapsed = false, onToggleSidebar = () => {} }) => {
                     <i className="fa fa-sign-out-alt text-danger" />
                     <span className="ms-2">Logout</span>
                   </button>
-                  </Dropdown.Menu>
+                </Dropdown.Menu>
               </Dropdown>
             </ul>
           </div>

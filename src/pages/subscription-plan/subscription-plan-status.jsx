@@ -1,6 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleStatus } from "../moduleFactory";
 
-const SubscriptionPlanStatus = () => <ModuleStatus slug="subscription-plan" />;
+const ModulePage = () => <ModuleStatus slug="subscription-plan" />;
 
-export default SubscriptionPlanStatus;
+export default ModulePage;

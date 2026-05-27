@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Collapse, Modal } from "react-bootstrap";
+import { Modal } from "react-bootstrap";
 import Select from "react-select";
 import swal from "sweetalert";
+import API from "../api/api";
+import apiClient from "../services/apiClient";
+import { getAuthToken } from "../services/authSession";
 import profile from "../assets/images/profile/profile.png";
 import avatar1 from "../assets/images/avatar/1.jpg";
 import avatar2 from "../assets/images/avatar/2.jpg";
@@ -455,8 +458,7 @@ const moduleConfig = {
         role: "Chief Editor / Publisher, Executive Editor",
         state: "Maharashtra",
         price: "4999",
-        subscriptionStartDate: "01 May 2026",
-        subscriptionEndDate: "01 May 2027",
+        days: "30 days",
         status: "Active",
       },
     ],
@@ -468,7 +470,7 @@ const moduleConfig = {
       ["status", "Status"],
     ],
     actions: ["view", "update", "delete", "status"],
-    details: ["title", "role", "state", "price", "subscriptionStartDate", "subscriptionEndDate", "status"],
+    details: ["title", "role", "state", "price", "days", "status"],
     form: "subscription",
   },
   "ecommerce-subscription": {
@@ -482,10 +484,7 @@ const moduleConfig = {
         title: "Seller Growth Plan",
         description: "Monthly product listing plan with enquiry credits.",
         credits: "250",
-        creditsLeft: "180",
-        creditsUsed: "70",
-        startDate: "01 May 2026",
-        endDate: "31 May 2026",
+        days: "30 days",
         status: "Active",
       },
       {
@@ -494,10 +493,7 @@ const moduleConfig = {
         title: "Starter Product Plan",
         description: "Basic product enquiry subscription for new sellers.",
         credits: "75",
-        creditsLeft: "0",
-        creditsUsed: "75",
-        startDate: "01 Apr 2026",
-        endDate: "30 Apr 2026",
+        days: "24 days",
         status: "Inactive",
       },
     ],
@@ -506,12 +502,11 @@ const moduleConfig = {
       ["title", "Subscription Title"],
       ["description", "Description"],
       ["credits", "Credits"],
-      ["startDate", "Start Date"],
-      ["endDate", "End Date"],
+      ["days", "Days"],
       ["status", "Status"],
     ],
     actions: ["view", "update", "delete", "status"],
-    details: ["title", "description", "credits", "creditsUsed", "creditsLeft", "startDate", "endDate", "status"],
+    details: ["title", "description", "credits", "days", "status"],
     form: "commerceSubscription",
   },
   "product-enquiry": {
@@ -686,8 +681,7 @@ const moduleConfig = {
         title: "Banner Boost Plan",
         description: "Sponsored banner visibility subscription.",
         credits: "10000",
-        startDate: "01 May 2026",
-        endDate: "31 May 2026",
+        days: "30 days",
         status: "Active",
       },
       {
@@ -696,8 +690,7 @@ const moduleConfig = {
         title: "Premium Spotlight Plan",
         description: "Featured placement with extra ad view credits.",
         credits: "25000",
-        startDate: "10 May 2026",
-        endDate: "10 Jun 2026",
+        days: "28 days",
         status: "Active",
       },
       {
@@ -706,8 +699,7 @@ const moduleConfig = {
         title: "Starter Local Ads",
         description: "Local city ad package for new advertisers.",
         credits: "5000",
-        startDate: "01 Apr 2026",
-        endDate: "30 Apr 2026",
+        days: "24 days",
         status: "Inactive",
       },
     ],
@@ -716,12 +708,11 @@ const moduleConfig = {
       ["title", "Subscription Title"],
       ["description", "Description"],
       ["credits", "Credits"],
-      ["startDate", "Start Date"],
-      ["endDate", "End Date"],
+      ["days", "Days"],
       ["status", "Status"],
     ],
     actions: ["view", "update", "delete", "status"],
-    details: ["title", "description", "credits", "startDate", "endDate", "status"],
+    details: ["title", "description", "credits", "days", "status"],
     form: "adsSubscription",
   },
   "ads-management": {
@@ -731,6 +722,8 @@ const moduleConfig = {
     rows: [
       {
         sr: 1,
+        id: "ADS-MGT-101",
+        userId: "USR-1001",
         user: "Amit Sharma",
         adTitle: "Summer Product Campaign",
         status: "Active",
@@ -740,6 +733,8 @@ const moduleConfig = {
       },
       {
         sr: 2,
+        id: "ADS-MGT-102",
+        userId: "USR-1002",
         user: "Priya Verma",
         adTitle: "Premium Seller Launch",
         status: "Inactive",
@@ -749,6 +744,8 @@ const moduleConfig = {
       },
       {
         sr: 3,
+        id: "ADS-MGT-103",
+        userId: "USR-1003",
         user: "National Store",
         adTitle: "Weekend Deal Banner",
         status: "Active",
@@ -759,6 +756,7 @@ const moduleConfig = {
     ],
     columns: [
       ["sr", "Sr.No"],
+      ["userId", "User ID"],
       ["user", "User"],
       ["adTitle", "Ad Title"],
       ["status", "Status"],
@@ -766,7 +764,7 @@ const moduleConfig = {
       ["startDate", "Start Date"],
     ],
     actions: ["view", "delete"],
-    details: ["user", "adTitle", "status", "views", "startDate", "adDetails"],
+    details: ["userId", "user", "adTitle", "status", "views", "startDate", "adDetails"],
   },
   "ads-view-tracking": {
     title: "Ads View Tracking",
@@ -863,19 +861,18 @@ const moduleConfig = {
     add: false,
     filters: ["search"],
     rows: [
-      { sr: 1, user: "Amit Sharma", plan: "Seller Growth Plan", creditsUsed: "70", creditsLeft: "180" },
-      { sr: 2, user: "Priya Verma", plan: "Starter Product Plan", creditsUsed: "75", creditsLeft: "0" },
-      { sr: 3, user: "National Store", plan: "Premium Spotlight Plan", creditsUsed: "1200", creditsLeft: "23800" },
+      { sr: 1, user: "Amit Sharma", plan: "Seller Growth Plan", days: "30 days" },
+      { sr: 2, user: "Priya Verma", plan: "Starter Product Plan", days: "24 days" },
+      { sr: 3, user: "National Store", plan: "Premium Spotlight Plan", days: "28 days" },
     ],
     columns: [
       ["sr", "Sr.No"],
       ["user", "User"],
       ["plan", "Plan"],
-      ["creditsUsed", "Credits Used"],
-      ["creditsLeft", "Credits Left"],
+      ["days", "Days"],
     ],
     actions: ["view", "delete"],
-    details: ["user", "plan", "creditsUsed", "creditsLeft"],
+    details: ["user", "plan", "days"],
   },
   "reports-ads-view": {
     title: "Ads View Reports",
@@ -1046,6 +1043,7 @@ const labels = {
   credits: "Credits",
   creditsUsed: "Credits Used",
   creditsLeft: "Credits Left",
+  days: "Days",
   startDate: "Start Date",
   endDate: "End Date",
   customerName: "Customer Name",
@@ -1079,6 +1077,343 @@ const getConfig = (slug) => moduleConfig[slug] || moduleConfig.dashboard;
 const dataSlug = (slug) => slug === "dashboard" ? "user-profile" : slug;
 const storageKey = (slug) => `rti-module-${dataSlug(slug)}`;
 
+const USER_API_SLUGS = ["dashboard", "user-profile"];
+const MODULE_API_SLUGS = ["news", "quiz"];
+const LIVE_API_SLUGS = [...USER_API_SLUGS, ...MODULE_API_SLUGS];
+
+const moduleApi = {
+  news: {
+    index: API.NEWS_INDEX,
+    add: API.NEWS_ADD,
+    show: API.NEWS_SHOW,
+    update: API.NEWS_UPDATE,
+    delete: API.NEWS_DELETE,
+    status: API.NEWS_STATUS,
+  },
+  quiz: {
+    index: API.QUIZ_INDEX,
+    add: API.QUIZ_ADD,
+    show: API.QUIZ_SHOW,
+    update: API.QUIZ_UPDATE,
+    delete: API.QUIZ_DELETE,
+    restore: API.QUIZ_RESTORE,
+  },
+};
+
+const endpoint = (url, rowOrId) => {
+  const id = typeof rowOrId === "object"
+    ? rowOrId?.id || rowOrId?.userId || rowOrId?.profileId || rowKey(rowOrId)
+    : rowOrId;
+  if (typeof url === "function") return url(encodeURIComponent(id || ""));
+  return String(url || "").replace("{user}", encodeURIComponent(id || ""));
+};
+
+const apiHeaders = () => {
+  const token = getAuthToken();
+  return {
+    Accept: "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
+const apiMessage = (errorOrResponse, fallback = "Something went wrong") => {
+  const data = errorOrResponse?.response?.data || errorOrResponse?.data || errorOrResponse;
+  if (!data) return fallback;
+  if (typeof data === "string") return data;
+  if (data.message) return data.message;
+  if (data.error) return data.error;
+  if (data.errors && typeof data.errors === "object") {
+    const first = Object.values(data.errors).flat().find(Boolean);
+    if (first) return first;
+  }
+  return fallback;
+};
+
+const isMissingApiRoute = (error) =>
+  error?.response?.status === 404 &&
+  String(error.response?.data?.message || "").toLowerCase().includes("route");
+
+const readPath = (source, path) =>
+  path.split(".").reduce((value, key) => value?.[key], source);
+
+const extractRows = (payload) => {
+  const candidates = [
+    payload?.users,
+    payload?.news,
+    payload?.quiz,
+    payload?.quizzes,
+    payload?.quiz_types,
+    payload?.quizTypes,
+    payload?.data?.users,
+    payload?.data?.news,
+    payload?.data?.quiz,
+    payload?.data?.quizzes,
+    payload?.data?.quiz_types,
+    payload?.data?.quizTypes,
+    payload?.data?.recent_users,
+    payload?.data?.recentUsers,
+    payload?.data?.list,
+    payload?.data?.data,
+    payload?.records,
+    payload?.data,
+    payload,
+  ];
+  return candidates.find(Array.isArray) || [];
+};
+
+const normalizeStatus = (value) => {
+  if (typeof value === "boolean") return value ? "Active" : "Inactive";
+  if (Number(value) === 1) return "Active";
+  if (Number(value) === 0) return "Inactive";
+  return value || "Active";
+};
+
+const normalizeUserRow = (row = {}, index = 0) => {
+  const image = row.image || row.profile_image || row.profileImage || row.avatar || row.photo || profile;
+  const name = row.name || row.full_name || row.fullName || row.username || row.title || "User";
+  const phone = row.phone || row.mobile || row.mobile_number || row.mobileNumber || "";
+  const id = row.id || row.user_id || row.userId || row.profile_id || row.profileId || "";
+  return {
+    ...row,
+    _rowKey: String(id || rowKey(row) || `user-${index}`),
+    sr: row.sr || index + 1,
+    id,
+    userId: row.userId || row.user_id || id,
+    profileId: row.profileId || row.profile_id || row.user_id || id,
+    image,
+    name,
+    username: row.username || name,
+    email: row.email || "",
+    phone,
+    mobileNumber: row.mobileNumber || row.mobile_number || row.mobile || phone,
+    state: row.state || "",
+    district: row.district || "",
+    taluka: row.taluka || row.taluka_name || "",
+    referralCode: row.referralCode || row.referral_code || "",
+    referredBy: row.referredBy || row.referred_by || "",
+    createdDate: formatDisplayDate(row.createdDate || row.created_at || row.createdAt) || "",
+    createdAt: formatDisplayDate(row.createdAt || row.created_at) || "",
+    updatedAt: formatDisplayDate(row.updatedAt || row.updated_at) || "",
+    status: normalizeStatus(row.status ?? row.is_active ?? row.active),
+    userType: row.userType || row.user_type || row.type || "",
+    planName: row.planName || row.plan_name || "",
+    subscriptionStatus: normalizeStatus(row.subscriptionStatus || row.subscription_status || ""),
+    bio: row.bio || row.description || "",
+  };
+};
+
+const normalizeQuizQuestions = (row = {}) => {
+  const questions = row.questions || row.quiz_questions || row.quizQuestions || row.question_list || [];
+  if (Array.isArray(questions) && questions.length) {
+    return questions.map((question) => ({
+      ...question,
+      question: question.question || question.title || question.name || "",
+      marks: question.marks || question.mark || "",
+      optionA: question.optionA || question.option_a || question.a || "",
+      optionB: question.optionB || question.option_b || question.b || "",
+      optionC: question.optionC || question.option_c || question.c || "",
+      optionD: question.optionD || question.option_d || question.d || "",
+      correctAnswer: question.correctAnswer || question.correct_answer || question.answer || "",
+      explanation: question.explanation || question.reason || "",
+    }));
+  }
+  return [];
+};
+
+const normalizeModuleRow = (slug) => (row = {}, index = 0) => {
+  const id = row.id || row.news_id || row.newsId || row.quiz_id || row.quizId || row.quiz_type_id || row.quizTypeId || "";
+  const questions = normalizeQuizQuestions(row);
+  const image = row.image || row.media_url || row.mediaFileUrl || row.media_file_url || row.thumbnail || "";
+  return {
+    ...row,
+    _rowKey: String(id || rowKey(row) || `${slug}-${index}`),
+    sr: row.sr || index + 1,
+    id,
+    title: row.title || row.name || row.quiz_title || row.quizTitle || "New Record",
+    author: row.author || row.created_by || row.createdBy || "",
+    category: row.category || row.news_category || row.newsCategory || "",
+    subject: row.subject || row.quiz_subject || row.quizSubject || "",
+    difficulty: row.difficulty || row.level || "",
+    testType: row.testType || row.test_type || row.quiz_type || row.type || "",
+    status: normalizeStatus(row.status ?? row.is_active ?? row.active),
+    mediaFile: row.mediaFile || row.media_file || row.media || row.file || "",
+    mediaFileUrl: image,
+    image: image || undefined,
+    description: row.description || row.content || row.body || "",
+    createdAt: formatDisplayDate(row.createdAt || row.created_at) || "",
+    updatedAt: formatDisplayDate(row.updatedAt || row.updated_at) || "",
+    questions,
+    question: questions[0]?.question || row.question || "",
+    optionA: questions[0]?.optionA || row.optionA || row.option_a || "",
+    optionB: questions[0]?.optionB || row.optionB || row.option_b || "",
+    optionC: questions[0]?.optionC || row.optionC || row.option_c || "",
+    optionD: questions[0]?.optionD || row.optionD || row.option_d || "",
+    correctAnswer: questions[0]?.correctAnswer || row.correctAnswer || row.correct_answer || "",
+    explanation: questions[0]?.explanation || row.explanation || "",
+    marks: row.marks || questions.reduce((total, item) => total + Number(item.marks || 0), 0) || "",
+  };
+};
+
+const dashboardStatsFromPayload = (payload) => {
+  const stats = payload?.stats || payload?.data?.stats || payload?.counts || payload?.data?.counts || payload?.data || {};
+  const get = (...paths) => paths.map((path) => readPath(stats, path)).find((value) => value !== undefined && value !== null);
+  return {
+    all: get("total_users", "totalUsers", "users", "total") ?? null,
+    premium: get("premium_users", "premiumUsers", "premium") ?? null,
+    active: get("active_users", "activeUsers", "active") ?? null,
+    inactive: get("inactive_users", "inactiveUsers", "inactive") ?? null,
+  };
+};
+
+const userPayloadFromRecord = (record = {}) => {
+  const payload = new FormData();
+  payload.append("name", record.name || record.username || "");
+  payload.append("email", record.email || "");
+  payload.append("mobile_number", record.mobileNumber || record.phone || "");
+  payload.append("phone", record.phone || record.mobileNumber || "");
+  payload.append("state", record.state || "");
+  payload.append("district", record.district || "");
+  payload.append("taluka", record.taluka || "");
+  payload.append("status", record.status || "Active");
+  payload.append("bio", record.bio || record.description || "");
+  return payload;
+};
+
+const loadUsersFromApi = async (slug) => {
+  if (slug === "dashboard") {
+    const dashboardResponse = await apiClient.get(API.DASHBOARD, { headers: apiHeaders(), timeout: 12000 });
+    let rows = extractRows(dashboardResponse.data).map(normalizeUserRow);
+    if (!rows.length) {
+      const usersResponse = await apiClient.get(API.USERS, { headers: apiHeaders(), timeout: 12000 });
+      rows = extractRows(usersResponse.data).map(normalizeUserRow);
+    }
+    return { rows, stats: dashboardStatsFromPayload(dashboardResponse.data) };
+  }
+  const response = await apiClient.get(API.USERS, { headers: apiHeaders(), timeout: 12000 });
+  return { rows: extractRows(response.data).map(normalizeUserRow), stats: null };
+};
+
+const saveUserToApi = async (record, mode, currentRow = {}) => {
+  const payload = userPayloadFromRecord(record);
+  const config = { headers: apiHeaders(), timeout: 12000 };
+  try {
+    const response = mode === "Add"
+      ? await apiClient.post(API.USERS_ADD, payload, config)
+      : await apiClient.post(endpoint(API.USERS_UPDATE, currentRow), (() => {
+          payload.append("_method", "PUT");
+          return payload;
+        })(), config);
+    const apiRow = response.data?.user || response.data?.data?.user || response.data?.data || response.data;
+    return normalizeUserRow({ ...record, ...(apiRow && typeof apiRow === "object" ? apiRow : {}) });
+  } catch (error) {
+    if (!isMissingApiRoute(error)) throw error;
+    return normalizeUserRow({ ...currentRow, ...record });
+  }
+};
+
+const deleteUserFromApi = (row) =>
+  apiClient.delete(endpoint(API.USERS_DELETE, row), { headers: apiHeaders(), timeout: 12000 });
+
+const updateUserStatusInApi = async (row, status) => {
+  const payload = { status };
+  try {
+    return await apiClient.patch(endpoint(API.USERS_STATUS, row), payload, { headers: apiHeaders(), timeout: 12000 });
+  } catch (error) {
+    if (![404, 405].includes(error.response?.status)) throw error;
+    return apiClient.post(endpoint(API.USERS_STATUS, row), payload, { headers: apiHeaders(), timeout: 12000 });
+  }
+};
+
+const modulePayloadFromForm = (slug, record = {}, form) => {
+  const formData = form ? new FormData(form) : new FormData();
+  const payload = new FormData();
+  const append = (key, value) => {
+    if (value !== undefined && value !== null && value !== "") payload.append(key, value);
+  };
+
+  if (slug === "news") {
+    append("title", record.title);
+    append("author", record.author);
+    append("category", record.category);
+    append("status", record.status || "Active");
+    append("description", record.description);
+    append("created_at", toDateInputValue(record.createdAt));
+    const mediaFile = formData.get("media-file");
+    if (mediaFile instanceof File && mediaFile.size) append("media_file", mediaFile);
+    return payload;
+  }
+
+  append("title", record.title);
+  append("subject", record.subject);
+  append("difficulty", record.difficulty);
+  append("test_type", record.testType);
+  append("marks", record.marks);
+  append("status", record.status || "Active");
+  (record.questions || []).forEach((question, index) => {
+    append(`questions[${index}][question]`, question.question);
+    append(`questions[${index}][marks]`, question.marks);
+    append(`questions[${index}][option_a]`, question.optionA);
+    append(`questions[${index}][option_b]`, question.optionB);
+    append(`questions[${index}][option_c]`, question.optionC);
+    append(`questions[${index}][option_d]`, question.optionD);
+    append(`questions[${index}][correct_answer]`, question.correctAnswer);
+    append(`questions[${index}][explanation]`, question.explanation);
+  });
+  return payload;
+};
+
+const extractSavedRow = (payload, slug) => {
+  const singular = slug === "news" ? "news" : "quiz";
+  return payload?.[singular] || payload?.data?.[singular] || payload?.data?.record || payload?.record || payload?.data || payload;
+};
+
+const loadModuleFromApi = async (slug) => {
+  const response = await apiClient.get(moduleApi[slug].index, { headers: apiHeaders(), timeout: 12000 });
+  return extractRows(response.data).map(normalizeModuleRow(slug));
+};
+
+const showModuleFromApi = async (slug, row) => {
+  const response = await apiClient.get(endpoint(moduleApi[slug]?.show, row), { headers: apiHeaders(), timeout: 12000 });
+  return normalizeModuleRow(slug)(extractSavedRow(response.data, slug));
+};
+
+const saveModuleToApi = async (slug, record, mode, currentRow = {}, form) => {
+  const endpoints = moduleApi[slug];
+  if (!endpoints) return record;
+  const payload = modulePayloadFromForm(slug, record, form);
+  const config = { headers: apiHeaders(), timeout: 12000 };
+  const response = mode === "Add"
+    ? await apiClient.post(endpoints.add, payload, config)
+    : await apiClient.post(endpoint(endpoints.update, currentRow), (() => {
+        payload.append("_method", "PUT");
+        return payload;
+      })(), config);
+  const apiRow = extractSavedRow(response.data, slug);
+  return normalizeModuleRow(slug)({ ...record, ...(apiRow && typeof apiRow === "object" ? apiRow : {}) });
+};
+
+const deleteModuleFromApi = (slug, row) =>
+  apiClient.delete(endpoint(moduleApi[slug]?.delete, row), { headers: apiHeaders(), timeout: 12000 });
+
+const updateModuleStatusInApi = async (slug, row, status) => {
+  const endpoints = moduleApi[slug];
+  const payload = { status };
+  if (endpoints?.status) {
+    try {
+      return await apiClient.patch(endpoint(endpoints.status, row), payload, { headers: apiHeaders(), timeout: 12000 });
+    } catch (error) {
+      if (![404, 405].includes(error.response?.status)) throw error;
+      return apiClient.post(endpoint(endpoints.status, row), payload, { headers: apiHeaders(), timeout: 12000 });
+    }
+  }
+  return apiClient.post(endpoint(endpoints.update, row), { ...payload, _method: "PUT" }, { headers: apiHeaders(), timeout: 12000 });
+};
+
+const restoreQuizFromApi = (row) =>
+  apiClient.post(endpoint(API.QUIZ_RESTORE, row), {}, { headers: apiHeaders(), timeout: 12000 });
+
+const isRestorableQuizRow = (slug, row = {}) =>
+  slug === "quiz" && Boolean(row.deleted_at || row.deletedAt || row.trashed || row.is_deleted);
 
 const getStoredRows = (slug) => {
   try {
@@ -1125,6 +1460,15 @@ const pickRecordSubTitle = (row) => {
   return record.email || record.phone || record.orderId || record.transactionId || record.userType || record.category || record.amount || "";
 };
 
+const mobilePrimaryText = (row = {}) =>
+  row.name || row.username || row.title || row.productName || row.adTitle || row.adName || row.product || row.officeName || row.user || row.viewerName || row.id || "Record";
+
+const mobileSecondaryText = (row = {}) =>
+  row.profileId || row.userId || row.transactionId || row.orderId || row.adId || row.plan || row.viewerProfile || row.email || row.phone || "";
+
+const mobileMetaText = (row = {}) =>
+  row.phone || row.email || row.category || row.amount || row.views || row.totalViews || row.totalEnquiries || row.days || row.createdAt || row.date || row.viewDate || "";
+
 const isPositiveStatus = (status) => ["Active", "Approved", "Paid"].includes(status);
 const nextStatusForSlug = (slug, status = "Active") => {
   if (slug === "withdrawal") {
@@ -1163,6 +1507,7 @@ const PageHeading = ({ title, children }) => (
 const FilterBar = ({ filters = [], values, onChange, onReset, slug }) => {
   const [open, setOpen] = useState(false);
   if (!filters.length) return null;
+  const hasActiveFilters = Object.values(values || {}).some((value) => String(value || "").trim());
   const statusOptions = slug === "withdrawal" ? ["Approved", "Failed", "Pending"] : ["Active", "Inactive"];
   const selectFilters = {
     state: ["State", stateOptions],
@@ -1179,64 +1524,54 @@ const FilterBar = ({ filters = [], values, onChange, onReset, slug }) => {
   };
 
   return (
-    <div className="row">
-      <div className="col-xl-12">
-        <div className="filter cm-content-box box-primary rti-table-filters">
-          <button
-            type="button"
-            className="content-title rti-filter-toggle"
-            onClick={() => setOpen((value) => !value)}
-            aria-expanded={open}
-          >
-            <div className="cpa">
-              <i className="fas fa-filter me-2"></i>Filter
-            </div>
-            <div className="tools">
-              <span className="SlideToolHeader">
-                <i className={`fas ${open ? "fa-angle-up" : "fa-angle-down"}`}></i>
-              </span>
-            </div>
-          </button>
-
-          <Collapse in={open}>
-            <div className="cm-content-body form excerpt">
-              <div className="card-body">
-                <div className="row filter-row">
-                  {filters.includes("search") && (
-                    <div className="col-xl-3 col-xxl-6">
-                      <input className="form-control mb-xl-0 mb-3" type="search" placeholder="Search..." value={values.search} onChange={(event) => onChange("search", event.target.value)} />
-                    </div>
-                  )}
-                  {Object.entries(selectFilters).map(([name, [label, options]]) => filters.includes(name) && (
-                    <div className="col-xl-3 col-xxl-6" key={name}>
-                      <Select
-                        isSearchable={false}
-                        options={toSelectOptions(options)}
-                        className="custom-react-select mb-3 mb-xxl-0"
-                        classNamePrefix="rti-react-select"
-                        isClearable
-                        placeholder={label}
-                        value={values[name] ? selectOption(values[name]) : null}
-                        onChange={(option) => onChange(name, option?.value || "")}
-                      />
-                    </div>
-                  ))}
-                  <div className="col-xl-3 col-xxl-6">
-                    <input type="date" name="datepicker" className="form-control mb-xxl-0 mb-3" value={values.dateFilter} onChange={(event) => onChange("dateFilter", event.target.value)} />
-                  </div>
-                  <div className="col-xl-3 col-xxl-6">
-                    <button className="btn btn-primary me-2" title="Click here to Search" type="button">
-                      <i className="fa fa-search me-1"></i>Filter
-                    </button>
-                    <button className="btn btn-danger light" title="Click here to remove filter" type="button" onClick={onReset}>Remove</button>
-                  </div>
-                </div>
+    <>
+      <button
+        type="button"
+        className="btn btn-outline-primary btn-sm rti-filter-header-btn"
+        onClick={() => setOpen(true)}
+      >
+        <i className="fas fa-filter me-2" />
+        Filters
+      </button>
+      <Modal show={open} onHide={() => setOpen(false)} centered dialogClassName="rti-filter-modal">
+        <Modal.Header closeButton>
+          <Modal.Title>Filters</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="row filter-row">
+            {filters.includes("search") && (
+              <div className="col-md-6 col-12">
+                <input className="form-control mb-3" type="search" placeholder="Search..." value={values.search} onChange={(event) => onChange("search", event.target.value)} />
               </div>
+            )}
+            {Object.entries(selectFilters).map(([name, [label, options]]) => filters.includes(name) && (
+              <div className="col-md-6 col-12" key={name}>
+                <Select
+                  isSearchable={false}
+                  options={toSelectOptions(options)}
+                  className="custom-react-select mb-3"
+                  classNamePrefix="rti-react-select"
+                  isClearable
+                  placeholder={label}
+                  value={values[name] ? selectOption(values[name]) : null}
+                  onChange={(option) => onChange(name, option?.value || "")}
+                />
+              </div>
+            ))}
+            <div className="col-md-6 col-12">
+              <input type="date" name="datepicker" className="form-control mb-3" value={values.dateFilter} onChange={(event) => onChange("dateFilter", event.target.value)} />
             </div>
-          </Collapse>
-        </div>
-      </div>
-    </div>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          {hasActiveFilters && <button className="btn btn-danger light" type="button" onClick={onReset}>Remove</button>}
+          <button className="btn btn-primary" type="button" onClick={() => setOpen(false)}>
+            <i className="fa fa-search me-1" />
+            Filter
+          </button>
+        </Modal.Footer>
+      </Modal>
+    </>
   );
 };
 
@@ -1309,10 +1644,13 @@ const openWithdrawalInvoice = (row) => {
   win?.document.close();
 };
 
+const pdfHref = (row = {}, field = "pdfFiles") =>
+  row[`${field}Url`] || row.pdfFilesUrl || row.pdfUrl || row.fileUrl || row.url || "";
+
 const ActionButtons = ({ slug, actions, row, onDelete, onStatus }) => (
-  <div className="rti-action-buttons">
+  <div className="rti-action-buttons" onClick={(event) => event.stopPropagation()}>
     {actions.includes("generatePdf") && (
-      <a href={pdfUrl} target="_blank" rel="noreferrer" className="btn btn-secondary shadow btn-xs sharp">
+      <a href={pdfHref(row) || "#"} target="_blank" rel="noreferrer" className={`btn btn-secondary shadow btn-xs sharp ${pdfHref(row) ? "" : "disabled"}`} aria-disabled={!pdfHref(row)}>
         <i className="fa fa-file-pdf" />
       </a>
     )}
@@ -1365,8 +1703,9 @@ const CellValue = ({ field, row, slug, onImage }) => {
   }
   if (field === "status") return statusBadge(row.status);
   if (field === "pdfFiles") {
+    const href = pdfHref(row, field);
     return (
-      <a href={row.pdfFilesUrl || pdfUrl} target="_blank" rel="noreferrer" className="text-primary">
+      <a href={href || "#"} target="_blank" rel="noreferrer" className={href ? "text-primary" : "text-muted"} onClick={(event) => event.stopPropagation()} aria-disabled={!href}>
         <i className="fa fa-file-pdf me-1" />
         {row.pdfFiles}
       </a>
@@ -1415,6 +1754,7 @@ const ImageModal = ({ image, onHide }) => (
 
 export const ModuleList = ({ slug }) => {
   const config = getConfig(slug);
+  const navigate = useNavigate();
   const [moduleRows, setModuleRows] = useState(() => getRows(slug));
   const [filters, setFilters] = useState({
     search: "",
@@ -1453,6 +1793,8 @@ export const ModuleList = ({ slug }) => {
   const [deleteRow, setDeleteRow] = useState(null);
   const [statusRow, setStatusRow] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
+  const [isLoading, setIsLoading] = useState(LIVE_API_SLUGS.includes(slug));
+  const [dashboardStats, setDashboardStats] = useState(null);
   const [toast, setToast] = useState(() => {
     const message = sessionStorage.getItem("moduleToast");
     if (message) {
@@ -1460,6 +1802,57 @@ export const ModuleList = ({ slug }) => {
     }
     return message || "";
   });
+
+  useEffect(() => {
+    if (!USER_API_SLUGS.includes(slug)) return;
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) setIsLoading(true);
+    });
+    loadUsersFromApi(slug)
+      .then(({ rows: apiRows, stats }) => {
+        if (!active) return;
+        if (apiRows.length) {
+          setModuleRows(apiRows);
+          saveStoredRows(dataSlug(slug), apiRows);
+        }
+        if (stats) setDashboardStats(stats);
+      })
+      .catch((error) => {
+        if (active) setToast(apiMessage(error, "Unable to load data from server"));
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [slug]);
+
+  useEffect(() => {
+    if (!MODULE_API_SLUGS.includes(slug)) return;
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) setIsLoading(true);
+    });
+    loadModuleFromApi(slug)
+      .then((apiRows) => {
+        if (!active) return;
+        if (apiRows.length) {
+          setModuleRows(apiRows);
+          saveStoredRows(slug, apiRows);
+        }
+      })
+      .catch((error) => {
+        if (active) setToast(apiMessage(error, "Unable to load data from server"));
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [slug]);
 
   const filteredRows = useMemo(() => {
     const sourceRows = [...moduleRows];
@@ -1506,6 +1899,11 @@ export const ModuleList = ({ slug }) => {
     setFilters((current) => Object.fromEntries(Object.keys(current).map((key) => [key, ""])));
     setPage(1);
   };
+  const openRowView = (row) => {
+    if (!config.actions?.includes("view")) return;
+    setActiveRecord(slug, row);
+    navigate(`/admin/${slug}/view`);
+  };
 
   const addLabel =
     slug === "user-profile" ? "Add User" :
@@ -1523,7 +1921,10 @@ export const ModuleList = ({ slug }) => {
   const liveStats = useMemo(() => {
     if (slug !== "dashboard" || !config.stats) return config.stats;
     return config.stats.map(([label, , icon, color, key]) => {
-      const count = key === "all"
+      const apiCount = dashboardStats?.[key];
+      const count = apiCount !== null && apiCount !== undefined
+        ? apiCount
+        : key === "all"
         ? moduleRows.length
         : key === "active"
           ? moduleRows.filter((row) => row.status === "Active").length
@@ -1538,7 +1939,7 @@ export const ModuleList = ({ slug }) => {
               : 0;
       return [label, String(count), icon, color, key];
     });
-  }, [config.stats, moduleRows, slug]);
+  }, [config.stats, dashboardStats, moduleRows, slug]);
 
   return (
     <div className="row">
@@ -1551,15 +1952,17 @@ export const ModuleList = ({ slug }) => {
         <div className="card rti-module-table-card">
           <div className="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
             <h4 className="card-title mb-0 rti-table-title-tab">{config.title} List</h4>
-            {config.add && (
-              <Link to={`/admin/${slug}/add`} className="btn btn-primary btn-sm">
-                <i className="fa fa-plus me-2" />
-                {addLabel}
-              </Link>
-            )}
+            <div className="rti-table-header-actions">
+              <FilterBar filters={config.filters} values={filters} onChange={onFilterChange} onReset={resetFilters} slug={slug} />
+              {config.add && (
+                <Link to={`/admin/${slug}/add`} className="btn btn-primary btn-sm">
+                  <i className="fa fa-plus me-2" />
+                  {addLabel}
+                </Link>
+              )}
+            </div>
           </div>
           <div className="card-body">
-            <FilterBar filters={config.filters} values={filters} onChange={onFilterChange} onReset={resetFilters} slug={slug} />
             <div className="table-responsive rti-desktop-table">
               <table className="table table-responsive-md">
                 <thead>
@@ -1571,10 +1974,23 @@ export const ModuleList = ({ slug }) => {
                   </tr>
                 </thead>
                 <tbody>
+                  {isLoading && (
+                    <tr>
+                      <td colSpan={config.columns.length + 1} className="text-center py-4">
+                        <span className="spinner-border spinner-border-sm me-2" />
+                        Loading...
+                      </td>
+                    </tr>
+                  )}
+                  {!isLoading && !rows.length && (
+                    <tr>
+                      <td colSpan={config.columns.length + 1} className="text-center py-4">No records found</td>
+                    </tr>
+                  )}
                   {rows.map((row, rowIndex) => {
                     const displayRow = { ...row, sr: (page - 1) * 10 + rowIndex + 1 };
                     return (
-                    <tr key={`${slug}-${row.sr || row.id}`}>
+                    <tr key={`${slug}-${row.sr || row.id}`} className="rti-clickable-row" onClick={() => openRowView(row)}>
                       {config.columns.map(([field]) => (
                         <td key={field}>
                           <CellValue field={field} row={displayRow} slug={slug} onImage={setImagePreview} />
@@ -1590,15 +2006,22 @@ export const ModuleList = ({ slug }) => {
               </table>
             </div>
             <div className="rti-mobile-table">
-              {rows.map((row) => (
-                <div className="card border mb-2" key={`mobile-${slug}-${row.sr || row.id}`}>
+              {isLoading && (
+                <div className="text-center py-4">
+                  <span className="spinner-border spinner-border-sm me-2" />
+                  Loading...
+                </div>
+              )}
+              {!isLoading && !rows.length && <div className="text-center py-4">No records found</div>}
+              {!isLoading && rows.map((row) => (
+                <div className="card border mb-2 rti-clickable-row" key={`mobile-${slug}-${row.sr || row.id}`} onClick={() => openRowView(row)}>
                   <div className="card-body">
                     <div className="d-flex justify-content-between gap-2">
-                      <strong>{row.name || row.username || row.title || row.productName || row.id}</strong>
+                      <strong>{mobilePrimaryText(row)}</strong>
                       {row.status && statusBadge(row.status)}
                     </div>
-                    <p className="mb-1">{row.profileId || row.userId || row.transactionId || row.id}</p>
-                    <p className="mb-3">{row.phone || row.email || row.category || row.amount || row.createdAt}</p>
+                    <p className="mb-1">{mobileSecondaryText(row) || row.id || "-"}</p>
+                    <p className="mb-3">{mobileMetaText(row) || "-"}</p>
                     <ActionButtons slug={slug} actions={config.actions} row={row} onDelete={setDeleteRow} onStatus={setStatusRow} />
                   </div>
                 </div>
@@ -1631,12 +2054,23 @@ export const ModuleList = ({ slug }) => {
         confirmText="Delete"
         variant="danger"
         onHide={() => setDeleteRow(null)}
-        onConfirm={() => {
-          const nextRows = moduleRows.filter((item) => item !== deleteRow);
-          setModuleRows(nextRows);
-          saveStoredRows(slug, nextRows);
-          setDeleteRow(null);
-          setToast(`${pickRecordTitle(deleteRow)} deleted successfully`);
+        onConfirm={async () => {
+          const rowToDelete = deleteRow;
+          try {
+            if (slug === "user-profile" || slug === "dashboard") {
+              await deleteUserFromApi(rowToDelete);
+            } else if (MODULE_API_SLUGS.includes(slug)) {
+              await deleteModuleFromApi(slug, rowToDelete);
+            }
+            const nextRows = moduleRows.filter((item) => item !== rowToDelete);
+            setModuleRows(nextRows);
+            saveStoredRows(slug, nextRows);
+            setDeleteRow(null);
+            setToast(`${pickRecordTitle(rowToDelete)} deleted successfully`);
+          } catch (error) {
+            setDeleteRow(null);
+            setToast(apiMessage(error, "Delete failed. Please check server response."));
+          }
         }}
       />
       <ConfirmModal
@@ -1646,12 +2080,24 @@ export const ModuleList = ({ slug }) => {
         message={`Do you want to change ${pickRecordTitle(statusRow)} from ${statusRow?.status || "Active"} to ${nextStatusForSlug(slug, statusRow?.status || "Active")}?`}
         confirmText="Yes"
         onHide={() => setStatusRow(null)}
-        onConfirm={() => {
-          const nextRows = moduleRows.map((item) => item === statusRow ? { ...item, status: nextStatusForSlug(slug, item.status || "Active") } : item);
-          setModuleRows(nextRows);
-          saveStoredRows(slug, nextRows);
-          setStatusRow(null);
-          setToast(`${pickRecordTitle(statusRow)} status updated successfully`);
+        onConfirm={async () => {
+          const rowToUpdate = statusRow;
+          const nextStatus = nextStatusForSlug(slug, rowToUpdate?.status || "Active");
+          try {
+            if (slug === "user-profile" || slug === "dashboard") {
+              await updateUserStatusInApi(rowToUpdate, nextStatus);
+            } else if (MODULE_API_SLUGS.includes(slug)) {
+              await updateModuleStatusInApi(slug, rowToUpdate, nextStatus);
+            }
+            const nextRows = moduleRows.map((item) => item === rowToUpdate ? { ...item, status: nextStatus } : item);
+            setModuleRows(nextRows);
+            saveStoredRows(slug, nextRows);
+            setStatusRow(null);
+            setToast(`${pickRecordTitle(rowToUpdate)} status updated successfully`);
+          } catch (error) {
+            setStatusRow(null);
+            setToast(apiMessage(error, "Status update failed. Please check server response."));
+          }
         }}
       />
       <ImageModal image={imagePreview} onHide={() => setImagePreview("")} />
@@ -1667,7 +2113,7 @@ const DetailGrid = ({ fields, row, onStatus }) => (
           <small className="text-muted d-block">{labels[field] || field}</small>
           <strong>
             {field === "status" ? <StatusToggle status={row[field] || "Active"} onClick={onStatus} /> : field === "pdfFiles" || field.toLowerCase().includes("pdf") ? (
-              <a href={row[`${field}Url`] || pdfUrl} target="_blank" rel="noreferrer">
+              <a href={pdfHref(row, field) || "#"} target="_blank" rel="noreferrer" aria-disabled={!pdfHref(row, field)}>
                 <i className="fa fa-file-pdf me-1" />
                 {row[field] || labels[field]}
               </a>
@@ -1711,21 +2157,24 @@ const ProfileDetailLayout = ({ row, config, onImage, onStatus }) => (
           <div className="col-xl-6">
             <h5>Subscription Plan</h5>
             <p><strong>Plan Name:</strong> {row.planName}</p>
-            <p><strong>Start Date:</strong> {row.startDate}</p>
-            <p><strong>End Date:</strong> {row.endDate}</p>
+            <p><strong>Days:</strong> {row.days || "-"}</p>
             <p><strong>Status:</strong> {statusBadge(row.subscriptionStatus)}</p>
           </div>
-          <div className="col-xl-6">
+          {(row.userIdPdfUrl || row.certificatePdfUrl || row.appointmentLetterPdfUrl) && <div className="col-xl-6">
             <h5>Documents</h5>
             <div className="d-flex flex-wrap gap-2">
-              {["User ID PDF", "Certification PDF", "Appointment Letter PDF"].map((doc) => (
-                <a href={pdfUrl} target="_blank" rel="noreferrer" className="btn btn-outline-primary btn-sm" key={doc}>
+              {[
+                ["User ID PDF", row.userIdPdfUrl],
+                ["Certification PDF", row.certificatePdfUrl],
+                ["Appointment Letter PDF", row.appointmentLetterPdfUrl],
+              ].filter(([, href]) => href).map(([doc, href]) => (
+                <a href={href} target="_blank" rel="noreferrer" className="btn btn-outline-primary btn-sm" key={doc}>
                   <i className="fa fa-file-pdf me-2" />
                   {doc}
                 </a>
               ))}
             </div>
-          </div>
+          </div>}
           <div className="col-12 mt-3">
             <h5>Bio</h5>
             <p className="mb-0">{row.bio}</p>
@@ -1825,6 +2274,24 @@ export const ModuleView = ({ slug }) => {
   const [confirmStatus, setConfirmStatus] = useState(false);
   const [toast, setToast] = useState("");
 
+  useEffect(() => {
+    if (!MODULE_API_SLUGS.includes(slug) || !rowKey(row)) return;
+    let active = true;
+    showModuleFromApi(slug, row)
+      .then((apiRow) => {
+        if (!active) return;
+        setRow(apiRow);
+        updateStoredRow(slug, apiRow);
+        sessionStorage.setItem(activeRecordKey(slug), rowKey(apiRow));
+      })
+      .catch((error) => {
+        if (active) setToast(apiMessage(error, "Unable to load details from server"));
+      });
+    return () => {
+      active = false;
+    };
+  }, [slug]);
+
   return (
     <>
       <AppToast show={Boolean(toast)} message={toast} onClose={() => setToast("")} />
@@ -1868,15 +2335,26 @@ export const ModuleView = ({ slug }) => {
         row={row}
         message={`Do you want to change ${pickRecordTitle(row)} from ${row.status || "Active"} to ${nextStatusForSlug(slug, row.status || "Active")}?`}
         onHide={() => setConfirmStatus(false)}
-        onConfirm={() => {
-          setRow((current) => {
-            const updated = { ...current, status: nextStatusForSlug(slug, current.status || "Active") };
-            updateStoredRow(slug, updated);
-            sessionStorage.setItem(activeRecordKey(slug), rowKey(updated));
-            return updated;
-          });
-          setConfirmStatus(false);
-          setToast(`${pickRecordTitle(row)} status updated successfully`);
+        onConfirm={async () => {
+          const nextStatus = nextStatusForSlug(slug, row.status || "Active");
+          try {
+            if (slug === "user-profile" || slug === "dashboard") {
+              await updateUserStatusInApi(row, nextStatus);
+            } else if (MODULE_API_SLUGS.includes(slug)) {
+              await updateModuleStatusInApi(slug, row, nextStatus);
+            }
+            setRow((current) => {
+              const updated = { ...current, status: nextStatus };
+              updateStoredRow(slug, updated);
+              sessionStorage.setItem(activeRecordKey(slug), rowKey(updated));
+              return updated;
+            });
+            setConfirmStatus(false);
+            setToast(`${pickRecordTitle(row)} status updated successfully`);
+          } catch (error) {
+            setConfirmStatus(false);
+            setToast(apiMessage(error, "Status update failed. Please check server response."));
+          }
         }}
       />
       <ImageModal image={imagePreview} onHide={() => setImagePreview("")} />
@@ -2040,6 +2518,7 @@ const makeRecordFromForm = async (slug, config, form, existing = {}) => {
     credits: data.credits || existing.credits || "",
     creditsUsed: data["credits-used"] || existing.creditsUsed || "",
     creditsLeft: data["credits-left"] || existing.creditsLeft || "",
+    days: data.days || existing.days || "",
     offerPrice: data["offer-price"] || "",
     message: data.message || "",
     sentBy: data["sent-by"] || existing.sentBy || "",
@@ -2190,18 +2669,14 @@ const formFields = {
     ["District", "district", "select", defaultDistricts],
     ["Taluka", "taluka", "select", defaultTalukas],
     ["Price", "price", "number"],
-    ["Subscription Start Date", "start-date", "date"],
-    ["Subscription End Date", "end-date", "date"],
+    ["Days", "days", "select", ["24 days", "28 days", "30 days"]],
     ["Status", "status", "select", ["Active", "Inactive"]],
   ],
   commerceSubscription: [
     ["Subscription Title", "title"],
     ["Description", "description", "textarea"],
     ["Credits", "credits", "number"],
-    ["Credits Used", "credits-used", "number"],
-    ["Credits Left", "credits-left", "number"],
-    ["Start Date", "start-date", "date"],
-    ["End Date", "end-date", "date"],
+    ["Days", "days", "select", ["24 days", "28 days", "30 days"]],
     ["Status", "status", "select", ["Active", "Inactive"]],
   ],
   epaper: [
@@ -2226,8 +2701,7 @@ const formFields = {
     ["Subscription Title", "title"],
     ["Description", "description", "textarea"],
     ["Credits", "credits", "number"],
-    ["Start Date", "start-date", "date"],
-    ["End Date", "end-date", "date"],
+    ["Days", "days", "select", ["24 days", "28 days", "30 days"]],
     ["Status", "status", "select", ["Active", "Inactive"]],
   ],
   office: [
@@ -2299,6 +2773,8 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
     district: currentRow.district || "",
     taluka: currentRow.taluka || "",
   });
+  const [toast, setToast] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const allFields = useMemo(() => {
     if (!isQuiz) return fields;
@@ -2340,6 +2816,7 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
       "offer-price": currentRow.offerPrice,
       "credits-used": currentRow.creditsUsed,
       "credits-left": currentRow.creditsLeft,
+      days: currentRow.days,
       "start-date": currentRow.subscriptionStartDate || currentRow.startDate,
       "end-date": currentRow.subscriptionEndDate || currentRow.endDate,
       "start-date-time": currentRow.startDateTime,
@@ -2392,6 +2869,7 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
 
   return (
     <>
+      <AppToast show={Boolean(toast)} variant="error" message={toast} onClose={() => setToast("")} />
       <PageHeading title={`${mode} ${config.title}`}>
         <Link to={`/admin/${slug}`} className="btn btn-light">
           <i className="fa fa-arrow-left me-2" />
@@ -2405,19 +2883,32 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
         <div className="card-body">
           <form className="form-valide" onSubmit={async (event) => {
             event.preventDefault();
-            if (!validateModuleForm(slug, event.currentTarget)) return;
-            const record = await makeRecordFromForm(slug, config, event.currentTarget, currentRow);
-            const currentRows = getStoredRows(slug);
-            const currentKey = rowKey(currentRow);
-            const nextRows = mode === "Add"
-              ? [record, ...currentRows]
-              : currentRows.some((item) => rowKey(item) === currentKey)
-                ? currentRows.map((item) => rowKey(item) === currentKey ? record : item)
-                : [record, ...currentRows];
-            saveStoredRows(slug, nextRows);
-            sessionStorage.setItem(activeRecordKey(slug), rowKey(record));
-            sessionStorage.setItem("moduleToast", `${pickRecordTitle(record)} ${mode === "Add" ? "added" : "updated"} successfully`);
-            navigate(`/admin/${slug}`);
+            const form = event.currentTarget;
+            if (!validateModuleForm(slug, form)) return;
+            setSaving(true);
+            try {
+              const localRecord = await makeRecordFromForm(slug, config, form, currentRow);
+              const record = slug === "user-profile"
+                ? await saveUserToApi(localRecord, mode, currentRow)
+                : MODULE_API_SLUGS.includes(slug)
+                  ? await saveModuleToApi(slug, localRecord, mode, currentRow, form)
+                  : localRecord;
+              const currentRows = getRows(slug);
+              const currentKey = rowKey(currentRow);
+              const nextRows = mode === "Add"
+                ? [record, ...currentRows]
+                : currentRows.some((item) => rowKey(item) === currentKey)
+                  ? currentRows.map((item) => rowKey(item) === currentKey ? record : item)
+                  : [record, ...currentRows];
+              saveStoredRows(slug, nextRows);
+              sessionStorage.setItem(activeRecordKey(slug), rowKey(record));
+              sessionStorage.setItem("moduleToast", `${pickRecordTitle(record)} ${mode === "Add" ? "added" : "updated"} successfully`);
+              navigate(`/admin/${slug}`);
+            } catch (error) {
+              setToast(apiMessage(error, `${mode} failed. Please check server response.`));
+            } finally {
+              setSaving(false);
+            }
           }}>
             <div className="row">
               <div className="col-xl-6">
@@ -2428,9 +2919,6 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
                 {allFields.slice(Math.ceil(allFields.length / 2)).map(renderField)}
                 {config.form === "user" && (
                   <>
-                    <FileUpload label="Certificate Upload" />
-                    <FileUpload label="Appointment Letter Upload" />
-                    <FileUpload label="User ID Card Upload" />
                     <Field label="Bio Textarea" name="bio" as="textarea" value={currentRow.bio || ""} />
                   </>
                 )}
@@ -2439,7 +2927,10 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
             {isQuiz && <QuizQuestions currentRow={currentRow} />}
             <div className="form-group mb-3 row">
               <div className="col-lg-8 ms-auto">
-                <button type="submit" className="btn btn-primary">{submitLabel}</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving && <span className="spinner-border spinner-border-sm me-2" />}
+                  {submitLabel}
+                </button>
                 <Link to={`/admin/${slug}`} className="btn btn-light ms-2">Cancel</Link>
               </div>
             </div>
@@ -2467,54 +2958,112 @@ const ModalShell = ({ slug, children }) => {
 export const ModuleDelete = ({ slug }) => {
   const navigate = useNavigate();
   const row = activeRow(slug);
+  const canRestore = isRestorableQuizRow(slug, row);
+  const [toast, setToast] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   return (
-    <ModalShell slug={slug}>
-      <img src={row.image || profile} alt={row.name || row.title} />
-      <h3>Delete Confirmation</h3>
-      <p>{row.name || row.username || row.title || row.officeName || row.id}</p>
-      <p>{row.email || "admin@example.com"}</p>
-      <p>{row.phone || "9876543210"}</p>
-      <button type="button" className="btn btn-danger" onClick={() => navigate(`/admin/${slug}`)}>
-        Delete
-      </button>
-    </ModalShell>
+    <>
+      <AppToast show={Boolean(toast)} variant="error" message={toast} onClose={() => setToast("")} />
+      <ModalShell slug={slug}>
+        <img src={row.image || profile} alt={row.name || row.title} />
+        <h3>{canRestore ? "Restore Confirmation" : "Delete Confirmation"}</h3>
+        <p>{row.name || row.username || row.title || row.officeName || row.id}</p>
+        <p>{row.email || "admin@example.com"}</p>
+        <p>{row.phone || "9876543210"}</p>
+        <button
+          type="button"
+          className={`btn ${canRestore ? "btn-success" : "btn-danger"}`}
+          disabled={deleting}
+          onClick={async () => {
+            setDeleting(true);
+            try {
+              if (canRestore) {
+                await restoreQuizFromApi(row);
+              } else if (slug === "user-profile" || slug === "dashboard") {
+                await deleteUserFromApi(row);
+              } else if (MODULE_API_SLUGS.includes(slug)) {
+                await deleteModuleFromApi(slug, row);
+              }
+              const nextRows = canRestore
+                ? updateStoredRow(slug, { ...row, deleted_at: "", deletedAt: "", trashed: false, is_deleted: false, status: row.status || "Active" })
+                : getRows(slug).filter((item) => rowKey(item) !== rowKey(row));
+              saveStoredRows(slug, nextRows);
+              sessionStorage.setItem("moduleToast", `${pickRecordTitle(row)} ${canRestore ? "restored" : "deleted"} successfully`);
+              navigate(`/admin/${slug}`);
+            } catch (error) {
+              setToast(apiMessage(error, `${canRestore ? "Restore" : "Delete"} failed. Please check server response.`));
+            } finally {
+              setDeleting(false);
+            }
+          }}
+        >
+          {deleting && <span className="spinner-border spinner-border-sm me-2" />}
+          {canRestore ? "Restore" : "Delete"}
+        </button>
+      </ModalShell>
+    </>
   );
 };
 
 export const ModuleStatus = ({ slug }) => {
   const row = activeRow(slug);
   const [active, setActive] = useState((row.status || "Active") === "Active");
+  const [toast, setToast] = useState("");
+  const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
 
   return (
-    <ModalShell slug={slug}>
-      <img src={row.image || profile} alt={row.name || row.title} />
-      <h3>Status Update</h3>
-      <p>{row.name || row.username || row.title || row.productName}</p>
-      <p>{row.email || "admin@example.com"}</p>
-      <p>{row.phone || "9876543210"}</p>
-      <p>Current status: {statusBadge(active ? "Active" : "Inactive")}</p>
-      <div className="form-check form-switch d-inline-flex align-items-center gap-2 justify-content-center">
-        <input
-          className="form-check-input"
-          type="checkbox"
-          role="switch"
-          checked={active}
-          onChange={() => {
-            const nextActive = !active;
-            setActive(nextActive);
-            updateStoredRow(slug, { ...row, status: nextActive ? "Active" : "Inactive" });
+    <>
+      <AppToast show={Boolean(toast)} variant="error" message={toast} onClose={() => setToast("")} />
+      <ModalShell slug={slug}>
+        <img src={row.image || profile} alt={row.name || row.title} />
+        <h3>Status Update</h3>
+        <p>{row.name || row.username || row.title || row.productName}</p>
+        <p>{row.email || "admin@example.com"}</p>
+        <p>{row.phone || "9876543210"}</p>
+        <p>Current status: {statusBadge(active ? "Active" : "Inactive")}</p>
+        <div className="form-check form-switch d-inline-flex align-items-center gap-2 justify-content-center">
+          <input
+            className="form-check-input"
+            type="checkbox"
+            role="switch"
+            checked={active}
+            disabled={saving}
+            onChange={() => setActive((value) => !value)}
+            id="statusSwitch"
+          />
+          <label className="form-check-label" htmlFor="statusSwitch">
+            {active ? "Active" : "Inactive"}
+          </label>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary mt-2"
+          disabled={saving}
+          onClick={async () => {
+            const nextStatus = active ? "Active" : "Inactive";
+            setSaving(true);
+            try {
+              if (slug === "user-profile" || slug === "dashboard") {
+                await updateUserStatusInApi(row, nextStatus);
+              } else if (MODULE_API_SLUGS.includes(slug)) {
+                await updateModuleStatusInApi(slug, row, nextStatus);
+              }
+              updateStoredRow(slug, { ...row, status: nextStatus });
+              sessionStorage.setItem("moduleToast", `${pickRecordTitle(row)} status updated successfully`);
+              navigate(`/admin/${slug}`);
+            } catch (error) {
+              setToast(apiMessage(error, "Status update failed. Please check server response."));
+            } finally {
+              setSaving(false);
+            }
           }}
-          id="statusSwitch"
-        />
-        <label className="form-check-label" htmlFor="statusSwitch">
-          {active ? "Active" : "Inactive"}
-        </label>
-      </div>
-      <button type="button" className="btn btn-primary mt-2" onClick={() => navigate(`/admin/${slug}`)}>
-        Done
-      </button>
-    </ModalShell>
+        >
+          {saving && <span className="spinner-border spinner-border-sm me-2" />}
+          Done
+        </button>
+      </ModalShell>
+    </>
   );
 };

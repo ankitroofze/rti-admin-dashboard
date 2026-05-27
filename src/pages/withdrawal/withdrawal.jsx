@@ -1,4 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleList } from "../moduleFactory";
-const Withdrawal = () => <ModuleList slug="withdrawal" />;
-export default Withdrawal;
+
+const ModulePage = () => <ModuleList slug="withdrawal" />;
+
+export default ModulePage;

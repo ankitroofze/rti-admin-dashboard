@@ -1,4 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleList } from "../moduleFactory";
-const Wallets = () => <ModuleList slug="wallets" />;
-export default Wallets;
+
+const ModulePage = () => <ModuleList slug="wallets" />;
+
+export default ModulePage;

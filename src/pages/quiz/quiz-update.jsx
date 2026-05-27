@@ -1,4 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleForm } from "../moduleFactory";
-const QuizUpdate = () => <ModuleForm slug="quiz" mode="Update" />;
-export default QuizUpdate;
+
+const ModulePage = () => <ModuleForm slug="quiz" mode="Update" />;
+
+export default ModulePage;

@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import logo from "../../assets/images/rti.png";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
 import { toast } from "react-toastify";
 import API from "../../api/api";
+import axiosClient from "../../api/axiosClient";
 
 const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -35,7 +35,7 @@ const ForgotPassword = () => {
       try {
         setLoading(true);
 
-        const res = await axios.post(API.REQUEST_OTP, { email });
+        const res = await axiosClient.post(API.REQUEST_OTP, { email });
 
         toast.success(res.data?.message || "OTP sent successfully");
 
@@ -61,7 +61,7 @@ const ForgotPassword = () => {
       try {
         setLoading(true);
 
-        const res = await axios.post(API.VERIFY_OTP, {
+        const res = await axiosClient.post(API.VERIFY_OTP, {
           email,
           otp,
         });
@@ -94,7 +94,7 @@ const ForgotPassword = () => {
     try {
       setLoading(true);
 
-      const res = await axios.post(API.RESET_PASSWORD, {
+      const res = await axiosClient.post(API.RESET_PASSWORD, {
         email,
         password,
         otp,

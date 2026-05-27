@@ -1,6 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleView } from "../moduleFactory";
 
-const ProfileView = () => <ModuleView slug="user-profile" />;
+const ModulePage = () => <ModuleView slug="user-profile" />;
 
-export default ProfileView;
+export default ModulePage;

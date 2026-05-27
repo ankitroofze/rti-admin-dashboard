@@ -1,4 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleView } from "../moduleFactory";
-const NewsView = () => <ModuleView slug="news" />;
-export default NewsView;
+
+const ModulePage = () => <ModuleView slug="news" />;
+
+export default ModulePage;

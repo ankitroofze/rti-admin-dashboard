@@ -1,4 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleForm } from "../moduleFactory";
-const AdvertisementAdd = () => <ModuleForm slug="advertisement" mode="Add" />;
-export default AdvertisementAdd;
+
+const ModulePage = () => <ModuleForm slug="advertisement" mode="Add" />;
+
+export default ModulePage;

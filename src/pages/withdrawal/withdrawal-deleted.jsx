@@ -1,4 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleDelete } from "../moduleFactory";
-const WithdrawalDeleted = () => <ModuleDelete slug="withdrawal" />;
-export default WithdrawalDeleted;
+
+const ModulePage = () => <ModuleDelete slug="withdrawal" />;
+
+export default ModulePage;

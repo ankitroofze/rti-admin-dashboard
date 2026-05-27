@@ -1,4 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleStatus } from "../moduleFactory";
-const NewsStatus = () => <ModuleStatus slug="news" />;
-export default NewsStatus;
+
+const ModulePage = () => <ModuleStatus slug="news" />;
+
+export default ModulePage;

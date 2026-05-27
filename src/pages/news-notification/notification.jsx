@@ -1,6 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { ModuleList } from "../moduleFactory";
 
-const Notification = () => <ModuleList slug="news-notification" />;
+const ModulePage = () => <ModuleList slug="news-notification" />;
 
-export default Notification;
+export default ModulePage;
