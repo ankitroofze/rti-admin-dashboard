@@ -6,17 +6,26 @@ const API_BASE_URL = "https://rtiapi.roofze.in/api/rti-admin";
 
 const axiosClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 12000,
+  // timeout: 12000,
   headers: {
     Accept: "application/json",
+    // Withcredentials: true,
   },
 });
+
 
 axiosClient.interceptors.request.use((config) => {
   const token = getAuthToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  if (config.data instanceof FormData) {
+    delete config.headers["Content-Type"];
+  } else if (config.data && !config.headers["Content-Type"]) {
+    config.headers["Content-Type"] = "application/json";
+  }
+
   return config;
 });
 

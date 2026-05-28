@@ -26,6 +26,7 @@ const getLoginMessage = (payload, fallback) => {
 };
 
 // Smart recursive token finder utility
+
 const findAuthToken = (payload) => {
     if (!payload || typeof payload !== "object") return "";
     const tokenKeys = ["token", "access_token", "auth_token", "bearer_token", "jwt"];

@@ -61,16 +61,16 @@ const rowKey = (row = {}) =>
   );
 
 
-const activeRecordKey = (slug) => 
+const activeRecordKey = (slug) =>
   `rti-active-${slug}`;
 
 const selectOption = (value) =>
-   ({ value, label: value });
+  ({ value, label: value });
 
 const toSelectOptions = (items = []) =>
-   items.map(selectOption);
+  items.map(selectOption);
 
-const CustomClearText = () => 
+const CustomClearText = () =>
   "clear all";
 
 const ClearIndicator = (props) => {
@@ -113,6 +113,34 @@ const formatDisplayDate = (value) => {
   const month = parsed.toLocaleString("en-US", { month: "short" });
   return `${day}-${month}-${parsed.getFullYear()}`;
 };
+
+const extractTrailingNumber = (value) => {
+  const match = String(value || "").match(/(\d+)(?!.*\d)/);
+  return match ? Number(match[1]) : null;
+};
+
+const buildSequentialId = (slug, rows = []) => {
+  const prefix = slug === "user-profile" ? "USR" : slug === "news" ? "NEWS" : slug.toUpperCase().slice(0, 3);
+  const numericIds = rows
+    .map((row) => extractTrailingNumber(row?.id ?? row?.userId ?? row?.profileId ?? row?.newsId ?? ""))
+    .filter((value) => Number.isFinite(value))
+    .map((value) => Number(value));
+  const nextNumber = numericIds.length ? Math.max(...numericIds) + 1 : 1;
+  return `${prefix}-${String(nextNumber).padStart(5, "0")}`;
+};
+
+const mergeRowsByKey = (storedRows = [], incomingRows = []) => {
+  const merged = [];
+  const seen = new Set();
+  [...storedRows, ...incomingRows].forEach((row) => {
+    const key = rowKey(row);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    merged.push(row);
+  });
+  return merged;
+};
+
 const toDateInputValue = (value) => {
   if (!value) return "";
   const parsed = new Date(String(value).replace(/-/g, " "));
@@ -287,12 +315,15 @@ const moduleConfig = {
     actions: ["view", "status", "delete"],
     details: [
       "userId",
+      "firstname",
+      "lastname",
       "email",
       "mobileNumber",
       "state",
       "district",
-      "referralCode",
       "taluka",
+      "profile_image",
+      "referralCode",
       "referredBy",
       "createdDate",
       "status",
@@ -315,12 +346,15 @@ const moduleConfig = {
     actions: ["view", "update", "status", "delete"],
     details: [
       "userId",
+      "firstname",
+      "lastname",
       "email",
       "mobileNumber",
       "state",
       "district",
-      "referralCode",
       "taluka",
+      "profile_image",
+      "referralCode",
       "referredBy",
       "createdDate",
       "status",
@@ -978,6 +1012,9 @@ const labels = {
   id: "ID",
   userId: "User ID",
   profileId: "Profile ID",
+  firstname: "First Name",
+  lastname: "Last Name",
+  profile_image: "Profile Image",
   email: "Email",
   mobileNumber: "Mobile Number",
   phone: "Phone",
@@ -1130,8 +1167,10 @@ const apiMessage = (errorOrResponse, fallback = "Something went wrong") => {
 };
 
 const isMissingApiRoute = (error) =>
-  error?.response?.status === 404 &&
-  String(error.response?.data?.message || "").toLowerCase().includes("route");
+  [404, 405].includes(error?.response?.status) &&
+  (String(error.response?.data?.message || "").toLowerCase().includes("route") ||
+    String(error.response?.data?.message || "").toLowerCase().includes("method not allowed") ||
+    String(error.response?.statusText || "").toLowerCase().includes("method not allowed"));
 
 const readPath = (source, path) =>
   path.split(".").reduce((value, key) => value?.[key], source);
@@ -1168,9 +1207,28 @@ const normalizeStatus = (value) => {
   return value || "Active";
 };
 
+const normalizeStatusValue = (value) => {
+  if (typeof value === "boolean") return value ? 1 : 0;
+  if (Number(value) === 1) return 1;
+  if (Number(value) === 0) return 0;
+  return String(value || "Active").toLowerCase() === "active" ? 1 : 0;
+};
+
+const resolveLocationValue = (value, key) => {
+  if (value && typeof value === "object") {
+    return value[key] ?? value.name ?? "";
+  }
+  return value ?? "";
+};
+
+const isDeletedRow = (row = {}) => Boolean(row.deleted_at || row.deletedAt || row.is_deleted || row.trashed);
+
 const normalizeUserRow = (row = {}, index = 0) => {
   const image = row.image || row.profile_image || row.profileImage || row.avatar || row.photo || profile;
-  const name = row.name || row.full_name || row.fullName || row.username || row.title || "User";
+  const rawName = row.name || row.full_name || row.fullName || row.username || row.title || "User";
+  const firstname = row.firstname || row.first_name || row.firstName || rawName;
+  const lastname = row.lastname || row.last_name || row.lastName || "";
+  const name = row.name || [firstname, lastname].filter(Boolean).join(" ").trim() || rawName;
   const phone = row.phone || row.mobile || row.mobile_number || row.mobileNumber || "";
   const id = row.id || row.user_id || row.userId || row.profile_id || row.profileId || "";
   return {
@@ -1181,14 +1239,17 @@ const normalizeUserRow = (row = {}, index = 0) => {
     userId: row.userId || row.user_id || id,
     profileId: row.profileId || row.profile_id || row.user_id || id,
     image,
+    firstname,
+    lastname,
     name,
+    profile_image: row.profile_image || row.profileImage || row.image || "",
     username: row.username || name,
     email: row.email || "",
     phone,
     mobileNumber: row.mobileNumber || row.mobile_number || row.mobile || phone,
-    state: row.state || "",
-    district: row.district || "",
-    taluka: row.taluka || row.taluka_name || "",
+    state: resolveLocationValue(row.state, "state"),
+    district: resolveLocationValue(row.district, "district"),
+    taluka: resolveLocationValue(row.taluka, "taluka") || row.taluka_name || "",
     referralCode: row.referralCode || row.referral_code || "",
     referredBy: row.referredBy || row.referred_by || "",
     createdDate: formatDisplayDate(row.createdDate || row.created_at || row.createdAt) || "",
@@ -1267,15 +1328,23 @@ const dashboardStatsFromPayload = (payload) => {
 
 const userPayloadFromRecord = (record = {}) => {
   const payload = new FormData();
-  payload.append("name", record.name || record.username || "");
+  const firstName = record.firstname || record.name || record.username || "";
+  const lastName = record.lastname || "";
+  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+  payload.append("firstname", firstName);
+  payload.append("lastname", lastName);
+  payload.append("name", fullName || firstName);
   payload.append("email", record.email || "");
   payload.append("mobile_number", record.mobileNumber || record.phone || "");
   payload.append("phone", record.phone || record.mobileNumber || "");
-  payload.append("state", record.state || "");
-  payload.append("district", record.district || "");
-  payload.append("taluka", record.taluka || "");
-  payload.append("status", record.status || "Active");
+  payload.append("state", states  || "");
+  payload.append("district",districtMap || "");
+  payload.append("taluka",  talukaMap|| "");
+  if (record.profile_image) payload.append("profile_image", record.profile_image);
+  if (record.password) payload.append("password", record.password);
+  payload.append("status", normalizeStatusValue(record.status));
   payload.append("bio", record.bio || record.description || "");
+  console.log("USER_FORM_DATA", Object.fromEntries(payload.entries()));
   return payload;
 };
 
@@ -1300,9 +1369,9 @@ const saveUserToApi = async (record, mode, currentRow = {}) => {
     const response = mode === "Add"
       ? await apiClient.post(API.USERS_ADD, payload, config)
       : await apiClient.post(endpoint(API.USERS_UPDATE, currentRow), (() => {
-          payload.append("_method", "PUT");
-          return payload;
-        })(), config);
+        payload.append("_method", "PUT");
+        return payload;
+      })(), config);
     const apiRow = response.data?.user || response.data?.data?.user || response.data?.data || response.data;
     return normalizeUserRow({ ...record, ...(apiRow && typeof apiRow === "object" ? apiRow : {}) });
   } catch (error) {
@@ -1315,7 +1384,7 @@ const deleteUserFromApi = (row) =>
   apiClient.delete(endpoint(API.USERS_DELETE, row), { headers: apiHeaders(), timeout: 12000 });
 
 const updateUserStatusInApi = async (row, status) => {
-  const payload = { status };
+  const payload = { status: normalizeStatusValue(status) };
   try {
     return await apiClient.patch(endpoint(API.USERS_STATUS, row), payload, { headers: apiHeaders(), timeout: 12000 });
   } catch (error) {
@@ -1335,11 +1404,12 @@ const modulePayloadFromForm = (slug, record = {}, form) => {
     append("title", record.title);
     append("author", record.author);
     append("category", record.category);
-    append("status", record.status || "Active");
+    append("status", normalizeStatusValue(record.status));
     append("description", record.description);
     append("created_at", toDateInputValue(record.createdAt));
     const mediaFile = formData.get("media-file");
     if (mediaFile instanceof File && mediaFile.size) append("media_file", mediaFile);
+    console.log("MODULE_FORM_DATA", Object.fromEntries(payload.entries()));
     return payload;
   }
 
@@ -1348,7 +1418,7 @@ const modulePayloadFromForm = (slug, record = {}, form) => {
   append("difficulty", record.difficulty);
   append("test_type", record.testType);
   append("marks", record.marks);
-  append("status", record.status || "Active");
+  append("status", normalizeStatusValue(record.status));
   (record.questions || []).forEach((question, index) => {
     append(`questions[${index}][question]`, question.question);
     append(`questions[${index}][marks]`, question.marks);
@@ -1359,6 +1429,7 @@ const modulePayloadFromForm = (slug, record = {}, form) => {
     append(`questions[${index}][correct_answer]`, question.correctAnswer);
     append(`questions[${index}][explanation]`, question.explanation);
   });
+  console.log("MODULE_FORM_DATA", Object.fromEntries(payload.entries()));
   return payload;
 };
 
@@ -1382,14 +1453,19 @@ const saveModuleToApi = async (slug, record, mode, currentRow = {}, form) => {
   if (!endpoints) return record;
   const payload = modulePayloadFromForm(slug, record, form);
   const config = { headers: apiHeaders(), timeout: 12000 };
-  const response = mode === "Add"
-    ? await apiClient.post(endpoints.add, payload, config)
-    : await apiClient.post(endpoint(endpoints.update, currentRow), (() => {
+  try {
+    const response = mode === "Add"
+      ? await apiClient.post(endpoints.add, payload, config)
+      : await apiClient.post(endpoint(endpoints.update, currentRow), (() => {
         payload.append("_method", "PUT");
         return payload;
       })(), config);
-  const apiRow = extractSavedRow(response.data, slug);
-  return normalizeModuleRow(slug)({ ...record, ...(apiRow && typeof apiRow === "object" ? apiRow : {}) });
+    const apiRow = extractSavedRow(response.data, slug);
+    return normalizeModuleRow(slug)({ ...record, ...(apiRow && typeof apiRow === "object" ? apiRow : {}) });
+  } catch (error) {
+    if (!isMissingApiRoute(error)) throw error;
+    return normalizeModuleRow(slug)({ ...record, _local: true, createdAt: record.createdAt || formatDisplayDate(new Date()) });
+  }
 };
 
 const deleteModuleFromApi = (slug, row) =>
@@ -1433,7 +1509,7 @@ const getRows = (slug) => {
   const storedRows = getStoredRows(slug);
   const storedKeys = new Set(storedRows.map(rowKey));
   const baseRows = (getConfig(dataSlug(slug)).rows || getConfig(slug).rows || []).filter((row) => !storedKeys.has(rowKey(row)));
-  return [...storedRows, ...baseRows].filter((row) => row && typeof row === "object");
+  return [...storedRows, ...baseRows].filter((row) => row && typeof row === "object" && !isDeletedRow(row));
 };
 const updateStoredRow = (slug, updatedRow) => {
   const key = rowKey(updatedRow);
@@ -1484,7 +1560,12 @@ const statusBadge = (status) => (
   </span>
 );
 
-const StatusToggle = ({ status = "Active", onClick = () => {} }) => (
+const logStatusChange = (row, status) => {
+  const numericStatus = Number(normalizeStatusValue(status));
+  console.log("status", pickRecordTitle(row), status, numericStatus);
+};
+
+const StatusToggle = ({ status = "Active", onClick = () => { } }) => (
   <button
     type="button"
     className={`rti-status-toggle ${isPositiveStatus(status) ? "active" : "inactive"}`}
@@ -1693,10 +1774,10 @@ const ActionButtons = ({ slug, actions, row, onDelete, onStatus }) => (
 
 const CellValue = ({ field, row, slug, onImage }) => {
   if (field === "profileImage") {
-    return <button type="button" className="rti-image-button" onClick={() => onImage(row.image || profile)}><img src={row.image || profile} alt={row.name} className="rounded-circle" width="38" height="38" /></button>;
+    return <button type="button" className="rti-image-button" onClick={() => onImage(row.image || row.profile_image || profile)}><img src={row.image || row.profile_image || profile} alt={row.name} className="rounded-circle" width="38" height="38" /></button>;
   }
   if (field === "imageThumb") {
-    return <button type="button" className="rti-image-button" onClick={() => onImage(row.image || profile)}><img src={row.image || profile} alt={row.product} className="rounded" width="44" height="34" /></button>;
+    return <button type="button" className="rti-image-button" onClick={() => onImage(row.image || row.profile_image || profile)}><img src={row.image || row.profile_image || profile} alt={row.product} className="rounded" width="44" height="34" /></button>;
   }
   if (field === "productImage") {
     return <button type="button" className="rti-image-button" onClick={() => onImage(row.productImage || row.image || profile)}><img src={row.productImage || row.image || profile} alt={row.productName || "Product"} className="rounded" width="44" height="34" /></button>;
@@ -1711,7 +1792,8 @@ const CellValue = ({ field, row, slug, onImage }) => {
       </a>
     );
   }
-  const value = row[field] || "-";
+  const fallbackValue = field === "name" ? [row.firstname, row.lastname].filter(Boolean).join(" ").trim() || row.username || "" : "";
+  const value = row[field] || fallbackValue || "-";
   const text = formatDisplayDate(value) || value;
   if (typeof text === "string" && text.length > 24) {
     return (
@@ -1812,9 +1894,10 @@ export const ModuleList = ({ slug }) => {
     loadUsersFromApi(slug)
       .then(({ rows: apiRows, stats }) => {
         if (!active) return;
-        if (apiRows.length) {
-          setModuleRows(apiRows);
-          saveStoredRows(dataSlug(slug), apiRows);
+        const combinedRows = mergeRowsByKey(getRows(dataSlug(slug)), apiRows);
+        if (combinedRows.length) {
+          setModuleRows(combinedRows);
+          saveStoredRows(dataSlug(slug), combinedRows);
         }
         if (stats) setDashboardStats(stats);
       })
@@ -1838,9 +1921,10 @@ export const ModuleList = ({ slug }) => {
     loadModuleFromApi(slug)
       .then((apiRows) => {
         if (!active) return;
-        if (apiRows.length) {
-          setModuleRows(apiRows);
-          saveStoredRows(slug, apiRows);
+        const combinedRows = mergeRowsByKey(getRows(slug), apiRows);
+        if (combinedRows.length) {
+          setModuleRows(combinedRows);
+          saveStoredRows(slug, combinedRows);
         }
       })
       .catch((error) => {
@@ -1907,16 +1991,16 @@ export const ModuleList = ({ slug }) => {
 
   const addLabel =
     slug === "user-profile" ? "Add User" :
-    slug === "news" ? "Add News" :
-    slug === "advertisement" ? "Add Advertisement" :
-    slug === "ecommerce-subscription" ? "Add Plan" :
-    slug === "ads-subscription" ? "Add Plan" :
-    slug === "offices-addresses" ? "Add Office Address" :
-    slug === "e-paper" ? "Add E-Paper" :
-    slug === "subscription-plan" ? "Add Subscription" :
-    slug === "quiz" ? "Add Quiz" :
-    slug === "news-notification" ? "Add Notification" :
-    "Add";
+      slug === "news" ? "Add News" :
+        slug === "advertisement" ? "Add Advertisement" :
+          slug === "ecommerce-subscription" ? "Add Plan" :
+            slug === "ads-subscription" ? "Add Plan" :
+              slug === "offices-addresses" ? "Add Office Address" :
+                slug === "e-paper" ? "Add E-Paper" :
+                  slug === "subscription-plan" ? "Add Subscription" :
+                    slug === "quiz" ? "Add Quiz" :
+                      slug === "news-notification" ? "Add Notification" :
+                        "Add";
 
   const liveStats = useMemo(() => {
     if (slug !== "dashboard" || !config.stats) return config.stats;
@@ -1925,18 +2009,18 @@ export const ModuleList = ({ slug }) => {
       const count = apiCount !== null && apiCount !== undefined
         ? apiCount
         : key === "all"
-        ? moduleRows.length
-        : key === "active"
-          ? moduleRows.filter((row) => row.status === "Active").length
-          : key === "inactive"
-            ? moduleRows.filter((row) => row.status === "Inactive").length
-            : key === "premium"
-              ? moduleRows.filter((row) => (
-                row.userType === "Premium" ||
-                row.planName === "Premium" ||
-                row.subscriptionStatus === "Active"
-              )).length
-              : 0;
+          ? moduleRows.length
+          : key === "active"
+            ? moduleRows.filter((row) => row.status === "Active").length
+            : key === "inactive"
+              ? moduleRows.filter((row) => row.status === "Inactive").length
+              : key === "premium"
+                ? moduleRows.filter((row) => (
+                  row.userType === "Premium" ||
+                  row.planName === "Premium" ||
+                  row.subscriptionStatus === "Active"
+                )).length
+                : 0;
       return [label, String(count), icon, color, key];
     });
   }, [config.stats, dashboardStats, moduleRows, slug]);
@@ -1990,16 +2074,17 @@ export const ModuleList = ({ slug }) => {
                   {rows.map((row, rowIndex) => {
                     const displayRow = { ...row, sr: (page - 1) * 10 + rowIndex + 1 };
                     return (
-                    <tr key={`${slug}-${row.sr || row.id}`} className="rti-clickable-row" onClick={() => openRowView(row)}>
-                      {config.columns.map(([field]) => (
-                        <td key={field}>
-                          <CellValue field={field} row={displayRow} slug={slug} onImage={setImagePreview} />
+                    <tr 
+  key={`${slug}-${row.sr || row.id || rowIndex}-${rowIndex}`} className="rti-clickable-row"  onClick={() => openRowView(row)}>
+                        {config.columns.map(([field]) => (
+                          <td key={field}>
+                            <CellValue field={field} row={displayRow} slug={slug} onImage={setImagePreview} />
+                          </td>
+                        ))}
+                        <td>
+                          <ActionButtons slug={slug} actions={config.actions} row={row} onDelete={setDeleteRow} onStatus={setStatusRow} />
                         </td>
-                      ))}
-                      <td>
-                        <ActionButtons slug={slug} actions={config.actions} row={row} onDelete={setDeleteRow} onStatus={setStatusRow} />
-                      </td>
-                    </tr>
+                      </tr>
                     );
                   })}
                 </tbody>
@@ -2013,8 +2098,8 @@ export const ModuleList = ({ slug }) => {
                 </div>
               )}
               {!isLoading && !rows.length && <div className="text-center py-4">No records found</div>}
-              {!isLoading && rows.map((row) => (
-                <div className="card border mb-2 rti-clickable-row" key={`mobile-${slug}-${row.sr || row.id}`} onClick={() => openRowView(row)}>
+              {!isLoading && rows.map((row, rowIndex) => (
+                <div className="card border mb-2 rti-clickable-row" key={`mobile-${slug}-${row.sr || row.id || rowIndex}-${rowIndex}`} onClick={() => openRowView(row)}>
                   <div className="card-body">
                     <div className="d-flex justify-content-between gap-2">
                       <strong>{mobilePrimaryText(row)}</strong>
@@ -2062,8 +2147,17 @@ export const ModuleList = ({ slug }) => {
             } else if (MODULE_API_SLUGS.includes(slug)) {
               await deleteModuleFromApi(slug, rowToDelete);
             }
-            const nextRows = moduleRows.filter((item) => item !== rowToDelete);
-            setModuleRows(nextRows);
+            const deletedAt = new Date().toISOString();
+            const softDeletedRow = {
+              ...rowToDelete,
+              deleted_at: deletedAt,
+              deletedAt,
+              is_deleted: true,
+              trashed: true,
+              status: "Inactive",
+            };
+            const nextRows = moduleRows.map((item) => rowKey(item) === rowKey(rowToDelete) ? softDeletedRow : item);
+            setModuleRows(nextRows.filter((item) => !isDeletedRow(item)));
             saveStoredRows(slug, nextRows);
             setDeleteRow(null);
             setToast(`${pickRecordTitle(rowToDelete)} deleted successfully`);
@@ -2083,6 +2177,7 @@ export const ModuleList = ({ slug }) => {
         onConfirm={async () => {
           const rowToUpdate = statusRow;
           const nextStatus = nextStatusForSlug(slug, rowToUpdate?.status || "Active");
+          logStatusChange(rowToUpdate, nextStatus);
           try {
             if (slug === "user-profile" || slug === "dashboard") {
               await updateUserStatusInApi(rowToUpdate, nextStatus);
@@ -2124,6 +2219,12 @@ const DetailGrid = ({ fields, row, onStatus }) => (
               </a>
             ) : field === "productImage" ? (
               <img src={row.productImage || row.image || profile} alt={row.productName || "Product"} className="rti-detail-image" />
+            ) : field === "profile_image" ? (
+              row.image || row.profile_image ? (
+                <img src={row.image || row.profile_image || profile} alt={row.name || row.username || "Profile"} className="rti-detail-image" />
+              ) : (
+                row[field] || "-"
+              )
             ) : (
               row[field] || "-"
             )}
@@ -2134,56 +2235,61 @@ const DetailGrid = ({ fields, row, onStatus }) => (
   </div>
 );
 
-const ProfileDetailLayout = ({ row, config, onImage, onStatus }) => (
-  <div className="card rti-profile-details-card">
-    <div className="card-header d-flex align-items-center justify-content-between flex-wrap gap-3">
-      <div className="d-flex align-items-center gap-3">
-        <div>
-          <button type="button" className="rti-image-button" onClick={() => onImage(row.image || profile)}>
-            <img src={row.image || profile} alt={row.name || row.username} className="rounded-circle rti-profile-detail-avatar" />
-          </button>
+const ProfileDetailLayout = ({ row, config, onImage, onStatus }) => {
+  const displayName = row.name || [row.firstname, row.lastname].filter(Boolean).join(" ").trim() || row.username || "User";
+  const detailFields = config.profileView ? config.details.filter((field) => !["firstname", "lastname", "profile_image"].includes(field)) : config.details;
+
+  return (
+    <div className="card rti-profile-details-card">
+      <div className="card-header d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div className="d-flex align-items-center gap-3">
+          <div>
+            <button type="button" className="rti-image-button" onClick={() => onImage(row.image || row.profile_image || profile)}>
+              <img src={row.image || row.profile_image || profile} alt={displayName} className="rounded-circle rti-profile-detail-avatar" />
+            </button>
+          </div>
+          <div>
+            <h4 className="card-title mb-1">{displayName}</h4>
+            <p className="mb-0 text-muted">{row.profileId || row.userId}</p>
+          </div>
         </div>
-        <div>
-          <h4 className="card-title mb-1">{row.name || row.username}</h4>
-          <p className="mb-0 text-muted">{row.profileId || row.userId}</p>
-        </div>
+        <h4 className="card-title mb-0">{config.profileView ? "Profile Details" : "Network Details"}</h4>
       </div>
-      <h4 className="card-title mb-0">{config.profileView ? "Profile Details" : "Network Details"}</h4>
-    </div>
-    <div className="card-body">
-      <DetailGrid fields={config.details} row={row} onStatus={onStatus} />
-      {config.profileView && (
-        <div className="row mt-3">
-          <div className="col-xl-6">
-            <h5>Subscription Plan</h5>
-            <p><strong>Plan Name:</strong> {row.planName}</p>
-            <p><strong>Days:</strong> {row.days || "-"}</p>
-            <p><strong>Status:</strong> {statusBadge(row.subscriptionStatus)}</p>
-          </div>
-          {(row.userIdPdfUrl || row.certificatePdfUrl || row.appointmentLetterPdfUrl) && <div className="col-xl-6">
-            <h5>Documents</h5>
-            <div className="d-flex flex-wrap gap-2">
-              {[
-                ["User ID PDF", row.userIdPdfUrl],
-                ["Certification PDF", row.certificatePdfUrl],
-                ["Appointment Letter PDF", row.appointmentLetterPdfUrl],
-              ].filter(([, href]) => href).map(([doc, href]) => (
-                <a href={href} target="_blank" rel="noreferrer" className="btn btn-outline-primary btn-sm" key={doc}>
-                  <i className="fa fa-file-pdf me-2" />
-                  {doc}
-                </a>
-              ))}
+      <div className="card-body">
+        <DetailGrid fields={detailFields} row={row} onStatus={onStatus} />
+        {config.profileView && (
+          <div className="row mt-3">
+            <div className="col-xl-6">
+              <h5>Subscription Plan</h5>
+              <p><strong>Plan Name:</strong> {row.planName}</p>
+              <p><strong>Days:</strong> {row.days || "-"}</p>
+              <p><strong>Status:</strong> {statusBadge(row.subscriptionStatus)}</p>
             </div>
-          </div>}
-          <div className="col-12 mt-3">
-            <h5>Bio</h5>
-            <p className="mb-0">{row.bio}</p>
+            {(row.userIdPdfUrl || row.certificatePdfUrl || row.appointmentLetterPdfUrl) && <div className="col-xl-6">
+              <h5>Documents</h5>
+              <div className="d-flex flex-wrap gap-2">
+                {[
+                  ["User ID PDF", row.userIdPdfUrl],
+                  ["Certification PDF", row.certificatePdfUrl],
+                  ["Appointment Letter PDF", row.appointmentLetterPdfUrl],
+                ].filter(([, href]) => href).map(([doc, href]) => (
+                  <a href={href} target="_blank" rel="noreferrer" className="btn btn-outline-primary btn-sm" key={doc}>
+                    <i className="fa fa-file-pdf me-2" />
+                    {doc}
+                  </a>
+                ))}
+              </div>
+            </div>}
+            <div className="col-12 mt-3">
+              <h5>Bio</h5>
+              <p className="mb-0">{row.bio}</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const WithdrawalInvoice = ({ row }) => (
   <div className="card rti-invoice mb-4">
@@ -2308,25 +2414,25 @@ export const ModuleView = ({ slug }) => {
         <ProfileDetailLayout row={row} config={config} onImage={setImagePreview} onStatus={() => setConfirmStatus(true)} />
       ) : (
         <>
-        <div className="card">
-          <div className="card-header d-flex justify-content-between">
-            <h4 className="card-title mb-0">{config.title} Details</h4>
-            {slug === "withdrawal" && (
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => openWithdrawalInvoice(row)}>
-                <i className="fa fa-download me-1" />
-                Download Invoice
-              </button>
-            )}
+          <div className="card">
+            <div className="card-header d-flex justify-content-between">
+              <h4 className="card-title mb-0">{config.title} Details</h4>
+              {slug === "withdrawal" && (
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => openWithdrawalInvoice(row)}>
+                  <i className="fa fa-download me-1" />
+                  Download Invoice
+                </button>
+              )}
+            </div>
+            <div className="card-body">
+              {(row.image || row.profile_image) && (
+                <button type="button" className="rti-image-button mb-3" onClick={() => setImagePreview(row.image || row.profile_image || profile)}>
+                  <img src={row.image || row.profile_image || profile} alt={pickRecordTitle(row)} className="rti-detail-image" />
+                </button>
+              )}
+              <DetailGrid fields={config.details} row={row} onStatus={() => setConfirmStatus(true)} />
+            </div>
           </div>
-          <div className="card-body">
-            {row.image && (
-              <button type="button" className="rti-image-button mb-3" onClick={() => setImagePreview(row.image || profile)}>
-                <img src={row.image || profile} alt={pickRecordTitle(row)} className="rti-detail-image" />
-              </button>
-            )}
-            <DetailGrid fields={config.details} row={row} onStatus={() => setConfirmStatus(true)} />
-          </div>
-        </div>
         </>
       )}
       <ConfirmModal
@@ -2337,6 +2443,7 @@ export const ModuleView = ({ slug }) => {
         onHide={() => setConfirmStatus(false)}
         onConfirm={async () => {
           const nextStatus = nextStatusForSlug(slug, row.status || "Active");
+          logStatusChange(row, nextStatus);
           try {
             if (slug === "user-profile" || slug === "dashboard") {
               await updateUserStatusInApi(row, nextStatus);
@@ -2370,6 +2477,18 @@ const Field = ({ label, name, type = "text", as = "input", options, multiple = f
   const [textValue, setTextValue] = useState((type === "date" || type === "datetime-local") ? toDateInputValue(value) : value || "");
   const inputType = type;
   const hiddenValue = multiple ? selected.map((option) => option.value).join(", ") : selected?.value || "";
+
+  useEffect(() => {
+    const nextSelected = multiple
+      ? String(value || "").split(",").map((item) => item.trim()).filter(Boolean).map(selectOption)
+      : value ? selectOption(value) : null;
+    setSelected(nextSelected);
+  }, [multiple, value]);
+
+  useEffect(() => {
+    const nextTextValue = type === "date" || type === "datetime-local" ? toDateInputValue(value) : value || "";
+    setTextValue(nextTextValue);
+  }, [type, value]);
 
   return (
     <div className="form-group mb-3 row">
@@ -2461,7 +2580,7 @@ const makeRecordFromForm = async (slug, config, form, existing = {}) => {
     data[key] = value;
   }
   const now = formatDisplayDate(new Date());
-  const generatedId = `${slug.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-5)}`;
+  const generatedId = buildSequentialId(slug, getRows(slug));
   const questionNumbers = Array.from(form.querySelectorAll("[data-question-number]")).map((node) => node.dataset.questionNumber);
   const questions = questionNumbers.map((item) => ({
     question: data[`question-${item}`] || "",
@@ -2473,26 +2592,34 @@ const makeRecordFromForm = async (slug, config, form, existing = {}) => {
     correctAnswer: data[`correct-${item}`] || "",
     explanation: data[`explanation-${item}`] || "",
   })).filter((question) => question.question);
+  const firstName = data.firstname || data["full-name"] || data.name || "";
+  const lastName = data.lastname || "";
+  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+  const profileImage = data.imageUrl || existing.profile_image || existing.image || data.image || "";
 
   return {
     ...existing,
     _local: true,
     _rowKey: rowKey(existing) || generatedId,
     sr: existing.sr || Date.now(),
-    id: data.id || data["news-id"] || data["epaper-id"] || data["ad-id"] || data["office-id"] || existing.id || generatedId,
+    id: slug === "user-profile" ? (data["user-id"] || existing.id || generatedId) : (data.id || data["news-id"] || data["epaper-id"] || data["ad-id"] || data["office-id"] || existing.id || generatedId),
     adId: data["ad-id"] || existing.adId || "",
-    userId: data["user-id"] || data["rank-user-id"] || existing.userId || generatedId,
-    profileId: data["user-id"] || existing.profileId || generatedId,
+    userId: slug === "user-profile" ? (data["user-id"] || existing.userId || generatedId) : (data["user-id"] || existing.userId || ""),
+    profileId: slug === "user-profile" ? (data["user-id"] || existing.profileId || generatedId) : (data["user-id"] || existing.profileId || ""),
     transactionId: data["transaction-id"] || existing.transactionId || generatedId,
     orderId: data["order-id"] || "",
-    name: data["full-name"] || data.name || data.title || "New Record",
-    username: data.username || data["full-name"] || data.title || "New Record",
-    title: data.title || data["full-name"] || "New Record",
+    firstname: firstName,
+    lastname: lastName,
+    name: fullName || firstName || "New Record",
+    username: fullName || firstName || "New Record",
+    title: data.title || fullName || firstName || "New Record",
     author: data.author || "",
     email: data.email || "",
     phone: data.phone || data["mobile-number"] || "",
     mobileNumber: data["mobile-number"] || data.phone || "",
-    image: data.imageUrl || data["media-fileUrl"] || existing.image || (["user", "ad"].includes(config.form) ? profile : undefined),
+    password: data.password || "",
+    profile_image: profileImage || "",
+    image: profileImage || data["media-fileUrl"] || existing.image || (["user", "ad"].includes(config.form) ? profile : undefined),
     state: data.state || "",
     district: data.district || "",
     taluka: data.taluka || "",
@@ -2634,9 +2761,11 @@ const FileUpload = ({ label, accept = ".pdf,image/*,video/*", required = true, c
 
 const formFields = {
   user: [
-    ["User ID", "user-id"],
-    ["Full Name", "full-name"],
+    ["User ID", "user-id", "number"],
+    ["First Name", "firstname"],
+    ["Last Name", "lastname"],
     ["Email Address", "email", "email"],
+    ["Password", "password", "password"],
     ["Mobile Number", "mobile-number", "tel"],
     ["States", "state", "select", stateOptions],
     ["District", "district", "select", defaultDistricts],
@@ -2773,6 +2902,14 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
     district: currentRow.district || "",
     taluka: currentRow.taluka || "",
   });
+
+  useEffect(() => {
+    setLocationState({
+      state: currentRow.state || "",
+      district: currentRow.district || "",
+      taluka: currentRow.taluka || "",
+    });
+  }, [currentRow.state, currentRow.district, currentRow.taluka]);
   const [toast, setToast] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -2791,16 +2928,24 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
   const submitLabel =
     mode === "Add"
       ? slug === "news" ? "Create News"
-      : slug === "subscription-plan" ? "Create Subscription"
-      : ["ecommerce-subscription", "ads-subscription"].includes(slug) ? "Create Plan"
-      : slug === "quiz" ? "Submit All Questions"
-      : `Create ${config.title}`
+        : slug === "subscription-plan" ? "Create Subscription"
+          : ["ecommerce-subscription", "ads-subscription"].includes(slug) ? "Create Plan"
+            : slug === "quiz" ? "Submit All Questions"
+              : `Create ${config.title}`
       : slug === "subscription-plan" ? "Create Subscription" : `Update ${config.title}`;
+
+  const nextRecordId = useMemo(() => {
+    if (mode !== "Add") return "";
+    return buildSequentialId(slug, getRows(slug));
+  }, [mode, slug]);
 
   const fieldValue = (name) => {
     const map = {
-      "user-id": currentRow.userId,
-      "full-name": currentRow.name,
+      "user-id": mode === "Add" && slug === "user-profile" ? nextRecordId : currentRow.userId,
+      "news-id": mode === "Add" && slug === "news" ? nextRecordId : currentRow.id,
+      firstname: currentRow.firstname || currentRow.name || "",
+      lastname: currentRow.lastname || "",
+      "full-name": currentRow.name || currentRow.firstname || "",
       "mobile-number": currentRow.mobileNumber || currentRow.phone,
       "rank-user-id": currentRow.userId,
       "required-referrals": currentRow.requiredReferrals,
@@ -2864,7 +3009,7 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
     if (type === "select-multiple") return <Field key={name} label={label} name={name} as="select" options={options} multiple value={fieldValue(name)} />;
     if (type === "textarea") return <Field key={name} label={label} name={name} as="textarea" value={fieldValue(name)} />;
     if (type === "file") return <FileUpload key={name} label={label} currentName={fieldValue(name)} currentUrl={name === "media-file" ? currentRow.mediaFileUrl : name === "pdf-files" ? currentRow.pdfFilesUrl : ""} />;
-    return <Field key={name} label={label} name={name} type={type || "text"} value={fieldValue(name)} />;
+    return <Field key={name} label={label} name={name} type={type || "text"} value={fieldValue(name)} required={name === "password" ? mode !== "Update" : true} />;
   };
 
   return (
