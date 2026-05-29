@@ -91,6 +91,20 @@ import EcommerceSubscriptionUpdate from "../pages/ecommerce-subscription/ecommer
 import EcommerceSubscriptionDeleted from "../pages/ecommerce-subscription/ecommerce-subscription-deleted";
 import EcommerceSubscriptionStatus from "../pages/ecommerce-subscription/ecommerce-subscription-status";
 
+import EcomBuy from "../pages/ecom-buy/ecom-buy";
+import EcomBuyView from "../pages/ecom-buy/ecom-buy-view";
+import EcomBuyAdd from "../pages/ecom-buy/ecom-buy-add";
+import EcomBuyUpdate from "../pages/ecom-buy/ecom-buy-update";
+import EcomBuyDeleted from "../pages/ecom-buy/ecom-buy-deleted";
+import EcomBuyStatus from "../pages/ecom-buy/ecom-buy-status";
+
+import EcomSell from "../pages/ecom-sell/ecom-sell";
+import EcomSellView from "../pages/ecom-sell/ecom-sell-view";
+import EcomSellAdd from "../pages/ecom-sell/ecom-sell-add";
+import EcomSellUpdate from "../pages/ecom-sell/ecom-sell-update";
+import EcomSellDeleted from "../pages/ecom-sell/ecom-sell-deleted";
+import EcomSellStatus from "../pages/ecom-sell/ecom-sell-status";
+
 import ProductEnquiry from "../pages/product-enquiry/product-enquiry";
 import ProductEnquiryView from "../pages/product-enquiry/product-enquiry-view";
 import ProductEnquiryDeleted from "../pages/product-enquiry/product-enquiry-deleted";
@@ -141,6 +155,8 @@ const moduleRoutes = [
   { slug: "news-notification", List: Notification, View: NotificationView, Deleted: NotificationDeleted },
   { slug: "contact-us", List: ContactUs, View: ContactUsView, Deleted: ContactUsDeleted },
   { slug: "ecommerce-subscription", List: EcommerceSubscription, View: EcommerceSubscriptionView, Add: EcommerceSubscriptionAdd, Update: EcommerceSubscriptionUpdate, Deleted: EcommerceSubscriptionDeleted, Status: EcommerceSubscriptionStatus },
+  { slug: "ecom-buy", List: EcomBuy, View: EcomBuyView, Add: EcomBuyAdd, Update: EcomBuyUpdate, Deleted: EcomBuyDeleted, Status: EcomBuyStatus },
+  { slug: "ecom-sell", List: EcomSell, View: EcomSellView, Add: EcomSellAdd, Update: EcomSellUpdate, Deleted: EcomSellDeleted, Status: EcomSellStatus },
   { slug: "product-enquiry", List: ProductEnquiry, View: ProductEnquiryView, Deleted: ProductEnquiryDeleted },
   { slug: "ads-subscription", List: AdsSubscription, View: AdsSubscriptionView, Add: AdsSubscriptionAdd, Update: AdsSubscriptionUpdate, Deleted: AdsSubscriptionDeleted, Status: AdsSubscriptionStatus },
   { slug: "ads-management", List: AdsManagement, View: AdsManagementView, Deleted: AdsManagementDeleted },

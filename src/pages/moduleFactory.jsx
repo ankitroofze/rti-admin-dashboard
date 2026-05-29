@@ -4,6 +4,7 @@ import { Modal } from "react-bootstrap";
 import Select from "react-select";
 import swal from "sweetalert";
 import API from "../api/api";
+import axiosClient from "../api/axiosClient";
 import apiClient from "../services/apiClient";
 import { getAuthToken } from "../services/authSession";
 import profile from "../assets/images/profile/profile.png";
@@ -60,6 +61,37 @@ const rowKey = (row = {}) =>
     ""
   );
 
+const spoofedFormData = (method, data = {}) => {
+  const payload = new FormData();
+  if (data instanceof FormData) {
+    for (const [key, value] of data.entries()) {
+      payload.append(key, value);
+    }
+  } else {
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        payload.append(key, value);
+      }
+    });
+  }
+  payload.append("_method", method);
+  return payload;
+};
+
+const deletedStorageKey = (slug) => `rti-deleted-${dataSlug(slug)}`;
+
+const getDeletedKeys = (slug) => {
+  try {
+    const deletedKeys = JSON.parse(localStorage.getItem(deletedStorageKey(slug)) || "[]");
+    return Array.isArray(deletedKeys) ? deletedKeys.map((value) => String(value)) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveDeletedKeys = (slug, deletedKeys = []) => {
+  localStorage.setItem(deletedStorageKey(slug), JSON.stringify(deletedKeys.filter(Boolean)));
+};
 
 const activeRecordKey = (slug) =>
   `rti-active-${slug}`;
@@ -120,7 +152,11 @@ const extractTrailingNumber = (value) => {
 };
 
 const buildSequentialId = (slug, rows = []) => {
-  const prefix = slug === "user-profile" ? "USR" : slug === "news" ? "NEWS" : slug.toUpperCase().slice(0, 3);
+  const prefix = slug === "user-profile" ? "USR"
+    : slug === "news" ? "NEWS"
+      : slug === "ecom-buy" ? "BUY"
+        : slug === "ecom-sell" ? "SELL"
+          : slug.toUpperCase().slice(0, 3);
   const numericIds = rows
     .map((row) => extractTrailingNumber(row?.id ?? row?.userId ?? row?.profileId ?? row?.newsId ?? ""))
     .filter((value) => Number.isFinite(value))
@@ -243,33 +279,7 @@ const newsCategories = [
   "Documentary / Investigation News", "Other",
 ];
 
-const users = [
-  {
-    sr: 1,
-    profileId: "USR-1001",
-    userId: "USR-1001",
-    image: avatar1,
-    profile: "Chief Editor",
-    name: "Amit Sharma",
-    username: "Amit Sharma",
-    email: "amit.sharma@example.com",
-    phone: "9876543210",
-    mobileNumber: "9876543210",
-    state: "Maharashtra",
-    district: "Pune",
-    taluka: "Haveli",
-    referralCode: "RTI-AMIT",
-    referredBy: "Admin",
-    createdDate: "12 May 2026",
-    status: "Active",
-    userType: "Premium",
-    planName: "Premium",
-    startDate: "01 May 2026",
-    endDate: "01 May 2027",
-    subscriptionStatus: "Active",
-    bio: "Senior RTI contributor handling public awareness and publishing workflows.",
-  },
-];
+const users = [];
 
 const networkRows = [
   {
@@ -456,19 +466,7 @@ const moduleConfig = {
     title: "News",
     add: true,
     filters: ["search", "status", "category"],
-    rows: [
-      {
-        sr: 1,
-        id: "NEWS-101",
-        title: "RTI Awareness Drive",
-        author: "Editorial Team",
-        status: "Active",
-        category: "RTI",
-        mediaFile: "news-cover.jpg",
-        createdAt: "11 May 2026",
-        description: "Awareness article for RTI applicants and journalists.",
-      },
-    ],
+    rows: [],
     columns: [
       ["sr", "Sr.No"],
       ["id", "ID"],
@@ -542,6 +540,38 @@ const moduleConfig = {
     actions: ["view", "update", "delete", "status"],
     details: ["title", "description", "credits", "days", "status"],
     form: "commerceSubscription",
+  },
+  "ecom-buy": {
+    title: "Buy",
+    add: true,
+    filters: ["search", "status"],
+    rows: [],
+    columns: [
+      ["sr", "Sr.No"],
+      ["title", "Product"],
+      ["sellerName", "Seller"],
+      ["price", "Price"],
+      ["status", "Status"],
+    ],
+    actions: ["view", "update", "delete", "status"],
+    details: ["id", "title", "sellerName", "contact", "location", "price", "quantity", "description", "status"],
+    form: "ecomBuy",
+  },
+  "ecom-sell": {
+    title: "Sell",
+    add: true,
+    filters: ["search", "status"],
+    rows: [],
+    columns: [
+      ["sr", "Sr.No"],
+      ["title", "Product"],
+      ["sellerName", "Seller"],
+      ["price", "Price"],
+      ["status", "Status"],
+    ],
+    actions: ["view", "update", "delete", "status"],
+    details: ["id", "title", "sellerName", "contact", "location", "price", "quantity", "description", "status"],
+    form: "ecomSell",
   },
   "product-enquiry": {
     title: "Product Enquiry",
@@ -1137,10 +1167,28 @@ const moduleApi = {
   },
 };
 
+const resolveRecordIdentifier = (rowOrId) => {
+  if (typeof rowOrId === "string") return rowOrId;
+  if (rowOrId && typeof rowOrId === "object") {
+    return String(
+      rowOrId?.id ??
+      rowOrId?.newsId ??
+      rowOrId?.news_id ??
+      rowOrId?.quizId ??
+      rowOrId?.quiz_id ??
+      rowOrId?.userId ??
+      rowOrId?.profileId ??
+      rowOrId?.transactionId ??
+      rowOrId?.adId ??
+      rowKey(rowOrId) ??
+      ""
+    );
+  }
+  return "";
+};
+
 const endpoint = (url, rowOrId) => {
-  const id = typeof rowOrId === "object"
-    ? rowOrId?.id || rowOrId?.userId || rowOrId?.profileId || rowKey(rowOrId)
-    : rowOrId;
+  const id = resolveRecordIdentifier(rowOrId);
   if (typeof url === "function") return url(encodeURIComponent(id || ""));
   return String(url || "").replace("{user}", encodeURIComponent(id || ""));
 };
@@ -1152,6 +1200,11 @@ const apiHeaders = () => {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 };
+
+const buildMultipartHeaders = () => ({
+  ...apiHeaders(),
+  "Content-Type": "multipart/form-data",
+});
 
 const apiMessage = (errorOrResponse, fallback = "Something went wrong") => {
   const data = errorOrResponse?.response?.data || errorOrResponse?.data || errorOrResponse;
@@ -1202,8 +1255,9 @@ const extractRows = (payload) => {
 
 const normalizeStatus = (value) => {
   if (typeof value === "boolean") return value ? "Active" : "Inactive";
-  if (Number(value) === 1) return "Active";
-  if (Number(value) === 0) return "Inactive";
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "1" || normalized === "active" || normalized === "approved" || normalized === "paid" || normalized === "true") return "Active";
+  if (normalized === "0" || normalized === "inactive" || normalized === "pending" || normalized === "failed" || normalized === "rejected" || normalized === "false") return "Inactive";
   return value || "Active";
 };
 
@@ -1211,7 +1265,9 @@ const normalizeStatusValue = (value) => {
   if (typeof value === "boolean") return value ? 1 : 0;
   if (Number(value) === 1) return 1;
   if (Number(value) === 0) return 0;
-  return String(value || "Active").toLowerCase() === "active" ? 1 : 0;
+  const normalized = String(value || "Active").trim().toLowerCase();
+  if (["active", "approved", "paid", "true", "1"].includes(normalized)) return 1;
+  return 0;
 };
 
 const resolveLocationValue = (value, key) => {
@@ -1222,6 +1278,14 @@ const resolveLocationValue = (value, key) => {
 };
 
 const isDeletedRow = (row = {}) => Boolean(row.deleted_at || row.deletedAt || row.is_deleted || row.trashed);
+
+const isStaticDummyRow = (row = {}) => {
+  const dummyTokens = [row.name, row.username, row.user, row.ownerName, row.adOwner, row.title, row.productName, row.officeName]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return dummyTokens.includes("amit sharma") || dummyTokens.includes("new record");
+};
 
 const normalizeUserRow = (row = {}, index = 0) => {
   const image = row.image || row.profile_image || row.profileImage || row.avatar || row.photo || profile;
@@ -1284,13 +1348,19 @@ const normalizeQuizQuestions = (row = {}) => {
 const normalizeModuleRow = (slug) => (row = {}, index = 0) => {
   const id = row.id || row.news_id || row.newsId || row.quiz_id || row.quizId || row.quiz_type_id || row.quizTypeId || "";
   const questions = normalizeQuizQuestions(row);
-  const image = row.image || row.media_url || row.mediaFileUrl || row.media_file_url || row.thumbnail || "";
+  const image = row.image || row.media_url || row.productImage || row.product_image || row.mediaFileUrl || row.media_file_url || row.thumbnail || "";
+  const sellerName = row.sellerName || row.seller_name || row.name || row.username || "";
+  const productId = row.productId || row.product_id || row.productID || "";
+  const userId = row.userId || row.user_id || row.profileId || "";
   return {
     ...row,
     _rowKey: String(id || rowKey(row) || `${slug}-${index}`),
     sr: row.sr || index + 1,
     id,
-    title: row.title || row.name || row.quiz_title || row.quizTitle || "New Record",
+    userId,
+    productId,
+    sellerName,
+    title: row.title || sellerName || row.name || row.quiz_title || row.quizTitle || "New Record",
     author: row.author || row.created_by || row.createdBy || "",
     category: row.category || row.news_category || row.newsCategory || "",
     subject: row.subject || row.quiz_subject || row.quizSubject || "",
@@ -1300,7 +1370,13 @@ const normalizeModuleRow = (slug) => (row = {}, index = 0) => {
     mediaFile: row.mediaFile || row.media_file || row.media || row.file || "",
     mediaFileUrl: image,
     image: image || undefined,
+    productImage: image || row.productImage || row.product_image || "",
     description: row.description || row.content || row.body || "",
+    location: row.location || row.city || "",
+    contact: row.contact || row.mobileNumber || row.mobile || row.phone || "",
+    credit: row.credit || row.credits || "",
+    quantity: row.quantity || row.qty || "",
+    price: row.price || row.cost || "",
     createdAt: formatDisplayDate(row.createdAt || row.created_at) || "",
     updatedAt: formatDisplayDate(row.updatedAt || row.updated_at) || "",
     questions,
@@ -1337,9 +1413,9 @@ const userPayloadFromRecord = (record = {}) => {
   payload.append("email", record.email || "");
   payload.append("mobile_number", record.mobileNumber || record.phone || "");
   payload.append("phone", record.phone || record.mobileNumber || "");
-  payload.append("state", states  || "");
-  payload.append("district",districtMap || "");
-  payload.append("taluka",  talukaMap|| "");
+  payload.append("state", record.state || "");
+  payload.append("district", record.district || "");
+  payload.append("taluka", record.taluka || "");
   if (record.profile_image) payload.append("profile_image", record.profile_image);
   if (record.password) payload.append("password", record.password);
   payload.append("status", normalizeStatusValue(record.status));
@@ -1366,12 +1442,10 @@ const saveUserToApi = async (record, mode, currentRow = {}) => {
   const payload = userPayloadFromRecord(record);
   const config = { headers: apiHeaders(), timeout: 12000 };
   try {
+    const requestPayload = spoofedFormData(mode === "Add" ? "POST" : "PUT", payload);
     const response = mode === "Add"
-      ? await apiClient.post(API.USERS_ADD, payload, config)
-      : await apiClient.post(endpoint(API.USERS_UPDATE, currentRow), (() => {
-        payload.append("_method", "PUT");
-        return payload;
-      })(), config);
+      ? await apiClient.post(API.USERS_ADD, requestPayload, config)
+      : await apiClient.post(endpoint(API.USERS_UPDATE, currentRow), requestPayload, config);
     const apiRow = response.data?.user || response.data?.data?.user || response.data?.data || response.data;
     return normalizeUserRow({ ...record, ...(apiRow && typeof apiRow === "object" ? apiRow : {}) });
   } catch (error) {
@@ -1380,17 +1454,31 @@ const saveUserToApi = async (record, mode, currentRow = {}) => {
   }
 };
 
-const deleteUserFromApi = (row) =>
-  apiClient.delete(endpoint(API.USERS_DELETE, row), { headers: apiHeaders(), timeout: 12000 });
+const deleteUserFromApi = (row) => {
+  const deleteIdentifier = resolveRecordIdentifier(row);
+  const payload = spoofedFormData("DELETE");
+  console.log("DELETE_REQUEST", {
+    resource: "users",
+    identifier: deleteIdentifier,
+    endpoint: endpoint(API.USERS_DELETE, row),
+    method: "POST",
+    payload: Object.fromEntries(payload.entries()),
+  });
+  return apiClient.post(endpoint(API.USERS_DELETE, row), payload, { headers: apiHeaders(), timeout: 12000 });
+};
 
 const updateUserStatusInApi = async (row, status) => {
-  const payload = { status: normalizeStatusValue(status) };
-  try {
-    return await apiClient.patch(endpoint(API.USERS_STATUS, row), payload, { headers: apiHeaders(), timeout: 12000 });
-  } catch (error) {
-    if (![404, 405].includes(error.response?.status)) throw error;
-    return apiClient.post(endpoint(API.USERS_STATUS, row), payload, { headers: apiHeaders(), timeout: 12000 });
-  }
+  const payload = new FormData();
+  payload.append("status", normalizeStatusValue(status));
+  payload.append("_method", "PATCH");
+  console.log("STATUS_UPDATE_REQUEST", {
+    resource: "users",
+    identifier: String(row?.id || row?.userId || row?.profileId || rowKey(row) || ""),
+    endpoint: endpoint(API.USERS_STATUS, row),
+    method: "POST",
+    payload: Object.fromEntries(payload.entries()),
+  });
+  return apiClient.post(endpoint(API.USERS_STATUS, row), payload, { headers: apiHeaders(), timeout: 12000 });
 };
 
 const modulePayloadFromForm = (slug, record = {}, form) => {
@@ -1444,7 +1532,8 @@ const loadModuleFromApi = async (slug) => {
 };
 
 const showModuleFromApi = async (slug, row) => {
-  const response = await apiClient.get(endpoint(moduleApi[slug]?.show, row), { headers: apiHeaders(), timeout: 12000 });
+  const detailIdentifier = resolveRecordIdentifier(row);
+  const response = await apiClient.get(endpoint(moduleApi[slug]?.show, detailIdentifier), { headers: apiHeaders(), timeout: 12000 });
   return normalizeModuleRow(slug)(extractSavedRow(response.data, slug));
 };
 
@@ -1452,37 +1541,76 @@ const saveModuleToApi = async (slug, record, mode, currentRow = {}, form) => {
   const endpoints = moduleApi[slug];
   if (!endpoints) return record;
   const payload = modulePayloadFromForm(slug, record, form);
-  const config = { headers: apiHeaders(), timeout: 12000 };
+  const requestPayload = new FormData();
+  payload.forEach((value, key) => requestPayload.append(key, value));
+  requestPayload.append("_method", mode === "Add" ? "POST" : "PUT");
+  const client = slug === "news" ? axiosClient : apiClient;
+  const requestConfig = slug === "news"
+    ? { headers: buildMultipartHeaders(), timeout: 12000 }
+    : { headers: apiHeaders(), timeout: 12000 };
   try {
+    console.log("NEWS_SUBMISSION_PAYLOAD", {
+      slug,
+      mode,
+      endpoint: mode === "Add" ? endpoints.add : endpoint(endpoints.update, currentRow),
+      headers: requestConfig.headers,
+      payload: Object.fromEntries(requestPayload.entries()),
+    });
     const response = mode === "Add"
-      ? await apiClient.post(endpoints.add, payload, config)
-      : await apiClient.post(endpoint(endpoints.update, currentRow), (() => {
-        payload.append("_method", "PUT");
-        return payload;
-      })(), config);
+      ? await client.post(endpoints.add, requestPayload, requestConfig)
+      : await client.post(endpoint(endpoints.update, currentRow), requestPayload, requestConfig);
     const apiRow = extractSavedRow(response.data, slug);
     return normalizeModuleRow(slug)({ ...record, ...(apiRow && typeof apiRow === "object" ? apiRow : {}) });
   } catch (error) {
+    console.error("NEWS_SUBMISSION_ERROR", {
+      slug,
+      mode,
+      endpoint: mode === "Add" ? endpoints.add : endpoint(endpoints.update, currentRow),
+      message: apiMessage(error, "News submission failed"),
+      payload: Object.fromEntries(requestPayload.entries()),
+    });
     if (!isMissingApiRoute(error)) throw error;
     return normalizeModuleRow(slug)({ ...record, _local: true, createdAt: record.createdAt || formatDisplayDate(new Date()) });
   }
 };
 
-const deleteModuleFromApi = (slug, row) =>
-  apiClient.delete(endpoint(moduleApi[slug]?.delete, row), { headers: apiHeaders(), timeout: 12000 });
+const deleteModuleFromApi = (slug, row) => {
+  const deleteIdentifier = resolveRecordIdentifier(row);
+  const payload = spoofedFormData("DELETE");
+  const client = slug === "news" ? axiosClient : apiClient;
+  const requestConfig = slug === "news"
+    ? { headers: buildMultipartHeaders(), timeout: 12000 }
+    : { headers: apiHeaders(), timeout: 12000 };
+  console.log("DELETE_REQUEST", {
+    resource: slug,
+    identifier: deleteIdentifier,
+    endpoint: endpoint(moduleApi[slug]?.delete, row),
+    method: "POST",
+    payload: Object.fromEntries(payload.entries()),
+  });
+  return client.post(endpoint(moduleApi[slug]?.delete, row), payload, requestConfig);
+};
 
 const updateModuleStatusInApi = async (slug, row, status) => {
   const endpoints = moduleApi[slug];
-  const payload = { status };
+  const payload = new FormData();
+  payload.append("status", normalizeStatusValue(status));
+  payload.append("_method", "PATCH");
+  const client = slug === "news" ? axiosClient : apiClient;
+  const requestConfig = slug === "news"
+    ? { headers: buildMultipartHeaders(), timeout: 12000 }
+    : { headers: apiHeaders(), timeout: 12000 };
+  console.log("STATUS_UPDATE_REQUEST", {
+    resource: slug,
+    identifier: resolveRecordIdentifier(row),
+    endpoint: endpoints?.status ? endpoint(endpoints.status, row) : endpoint(endpoints.update, row),
+    method: "POST",
+    payload: Object.fromEntries(payload.entries()),
+  });
   if (endpoints?.status) {
-    try {
-      return await apiClient.patch(endpoint(endpoints.status, row), payload, { headers: apiHeaders(), timeout: 12000 });
-    } catch (error) {
-      if (![404, 405].includes(error.response?.status)) throw error;
-      return apiClient.post(endpoint(endpoints.status, row), payload, { headers: apiHeaders(), timeout: 12000 });
-    }
+    return client.post(endpoint(endpoints.status, row), payload, requestConfig);
   }
-  return apiClient.post(endpoint(endpoints.update, row), { ...payload, _method: "PUT" }, { headers: apiHeaders(), timeout: 12000 });
+  return client.post(endpoint(endpoints.update, row), payload, requestConfig);
 };
 
 const restoreQuizFromApi = (row) =>
@@ -1506,9 +1634,16 @@ const saveStoredRows = (slug, rows) => {
 };
 
 const getRows = (slug) => {
-  const storedRows = getStoredRows(slug);
+  const storedRows = getStoredRows(slug).filter((row) => !isStaticDummyRow(row));
+  if (storedRows.length !== getStoredRows(slug).length) {
+    saveStoredRows(slug, storedRows);
+  }
   const storedKeys = new Set(storedRows.map(rowKey));
-  const baseRows = (getConfig(dataSlug(slug)).rows || getConfig(slug).rows || []).filter((row) => !storedKeys.has(rowKey(row)));
+  const deletedKeys = new Set(getDeletedKeys(slug));
+  const baseRows = (getConfig(dataSlug(slug)).rows || getConfig(slug).rows || [])
+    .filter((row) => !isStaticDummyRow(row))
+    .filter((row) => !storedKeys.has(rowKey(row)))
+    .filter((row) => !deletedKeys.has(rowKey(row)));
   return [...storedRows, ...baseRows].filter((row) => row && typeof row === "object" && !isDeletedRow(row));
 };
 const updateStoredRow = (slug, updatedRow) => {
@@ -1528,7 +1663,7 @@ const activeRow = (slug) => {
 
 const pickRecordTitle = (row) => {
   const record = row || {};
-  return record.name || record.username || record.title || record.productName || record.officeName || record.userId || record.transactionId || record.id || "this record";
+  return record.sellerName || record.name || record.username || record.title || record.productName || record.officeName || record.userId || record.transactionId || record.id || "this record";
 };
 
 const pickRecordSubTitle = (row) => {
@@ -1536,29 +1671,31 @@ const pickRecordSubTitle = (row) => {
   return record.email || record.phone || record.orderId || record.transactionId || record.userType || record.category || record.amount || "";
 };
 
-const mobilePrimaryText = (row = {}) =>
-  row.name || row.username || row.title || row.productName || row.adTitle || row.adName || row.product || row.officeName || row.user || row.viewerName || row.id || "Record";
+const mobilePrimaryText = (row = {}) => {
+  const title = row.title || row.sellerName || row.name || row.username || row.productName || row.adTitle || row.adName || row.product || row.officeName || row.user || row.viewerName || row.id || "Record";
+  const category = row.category || row.location || "";
+  return category ? `${title} • ${category}` : title;
+};
 
 const mobileSecondaryText = (row = {}) =>
-  row.profileId || row.userId || row.transactionId || row.orderId || row.adId || row.plan || row.viewerProfile || row.email || row.phone || "";
+  row.userId || row.productId || row.profileId || row.transactionId || row.orderId || row.adId || row.plan || row.viewerProfile || row.email || row.phone || row.id || "";
 
 const mobileMetaText = (row = {}) =>
-  row.phone || row.email || row.category || row.amount || row.views || row.totalViews || row.totalEnquiries || row.days || row.createdAt || row.date || row.viewDate || "";
+  row.phone || row.contact || row.email || row.category || row.location || row.amount || row.views || row.totalViews || row.totalEnquiries || row.days || row.createdAt || row.date || row.viewDate || "";
 
-const isPositiveStatus = (status) => ["Active", "Approved", "Paid"].includes(status);
+const isPositiveStatus = (status) => normalizeStatus(status) === "Active";
 const nextStatusForSlug = (slug, status = "Active") => {
-  if (slug === "withdrawal") {
-    const statuses = ["Approved", "Failed", "Pending"];
-    return statuses[(statuses.indexOf(status) + 1) % statuses.length] || "Approved";
-  }
   return isPositiveStatus(status) ? "Inactive" : "Active";
 };
 
-const statusBadge = (status) => (
-  <span className={`badge light badge-${isPositiveStatus(status) ? "success" : status === "Pending" ? "warning" : "danger"}`}>
-    {status || "Active"}
-  </span>
-);
+const statusBadge = (status) => {
+  const normalizedStatus = normalizeStatus(status);
+  return (
+    <span className={`badge light badge-${normalizedStatus === "Active" ? "success" : "danger"}`}>
+      {normalizedStatus || "Active"}
+    </span>
+  );
+};
 
 const logStatusChange = (row, status) => {
   const numericStatus = Number(normalizeStatusValue(status));
@@ -1805,26 +1942,51 @@ const CellValue = ({ field, row, slug, onImage }) => {
   return text;
 };
 
-const ConfirmModal = ({ show, title, message, intent = "status", confirmText = "Yes", onHide, onConfirm }) => {
-  React.useEffect(() => {
-    if (!show) return;
-    swal({
-      title,
-      text: intent === "delete" ? `${message} This record will be removed from the list.` : message,
-      icon: intent === "delete" ? "warning" : "info",
-      buttons: ["No", confirmText],
-      dangerMode: intent === "delete",
-    }).then((confirmed) => {
-      if (confirmed) {
-        onConfirm();
-      } else {
-        onHide();
+const ConfirmModal = ({ show, title, message, intent = "status", confirmText = "Yes", onHide, onConfirm }) => (
+  <>
+    <style>{`
+      .rti-glass-confirm-modal .modal-dialog {
+        max-width: 24rem;
       }
-    });
-  }, [confirmText, intent, message, onConfirm, onHide, show, title]);
-
-  return null;
-};
+      .rti-glass-confirm-modal .modal-content {
+        background: rgba(255, 255, 255, 0.78);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+        border-radius: 16px;
+      }
+      .rti-glass-confirm-modal .modal-header,
+      .rti-glass-confirm-modal .modal-body,
+      .rti-glass-confirm-modal .modal-footer {
+        background: transparent;
+      }
+      .rti-glass-confirm-modal .modal-header,
+      .rti-glass-confirm-modal .modal-body,
+      .rti-glass-confirm-modal .modal-footer {
+        text-align: center;
+      }
+      .rti-glass-confirm-modal .modal-footer {
+        justify-content: center;
+      }
+    `}</style>
+    <Modal show={show} onHide={onHide} centered backdrop="static" keyboard={false} size="sm" contentClassName="rti-glass-confirm-modal">
+      <Modal.Header closeButton className={intent === "delete" ? "bg-danger text-white border-0" : "bg-primary text-white border-0"} style={{ textAlign: "center" }}>
+        <Modal.Title className="w-100 text-center">{title}</Modal.Title>
+      </Modal.Header>
+      <Modal.Body className="text-center" style={{ textAlign: "center" }}>
+        <p className="mb-0">{message}</p>
+      </Modal.Body>
+      <Modal.Footer className="justify-content-center text-center" style={{ justifyContent: "center", textAlign: "center" }}>
+        <button type="button" className="btn btn-light" onClick={onHide}>No</button>
+        <button type="button" className={`btn ${intent === "delete" ? "btn-danger" : "btn-primary"}`} onClick={() => {
+          onConfirm();
+          onHide();
+        }}>{confirmText}</button>
+      </Modal.Footer>
+    </Modal>
+  </>
+);
 
 const ImageModal = ({ image, onHide }) => (
   <Modal show={Boolean(image)} onHide={onHide} centered>
@@ -1884,6 +2046,14 @@ export const ModuleList = ({ slug }) => {
     }
     return message || "";
   });
+
+  useEffect(() => {
+    const persistedToast = sessionStorage.getItem("moduleToast");
+    if (persistedToast) {
+      sessionStorage.removeItem("moduleToast");
+      setToast((currentToast) => currentToast === persistedToast ? currentToast : persistedToast);
+    }
+  }, [slug]);
 
   useEffect(() => {
     if (!USER_API_SLUGS.includes(slug)) return;
@@ -1974,7 +2144,11 @@ export const ModuleList = ({ slug }) => {
   }, [cardFilter, moduleRows, filters]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / 10));
-  const rows = filteredRows.slice((page - 1) * 10, page * 10);
+  const pageWindowSize = 5;
+  const clampedPage = Math.min(Math.max(page, 1), totalPages);
+  const windowStart = Math.max(1, Math.min(clampedPage, totalPages - pageWindowSize + 1));
+  const paginationPages = Array.from({ length: Math.min(pageWindowSize, totalPages - windowStart + 1) }, (_, index) => windowStart + index);
+  const rows = filteredRows.slice((clampedPage - 1) * 10, clampedPage * 10);
   const onFilterChange = (name, value) => {
     setFilters((current) => ({ ...current, [name]: value }));
     setPage(1);
@@ -2072,7 +2246,7 @@ export const ModuleList = ({ slug }) => {
                     </tr>
                   )}
                   {rows.map((row, rowIndex) => {
-                    const displayRow = { ...row, sr: (page - 1) * 10 + rowIndex + 1 };
+                    const displayRow = { ...row, sr: (clampedPage - 1) * 10 + rowIndex + 1 };
                     return (
                     <tr 
   key={`${slug}-${row.sr || row.id || rowIndex}-${rowIndex}`} className="rti-clickable-row"  onClick={() => openRowView(row)}>
@@ -2117,11 +2291,31 @@ export const ModuleList = ({ slug }) => {
                 <li className={`page-item ${page === 1 ? "disabled" : ""}`}>
                   <button className="page-link" type="button" onClick={() => setPage((value) => Math.max(1, value - 1))}>Previous</button>
                 </li>
-                {Array.from({ length: totalPages }, (_, index) => (
-                  <li className={`page-item ${page === index + 1 ? "active" : ""}`} key={index + 1}>
-                    <button className="page-link" type="button" onClick={() => setPage(index + 1)}>{index + 1}</button>
+                {windowStart > 1 && (
+                  <>
+                    <li className="page-item">
+                      <button className="page-link" type="button" onClick={() => setPage(1)}>1</button>
+                    </li>
+                    <li className="page-item disabled">
+                      <span className="page-link">…</span>
+                    </li>
+                  </>
+                )}
+                {paginationPages.map((pageNumber) => (
+                  <li className={`page-item ${page === pageNumber ? "active" : ""}`} key={pageNumber}>
+                    <button className="page-link" type="button" onClick={() => setPage(pageNumber)}>{pageNumber}</button>
                   </li>
                 ))}
+                {paginationPages[paginationPages.length - 1] < totalPages && (
+                  <>
+                    <li className="page-item disabled">
+                      <span className="page-link">…</span>
+                    </li>
+                    <li className="page-item">
+                      <button className="page-link" type="button" onClick={() => setPage(totalPages)}>{totalPages}</button>
+                    </li>
+                  </>
+                )}
                 <li className={`page-item ${page === totalPages ? "disabled" : ""}`}>
                   <button className="page-link" type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>Next</button>
                 </li>
@@ -2147,18 +2341,14 @@ export const ModuleList = ({ slug }) => {
             } else if (MODULE_API_SLUGS.includes(slug)) {
               await deleteModuleFromApi(slug, rowToDelete);
             }
-            const deletedAt = new Date().toISOString();
-            const softDeletedRow = {
-              ...rowToDelete,
-              deleted_at: deletedAt,
-              deletedAt,
-              is_deleted: true,
-              trashed: true,
-              status: "Inactive",
-            };
-            const nextRows = moduleRows.map((item) => rowKey(item) === rowKey(rowToDelete) ? softDeletedRow : item);
-            setModuleRows(nextRows.filter((item) => !isDeletedRow(item)));
-            saveStoredRows(slug, nextRows);
+            const deletedKey = resolveRecordIdentifier(rowToDelete);
+            setModuleRows((currentRows) => {
+              const nextRows = currentRows.filter((item) => resolveRecordIdentifier(item) !== deletedKey);
+              saveStoredRows(slug, nextRows);
+              return nextRows;
+            });
+            saveDeletedKeys(slug, Array.from(new Set([...getDeletedKeys(slug), deletedKey])));
+            sessionStorage.removeItem(activeRecordKey(slug));
             setDeleteRow(null);
             setToast(`${pickRecordTitle(rowToDelete)} deleted successfully`);
           } catch (error) {
@@ -2184,9 +2374,11 @@ export const ModuleList = ({ slug }) => {
             } else if (MODULE_API_SLUGS.includes(slug)) {
               await updateModuleStatusInApi(slug, rowToUpdate, nextStatus);
             }
-            const nextRows = moduleRows.map((item) => item === rowToUpdate ? { ...item, status: nextStatus } : item);
-            setModuleRows(nextRows);
-            saveStoredRows(slug, nextRows);
+            setModuleRows((currentRows) => {
+              const nextRows = currentRows.map((item) => resolveRecordIdentifier(item) === resolveRecordIdentifier(rowToUpdate) ? { ...item, status: nextStatus } : item);
+              saveStoredRows(slug, nextRows);
+              return nextRows;
+            });
             setStatusRow(null);
             setToast(`${pickRecordTitle(rowToUpdate)} status updated successfully`);
           } catch (error) {
@@ -2225,6 +2417,8 @@ const DetailGrid = ({ fields, row, onStatus }) => (
               ) : (
                 row[field] || "-"
               )
+            ) : field === "bio" || (field === "description" && row.bio) ? (
+              <span><strong>Bio:-</strong> {row.bio || row[field] || "-"}</span>
             ) : (
               row[field] || "-"
             )}
@@ -2253,7 +2447,6 @@ const ProfileDetailLayout = ({ row, config, onImage, onStatus }) => {
             <p className="mb-0 text-muted">{row.profileId || row.userId}</p>
           </div>
         </div>
-        <h4 className="card-title mb-0">{config.profileView ? "Profile Details" : "Network Details"}</h4>
       </div>
       <div className="card-body">
         <DetailGrid fields={detailFields} row={row} onStatus={onStatus} />
@@ -2281,8 +2474,7 @@ const ProfileDetailLayout = ({ row, config, onImage, onStatus }) => {
               </div>
             </div>}
             <div className="col-12 mt-3">
-              <h5>Bio</h5>
-              <p className="mb-0">{row.bio}</p>
+              <p className="mb-0 text-dark"><strong>Bio:-</strong> {row.bio || "-"}</p>
             </div>
           </div>
         )}
@@ -2406,7 +2598,7 @@ export const ModuleView = ({ slug }) => {
           <i className="fa fa-arrow-left me-2" />
           Back
         </Link>
-        <h3 className="mb-0">{config.title} Details</h3>
+        {slug !== "user-profile" && <h3 className="mb-0">{config.title} Details</h3>}
       </div>
       {slug === "quiz" ? (
         <QuizDetail row={row} onStatus={() => setConfirmStatus(true)} />
@@ -2629,8 +2821,14 @@ const makeRecordFromForm = async (slug, config, form, existing = {}) => {
     difficulty: data.difficulty || "",
     testType: data["test-types"] || "",
     product: data["product-name"] || "",
-    productName: data["product-name"] || "",
+    productName: data["product-name"] || data.title || "",
+    sellerName: data["seller-name"] || existing.sellerName || fullName || data.name || "",
+    title: data.title || data["product-name"] || fullName || firstName || "New Record",
     officeName: data["office-name"] || "",
+    location: data.location || data.city || "",
+    contact: data.contact || data.phone || data["mobile-number"] || "",
+    quantity: data.quantity || "",
+    price: data.price || existing.price || "",
     address: data.address || "",
     mapLink: data["map-link"] || existing.mapLink || "",
     userType: data["user-type"] || "",
@@ -2806,6 +3004,28 @@ const formFields = {
     ["Description", "description", "textarea"],
     ["Credits", "credits", "number"],
     ["Days", "days", "select", ["24 days", "28 days", "30 days"]],
+    ["Status", "status", "select", ["Active", "Inactive"]],
+  ],
+  ecomBuy: [
+    ["Product ID", "product-id"],
+    ["Product Title", "title"],
+    ["Seller Name", "seller-name"],
+    ["Seller Contact", "contact", "tel"],
+    ["Location", "location"],
+    ["Price", "price", "number"],
+    ["Quantity", "quantity", "number"],
+    ["Description", "description", "textarea"],
+    ["Status", "status", "select", ["Active", "Inactive"]],
+  ],
+  ecomSell: [
+    ["Product ID", "product-id"],
+    ["Product Title", "title"],
+    ["Seller Name", "seller-name"],
+    ["Seller Contact", "contact", "tel"],
+    ["Location", "location"],
+    ["Price", "price", "number"],
+    ["Quantity", "quantity", "number"],
+    ["Description", "description", "textarea"],
     ["Status", "status", "select", ["Active", "Inactive"]],
   ],
   epaper: [
@@ -3047,6 +3267,7 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
                   : [record, ...currentRows];
               saveStoredRows(slug, nextRows);
               sessionStorage.setItem(activeRecordKey(slug), rowKey(record));
+              setToast("");
               sessionStorage.setItem("moduleToast", `${pickRecordTitle(record)} ${mode === "Add" ? "added" : "updated"} successfully`);
               navigate(`/admin/${slug}`);
             } catch (error) {
@@ -3064,7 +3285,7 @@ export const ModuleForm = ({ slug, mode = "Update" }) => {
                 {allFields.slice(Math.ceil(allFields.length / 2)).map(renderField)}
                 {config.form === "user" && (
                   <>
-                    <Field label="Bio Textarea" name="bio" as="textarea" value={currentRow.bio || ""} />
+                    <Field label="Biography" name="bio" as="textarea" value={currentRow.bio || ""} />
                   </>
                 )}
               </div>
@@ -3090,7 +3311,19 @@ const ModalShell = ({ slug, children }) => {
   const navigate = useNavigate();
   return (
     <div className="modal-page">
-      <section className="delete-modal card">
+      <style>{`
+        .rti-glass-status-shell {
+          background: rgba(255,255,255,0.28);
+          backdrop-filter: blur(8px);
+          border: 1px solid rgba(255,255,255,0.35);
+          box-shadow: 0 24px 80px rgba(15, 23, 42, 0.25);
+          text-align: center;
+        }
+        .rti-glass-status-shell .modal-close {
+          margin-left: auto;
+        }
+      `}</style>
+      <section className="delete-modal card rti-glass-status-shell">
         <button type="button" className="modal-close" onClick={() => navigate(`/admin/${slug}`)}>
           <i className="fa-solid fa-xmark" />
         </button>
@@ -3130,10 +3363,16 @@ export const ModuleDelete = ({ slug }) => {
               } else if (MODULE_API_SLUGS.includes(slug)) {
                 await deleteModuleFromApi(slug, row);
               }
-              const nextRows = canRestore
-                ? updateStoredRow(slug, { ...row, deleted_at: "", deletedAt: "", trashed: false, is_deleted: false, status: row.status || "Active" })
-                : getRows(slug).filter((item) => rowKey(item) !== rowKey(row));
-              saveStoredRows(slug, nextRows);
+              if (canRestore) {
+                const remainingDeletedKeys = getDeletedKeys(slug).filter((key) => key !== rowKey(row));
+                saveDeletedKeys(slug, remainingDeletedKeys);
+                updateStoredRow(slug, { ...row, deleted_at: "", deletedAt: "", trashed: false, is_deleted: false, status: row.status || "Active" });
+              } else {
+                const deletedKey = rowKey(row);
+                const nextRows = getRows(slug).filter((item) => rowKey(item) !== deletedKey);
+                saveStoredRows(slug, nextRows);
+                saveDeletedKeys(slug, Array.from(new Set([...getDeletedKeys(slug), deletedKey])));
+              }
               sessionStorage.setItem("moduleToast", `${pickRecordTitle(row)} ${canRestore ? "restored" : "deleted"} successfully`);
               navigate(`/admin/${slug}`);
             } catch (error) {
@@ -3212,3 +3451,5 @@ export const ModuleStatus = ({ slug }) => {
     </>
   );
 };
+
+export const ModuleDeleted = ModuleDelete;

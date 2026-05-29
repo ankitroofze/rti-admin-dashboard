@@ -1,18 +1,17 @@
 import axios from "axios";
 import { clearAuthSession, getAuthToken } from "../services/authSession";
 
-// Proxy ko bypass karke development me bhi direct live URL ka use karein
-const API_BASE_URL = "https://rtiapi.roofze.in/api/rti-admin";
+const API_BASE_URL = import.meta.env.DEV
+  ? "/api/rti-admin"
+  : "https://rtiapi.roofze.in/api/rti-admin";
 
 const axiosClient = axios.create({
   baseURL: API_BASE_URL,
-  // timeout: 12000,
+  withCredentials: true,
   headers: {
     Accept: "application/json",
-    // Withcredentials: true,
   },
 });
-
 
 axiosClient.interceptors.request.use((config) => {
   const token = getAuthToken();
@@ -21,7 +20,15 @@ axiosClient.interceptors.request.use((config) => {
   }
 
   if (config.data instanceof FormData) {
-    delete config.headers["Content-Type"];
+    if (!config.headers["Content-Type"]) {
+      delete config.headers["Content-Type"];
+    }
+    console.log("NEWS_FORMDATA_REQUEST", {
+      url: config.url,
+      method: config.method,
+      withCredentials: config.withCredentials,
+      payload: Object.fromEntries(config.data.entries()),
+    });
   } else if (config.data && !config.headers["Content-Type"]) {
     config.headers["Content-Type"] = "application/json";
   }

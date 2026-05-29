@@ -25,7 +25,7 @@ const AppToast = ({ show, variant = "success", message, onClose }) => {
     });
   }, [message, onClose, show, variant]);
 
-  return <ToastContainer limit={3} newestOnTop />;
+  return <ToastContainer limit={1} newestOnTop />;
 };
 
 export default AppToast;

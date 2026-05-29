@@ -43,6 +43,14 @@ const MenuList = [
         to: "/admin/ecommerce-subscription",
       },
       {
+        title: "Buy",
+        to: "/admin/ecom-buy",
+      },
+      {
+        title: "Sell",
+        to: "/admin/ecom-sell",
+      },
+      {
         title: "Product Enquiry",
         to: "/admin/product-enquiry",
       },
