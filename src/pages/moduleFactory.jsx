@@ -6,6 +6,7 @@ import swal from "sweetalert";
 import API from "../api/api";
 import axiosClient from "../api/axiosClient";
 import apiClient from "../services/apiClient";
+import adminRouteClient from "../services/adminRouteClient";
 import { getAuthToken } from "../services/authSession";
 import profile from "../assets/images/profile/profile.png";
 import avatar1 from "../assets/images/avatar/1.jpg";
@@ -490,87 +491,144 @@ const moduleConfig = {
         role: "Chief Editor / Publisher, Executive Editor",
         state: "Maharashtra",
         price: "4999",
+        total_credits: "500",
+        used_credit: "0",
         days: "30 days",
         status: "Active",
       },
     ],
     columns: [
       ["sr", "Sr.No"],
+      ["title", "Subscription"],
       ["title", "Title"],
-      ["role", "Role / पद"],
-      ["state", "State"],
+      ["price", "Price"],
+      ["total_credits", "Total_Credits"],
+      ["used_credit", "Used_Credit"],
+      ["days", "Days"],
       ["status", "Status"],
     ],
     actions: ["view", "update", "delete", "status"],
-    details: ["title", "role", "state", "price", "days", "status"],
+    details: ["title", "role", "state", "price", "total_credits", "used_credit", "days", "status"],
     form: "subscription",
   },
   "ecommerce-subscription": {
-    title: "E-Commerce Subscription",
+    title: "Ecom-Subscription",
     add: true,
     filters: ["search", "status"],
     rows: [
       {
         sr: 1,
-        id: "SUB-501",
+        id: "1",
         title: "Seller Growth Plan",
         description: "Monthly product listing plan with enquiry credits.",
+        sub_id: "1",
         credits: "250",
-        days: "30 days",
+        used_credit: "0",
+        days: "30",
+        price: "4999",
+        offerPrice: "3999",
         status: "Active",
       },
       {
         sr: 2,
-        id: "SUB-502",
+        id: "2",
         title: "Starter Product Plan",
         description: "Basic product enquiry subscription for new sellers.",
+        sub_id: "2",
         credits: "75",
-        days: "24 days",
+        used_credit: "0",
+        days: "24",
+        price: "1999",
+        offerPrice: "1499",
         status: "Inactive",
       },
     ],
     columns: [
       ["sr", "Sr.No"],
+      ["sub_id", "Sub ID"],
       ["title", "Subscription Title"],
       ["description", "Description"],
       ["credits", "Credits"],
       ["days", "Days"],
+      ["price", "Price"],
+      ["offerPrice", "Offer Price"],
       ["status", "Status"],
     ],
     actions: ["view", "update", "delete", "status"],
-    details: ["title", "description", "credits", "days", "status"],
+    details: ["id", "sub_id", "title", "description", "credits", "days", "price", "offerPrice", "status", "createdAt", "updatedAt"],
+    // When adding a new subscription, `used_credit` should not be shown in the add form.
+    // The form component should omit `used_credit` for Add mode. Keeping it in details for View.
     form: "commerceSubscription",
   },
-  "ecom-buy": {
-    title: "Buy",
-    add: true,
-    filters: ["search", "status"],
-    rows: [],
-    columns: [
-      ["sr", "Sr.No"],
-      ["title", "Product"],
-      ["sellerName", "Seller"],
-      ["price", "Price"],
-      ["status", "Status"],
-    ],
-    actions: ["view", "update", "delete", "status"],
-    details: ["id", "title", "sellerName", "contact", "location", "price", "quantity", "description", "status"],
-    form: "ecomBuy",
-  },
+  /* "ecom-buy" module intentionally removed so Buy modules are hidden */
   "ecom-sell": {
     title: "Sell",
     add: true,
     filters: ["search", "status"],
-    rows: [],
+    rows: [
+      {
+        sr: 1,
+        id: "SELL-001",
+        user_id: "USR-2001",
+        title: "Premium Office Desk Chair with Lumbar Support",
+        sellerName: "Sharma Furniture",
+        contact: "9876543210",
+        location: "Mumbai, Maharashtra",
+        price: "8999",
+        quantity: "15",
+        description: "High-quality ergonomic office chair with adjustable height, reclining back, and premium cushioning. Perfect for long working hours with excellent lumbar support and breathable mesh fabric.",
+        status: "Active",
+      },
+      {
+        sr: 2,
+        id: "SELL-002",
+        user_id: "USR-2002",
+        title: "Stainless Steel Water Purifier System",
+        sellerName: "Pure Water Solutions",
+        contact: "9123456789",
+        location: "Pune, Maharashtra",
+        price: "12499",
+        quantity: "8",
+        description: "Advanced 7-stage RO+UV+UF water purification system with mineralizer. Purifies water at 30 liters per hour with TDS controller and automatic shut-off. Certified by BIS and NABL.",
+        status: "Active",
+      },
+      {
+        sr: 3,
+        id: "SELL-003",
+        user_id: "USR-2003",
+        title: "Industrial Commercial Ceiling Fan",
+        sellerName: "Cool Air Traders",
+        contact: "9234567890",
+        location: "Nashik, Maharashtra",
+        price: "3499",
+        quantity: "25",
+        description: "Heavy-duty 1200mm ceiling fan ideal for large spaces like warehouses, factories, and commercial establishments. Equipped with 3-speed motor, durable aluminum blades, and low noise operation.",
+        status: "Active",
+      },
+      {
+        sr: 4,
+        id: "SELL-004",
+        user_id: "USR-2004",
+        title: "Smart LED Home Automation Kit",
+        sellerName: "TechHome Digital",
+        contact: "9345678901",
+        location: "Bangalore, Karnataka",
+        price: "6999",
+        quantity: "12",
+        description: "Complete smart home automation kit with WiFi-enabled LED bulbs, switches, and voice control compatibility. Control lighting, fans, and appliances from your smartphone. Energy-efficient and eco-friendly solution.",
+        status: "Active",
+      },
+    ],
     columns: [
       ["sr", "Sr.No"],
+      ["user_id", "User ID"],
       ["title", "Product"],
       ["sellerName", "Seller"],
       ["price", "Price"],
       ["status", "Status"],
     ],
     actions: ["view", "update", "delete", "status"],
-    details: ["id", "title", "sellerName", "contact", "location", "price", "quantity", "description", "status"],
+    details: ["id", "user_id", "title", "sellerName", "contact", "location", "price", "quantity", "description", "status"],
     form: "ecomSell",
   },
   "product-enquiry": {
@@ -581,6 +639,7 @@ const moduleConfig = {
       {
         sr: 1,
         id: "ENQ-1001",
+        user_id: "USR-3001",
         productName: "Smart Water Purifier",
         customerName: "Rahul Patil",
         ownerName: "Amit Sharma",
@@ -595,6 +654,7 @@ const moduleConfig = {
       {
         sr: 2,
         id: "ENQ-1002",
+        user_id: "USR-3002",
         productName: "Office Desk Chair",
         customerName: "Priya Verma",
         ownerName: "National Store",
@@ -609,6 +669,7 @@ const moduleConfig = {
     ],
     columns: [
       ["id", "Enquiry ID"],
+      ["user_id", "User ID"],
       ["productName", "Product Name"],
       ["customerName", "Customer Name"],
       ["ownerName", "Owner Name"],
@@ -616,7 +677,7 @@ const moduleConfig = {
       ["status", "Status"],
     ],
     actions: ["view", "delete"],
-    details: ["id", "productName", "customerName", "ownerName", "mobileNumber", "email", "productImage", "message", "dateTime", "status"],
+    details: ["id", "user_id", "productName", "customerName", "ownerName", "mobileNumber", "email", "productImage", "message", "dateTime", "status"],
   },
   "e-paper": {
     title: "E-Paper",
@@ -735,48 +796,63 @@ const moduleConfig = {
     form: "ad",
   },
   "ads-subscription": {
-    title: "Ads Subscription",
+    title: "Advertisement Subscription",
     add: true,
     filters: ["search", "status"],
     rows: [
       {
         sr: 1,
-        id: "ADS-SUB-101",
+        id: "1",
+        sub_id: "1",
         title: "Banner Boost Plan",
         description: "Sponsored banner visibility subscription.",
+        price: "5999",
+        offerPrice: "4999",
         credits: "10000",
-        days: "30 days",
+        used_credit: "0",
+        days: "30",
         status: "Active",
       },
       {
         sr: 2,
-        id: "ADS-SUB-102",
+        id: "2",
+        sub_id: "2",
         title: "Premium Spotlight Plan",
         description: "Featured placement with extra ad view credits.",
+        price: "9999",
+        offerPrice: "8499",
         credits: "25000",
-        days: "28 days",
+        used_credit: "0",
+        days: "28",
         status: "Active",
       },
       {
         sr: 3,
-        id: "ADS-SUB-103",
+        id: "3",
+        sub_id: "3",
         title: "Starter Local Ads",
         description: "Local city ad package for new advertisers.",
+        price: "2999",
+        offerPrice: "2499",
         credits: "5000",
-        days: "24 days",
+        used_credit: "0",
+        days: "24",
         status: "Inactive",
       },
     ],
     columns: [
       ["sr", "Sr.No"],
+      ["sub_id", "Sub ID"],
       ["title", "Subscription Title"],
       ["description", "Description"],
+      ["price", "Price"],
+      ["offerPrice", "Offer Price"],
       ["credits", "Credits"],
       ["days", "Days"],
       ["status", "Status"],
     ],
     actions: ["view", "update", "delete", "status"],
-    details: ["title", "description", "credits", "days", "status"],
+    details: ["id", "sub_id", "title", "description", "price", "offerPrice", "credits", "days", "status", "createdAt", "updatedAt"],
     form: "adsSubscription",
   },
   "ads-management": {
@@ -789,6 +865,7 @@ const moduleConfig = {
         id: "ADS-MGT-101",
         userId: "USR-1001",
         user: "Amit Sharma",
+        subscriptionPlan: "Premium Spotlight Plan",
         adTitle: "Summer Product Campaign",
         status: "Active",
         views: "1840",
@@ -800,6 +877,7 @@ const moduleConfig = {
         id: "ADS-MGT-102",
         userId: "USR-1002",
         user: "Priya Verma",
+        subscriptionPlan: "Banner Boost Plan",
         adTitle: "Premium Seller Launch",
         status: "Inactive",
         views: "620",
@@ -811,6 +889,7 @@ const moduleConfig = {
         id: "ADS-MGT-103",
         userId: "USR-1003",
         user: "National Store",
+        subscriptionPlan: "Premium Spotlight Plan",
         adTitle: "Weekend Deal Banner",
         status: "Active",
         views: "2195",
@@ -822,13 +901,14 @@ const moduleConfig = {
       ["sr", "Sr.No"],
       ["userId", "User ID"],
       ["user", "User"],
+      ["subscriptionPlan", "Subscription Plan"],
       ["adTitle", "Ad Title"],
       ["status", "Status"],
       ["views", "Views"],
       ["startDate", "Start Date"],
     ],
     actions: ["view", "delete"],
-    details: ["userId", "user", "adTitle", "status", "views", "startDate", "adDetails"],
+    details: ["userId", "user", "subscriptionPlan", "adTitle", "status", "views", "startDate", "adDetails"],
   },
   "ads-view-tracking": {
     title: "Ads View Tracking",
@@ -1145,7 +1225,7 @@ const dataSlug = (slug) => slug === "dashboard" ? "user-profile" : slug;
 const storageKey = (slug) => `rti-module-${dataSlug(slug)}`;
 
 const USER_API_SLUGS = ["dashboard", "user-profile"];
-const MODULE_API_SLUGS = ["news", "quiz"];
+const MODULE_API_SLUGS = ["news", "quiz", "ecommerce-subscription", "ads-subscription"];
 const LIVE_API_SLUGS = [...USER_API_SLUGS, ...MODULE_API_SLUGS];
 
 const moduleApi = {
@@ -1164,6 +1244,26 @@ const moduleApi = {
     update: API.QUIZ_UPDATE,
     delete: API.QUIZ_DELETE,
     restore: API.QUIZ_RESTORE,
+  },
+  "ecommerce-subscription": {
+    index: API.ECOM_SUBSCRIPTION_INDEX,
+    add: API.ECOM_SUBSCRIPTION_ADD,
+    show: API.ECOM_SUBSCRIPTION_SHOW,
+    update: API.ECOM_SUBSCRIPTION_UPDATE,
+    delete: API.ECOM_SUBSCRIPTION_DELETE,
+    status: API.ECOM_SUBSCRIPTION_STATUS,
+    singular: "ecom_subscription",
+    collection: "ecom_subscriptions",
+  },
+  "ads-subscription": {
+    index: API.ADS_SUBSCRIPTION_INDEX,
+    add: API.ADS_SUBSCRIPTION_ADD,
+    show: API.ADS_SUBSCRIPTION_SHOW,
+    update: API.ADS_SUBSCRIPTION_UPDATE,
+    delete: API.ADS_SUBSCRIPTION_DELETE,
+    status: API.ADS_SUBSCRIPTION_STATUS,
+    singular: "ads_subscription",
+    collection: "ads_subscriptions",
   },
 };
 
@@ -1206,6 +1306,11 @@ const buildMultipartHeaders = () => ({
   "Content-Type": "multipart/form-data",
 });
 
+const SUBSCRIPTION_API_SLUGS = ["ecommerce-subscription", "ads-subscription"];
+const isSubscriptionApiSlug = (slug) => SUBSCRIPTION_API_SLUGS.includes(slug);
+const moduleClientForSlug = (slug) =>
+  slug === "news" ? axiosClient : isSubscriptionApiSlug(slug) ? adminRouteClient : apiClient;
+
 const apiMessage = (errorOrResponse, fallback = "Something went wrong") => {
   const data = errorOrResponse?.response?.data || errorOrResponse?.data || errorOrResponse;
   if (!data) return fallback;
@@ -1236,12 +1341,20 @@ const extractRows = (payload) => {
     payload?.quizzes,
     payload?.quiz_types,
     payload?.quizTypes,
+    payload?.ecom_subscriptions,
+    payload?.ecomSubscriptions,
+    payload?.ads_subscriptions,
+    payload?.adsSubscriptions,
     payload?.data?.users,
     payload?.data?.news,
     payload?.data?.quiz,
     payload?.data?.quizzes,
     payload?.data?.quiz_types,
     payload?.data?.quizTypes,
+    payload?.data?.ecom_subscriptions,
+    payload?.data?.ecomSubscriptions,
+    payload?.data?.ads_subscriptions,
+    payload?.data?.adsSubscriptions,
     payload?.data?.recent_users,
     payload?.data?.recentUsers,
     payload?.data?.list,
@@ -1277,7 +1390,12 @@ const resolveLocationValue = (value, key) => {
   return value ?? "";
 };
 
-const isDeletedRow = (row = {}) => Boolean(row.deleted_at || row.deletedAt || row.is_deleted || row.trashed);
+const isDeletedRow = (row = {}) => {
+  if (row.deleted_at || row.deletedAt || row.trashed) return true;
+  if (row.is_deleted === undefined || row.is_deleted === null || row.is_deleted === "") return false;
+  if (typeof row.is_deleted === "boolean") return row.is_deleted;
+  return Number(row.is_deleted) === 0;
+};
 
 const isStaticDummyRow = (row = {}) => {
   const dummyTokens = [row.name, row.username, row.user, row.ownerName, row.adOwner, row.title, row.productName, row.officeName]
@@ -1346,7 +1464,7 @@ const normalizeQuizQuestions = (row = {}) => {
 };
 
 const normalizeModuleRow = (slug) => (row = {}, index = 0) => {
-  const id = row.id || row.news_id || row.newsId || row.quiz_id || row.quizId || row.quiz_type_id || row.quizTypeId || "";
+  const id = row.id || row.news_id || row.newsId || row.quiz_id || row.quizId || row.quiz_type_id || row.quizTypeId || row.subscription_id || row.subscriptionId || "";
   const questions = normalizeQuizQuestions(row);
   const image = row.image || row.media_url || row.productImage || row.product_image || row.mediaFileUrl || row.media_file_url || row.thumbnail || "";
   const sellerName = row.sellerName || row.seller_name || row.name || row.username || "";
@@ -1363,6 +1481,7 @@ const normalizeModuleRow = (slug) => (row = {}, index = 0) => {
     title: row.title || sellerName || row.name || row.quiz_title || row.quizTitle || "New Record",
     author: row.author || row.created_by || row.createdBy || "",
     category: row.category || row.news_category || row.newsCategory || "",
+    sub_id: row.sub_id || row.subId || "",
     subject: row.subject || row.quiz_subject || row.quizSubject || "",
     difficulty: row.difficulty || row.level || "",
     testType: row.testType || row.test_type || row.quiz_type || row.type || "",
@@ -1375,8 +1494,16 @@ const normalizeModuleRow = (slug) => (row = {}, index = 0) => {
     location: row.location || row.city || "",
     contact: row.contact || row.mobileNumber || row.mobile || row.phone || "",
     credit: row.credit || row.credits || "",
+    credits: row.credits || row.credit || row.total_credit || row.total_credits || "",
+    total_credit: row.total_credit || row.total_credits || row.credits || "",
+    total_credits: row.total_credits || row.total_credit || row.credits || "",
+    used_credit: row.used_credit || row.usedCredit || "",
     quantity: row.quantity || row.qty || "",
     price: row.price || row.cost || "",
+    offerPrice: row.offerPrice || row.offer_price || "",
+    offer_price: row.offer_price || row.offerPrice || "",
+    days: row.days || "",
+    is_deleted: row.is_deleted ?? row.isDeleted ?? "",
     createdAt: formatDisplayDate(row.createdAt || row.created_at) || "",
     updatedAt: formatDisplayDate(row.updatedAt || row.updated_at) || "",
     questions,
@@ -1501,6 +1628,19 @@ const modulePayloadFromForm = (slug, record = {}, form) => {
     return payload;
   }
 
+  if (isSubscriptionApiSlug(slug)) {
+    append("sub_id", record.sub_id);
+    append("title", record.title);
+    append("description", record.description);
+    append("credits", record.credits);
+    append("days", record.days);
+    append("price", record.price);
+    append("offer_price", record.offerPrice || record.offer_price);
+    append("status", normalizeStatusValue(record.status));
+    console.log("MODULE_FORM_DATA", Object.fromEntries(payload.entries()));
+    return payload;
+  }
+
   append("title", record.title);
   append("subject", record.subject);
   append("difficulty", record.difficulty);
@@ -1522,18 +1662,18 @@ const modulePayloadFromForm = (slug, record = {}, form) => {
 };
 
 const extractSavedRow = (payload, slug) => {
-  const singular = slug === "news" ? "news" : "quiz";
+  const singular = moduleApi[slug]?.singular || (slug === "news" ? "news" : "quiz");
   return payload?.[singular] || payload?.data?.[singular] || payload?.data?.record || payload?.record || payload?.data || payload;
 };
 
 const loadModuleFromApi = async (slug) => {
-  const response = await apiClient.get(moduleApi[slug].index, { headers: apiHeaders(), timeout: 12000 });
+  const response = await moduleClientForSlug(slug).get(moduleApi[slug].index, { headers: apiHeaders(), timeout: 12000 });
   return extractRows(response.data).map(normalizeModuleRow(slug));
 };
 
 const showModuleFromApi = async (slug, row) => {
   const detailIdentifier = resolveRecordIdentifier(row);
-  const response = await apiClient.get(endpoint(moduleApi[slug]?.show, detailIdentifier), { headers: apiHeaders(), timeout: 12000 });
+  const response = await moduleClientForSlug(slug).get(endpoint(moduleApi[slug]?.show, detailIdentifier), { headers: apiHeaders(), timeout: 12000 });
   return normalizeModuleRow(slug)(extractSavedRow(response.data, slug));
 };
 
@@ -1543,13 +1683,13 @@ const saveModuleToApi = async (slug, record, mode, currentRow = {}, form) => {
   const payload = modulePayloadFromForm(slug, record, form);
   const requestPayload = new FormData();
   payload.forEach((value, key) => requestPayload.append(key, value));
-  requestPayload.append("_method", mode === "Add" ? "POST" : "PUT");
-  const client = slug === "news" ? axiosClient : apiClient;
+  if (mode !== "Add") requestPayload.append("_method", "PUT");
+  const client = moduleClientForSlug(slug);
   const requestConfig = slug === "news"
     ? { headers: buildMultipartHeaders(), timeout: 12000 }
     : { headers: apiHeaders(), timeout: 12000 };
   try {
-    console.log("NEWS_SUBMISSION_PAYLOAD", {
+    console.log("MODULE_SUBMISSION_PAYLOAD", {
       slug,
       mode,
       endpoint: mode === "Add" ? endpoints.add : endpoint(endpoints.update, currentRow),
@@ -1562,11 +1702,11 @@ const saveModuleToApi = async (slug, record, mode, currentRow = {}, form) => {
     const apiRow = extractSavedRow(response.data, slug);
     return normalizeModuleRow(slug)({ ...record, ...(apiRow && typeof apiRow === "object" ? apiRow : {}) });
   } catch (error) {
-    console.error("NEWS_SUBMISSION_ERROR", {
+    console.error("MODULE_SUBMISSION_ERROR", {
       slug,
       mode,
       endpoint: mode === "Add" ? endpoints.add : endpoint(endpoints.update, currentRow),
-      message: apiMessage(error, "News submission failed"),
+      message: apiMessage(error, "Module submission failed"),
       payload: Object.fromEntries(requestPayload.entries()),
     });
     if (!isMissingApiRoute(error)) throw error;
@@ -1577,7 +1717,8 @@ const saveModuleToApi = async (slug, record, mode, currentRow = {}, form) => {
 const deleteModuleFromApi = (slug, row) => {
   const deleteIdentifier = resolveRecordIdentifier(row);
   const payload = spoofedFormData("DELETE");
-  const client = slug === "news" ? axiosClient : apiClient;
+  if (isSubscriptionApiSlug(slug)) payload.append("is_deleted", "0");
+  const client = moduleClientForSlug(slug);
   const requestConfig = slug === "news"
     ? { headers: buildMultipartHeaders(), timeout: 12000 }
     : { headers: apiHeaders(), timeout: 12000 };
@@ -1596,7 +1737,7 @@ const updateModuleStatusInApi = async (slug, row, status) => {
   const payload = new FormData();
   payload.append("status", normalizeStatusValue(status));
   payload.append("_method", "PATCH");
-  const client = slug === "news" ? axiosClient : apiClient;
+  const client = moduleClientForSlug(slug);
   const requestConfig = slug === "news"
     ? { headers: buildMultipartHeaders(), timeout: 12000 }
     : { headers: apiHeaders(), timeout: 12000 };
@@ -1617,7 +1758,7 @@ const restoreQuizFromApi = (row) =>
   apiClient.post(endpoint(API.QUIZ_RESTORE, row), {}, { headers: apiHeaders(), timeout: 12000 });
 
 const isRestorableQuizRow = (slug, row = {}) =>
-  slug === "quiz" && Boolean(row.deleted_at || row.deletedAt || row.trashed || row.is_deleted);
+  slug === "quiz" && isDeletedRow(row);
 
 const getStoredRows = (slug) => {
   try {
@@ -1945,29 +2086,103 @@ const CellValue = ({ field, row, slug, onImage }) => {
 const ConfirmModal = ({ show, title, message, intent = "status", confirmText = "Yes", onHide, onConfirm }) => (
   <>
     <style>{`
+      .rti-glass-confirm-modal {
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
       .rti-glass-confirm-modal .modal-dialog {
         max-width: 24rem;
       }
       .rti-glass-confirm-modal .modal-content {
-        background: rgba(255, 255, 255, 0.78);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+        border-radius: 20px;
+      }
+      .rti-glass-confirm-modal .modal-header {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.3) 100%);
+        backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.6);
-        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
-        border-radius: 16px;
-      }
-      .rti-glass-confirm-modal .modal-header,
-      .rti-glass-confirm-modal .modal-body,
-      .rti-glass-confirm-modal .modal-footer {
-        background: transparent;
-      }
-      .rti-glass-confirm-modal .modal-header,
-      .rti-glass-confirm-modal .modal-body,
-      .rti-glass-confirm-modal .modal-footer {
+        border-bottom: none;
+        border-radius: 20px 20px 0 0;
+        padding: 1.5rem;
         text-align: center;
       }
-      .rti-glass-confirm-modal .modal-footer {
+      .rti-glass-confirm-modal .modal-header.bg-danger {
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.7) 0%, rgba(220, 53, 69, 0.5) 100%);
+      }
+      .rti-glass-confirm-modal .modal-header.bg-primary {
+        background: linear-gradient(135deg, rgba(0, 123, 255, 0.7) 0%, rgba(0, 123, 255, 0.5) 100%);
+      }
+      .rti-glass-confirm-modal .modal-body {
+        background: transparent;
+        text-align: center;
+        padding: 2rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         justify-content: center;
+        min-height: 100px;
+      }
+      .rti-glass-confirm-modal .modal-body::before {
+        content: '';
+        display: block;
+        width: 60px;
+        height: 60px;
+        margin-bottom: 1rem;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .rti-glass-confirm-modal .modal-body p {
+        font-size: 1rem;
+        color: #333;
+        margin: 0;
+        font-weight: 500;
+      }
+      .rti-glass-confirm-modal .modal-footer {
+        background: transparent;
+        border: none;
+        text-align: center;
+        justify-content: center;
+        gap: 1rem;
+        padding: 1.5rem;
+      }
+      .rti-glass-confirm-modal .btn {
+        min-width: 100px;
+        font-weight: 500;
+        border-radius: 10px;
+        border: none;
+      }
+      .rti-glass-confirm-modal .btn-light {
+        background: rgba(255, 255, 255, 0.8);
+        color: #333;
+        transition: all 0.3s ease;
+      }
+      .rti-glass-confirm-modal .btn-light:hover {
+        background: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      }
+      .rti-glass-confirm-modal .btn-primary {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        box-shadow: 0 8px 20px rgba(0, 123, 255, 0.3);
+      }
+      .rti-glass-confirm-modal .btn-primary:hover {
+        box-shadow: 0 12px 30px rgba(0, 123, 255, 0.4);
+      }
+      .rti-glass-confirm-modal .btn-danger {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        box-shadow: 0 8px 20px rgba(220, 53, 69, 0.3);
+      }
+      .rti-glass-confirm-modal .btn-danger:hover {
+        box-shadow: 0 12px 30px rgba(220, 53, 69, 0.4);
+      }
+      .rti-glass-confirm-modal .btn-close {
+        background-color: rgba(0, 0, 0, 0.3);
       }
     `}</style>
     <Modal show={show} onHide={onHide} centered backdrop="static" keyboard={false} size="sm" contentClassName="rti-glass-confirm-modal">
@@ -1975,9 +2190,20 @@ const ConfirmModal = ({ show, title, message, intent = "status", confirmText = "
         <Modal.Title className="w-100 text-center">{title}</Modal.Title>
       </Modal.Header>
       <Modal.Body className="text-center" style={{ textAlign: "center" }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '1rem' }}>
+          {intent === "delete" ? (
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(220, 53, 69, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <i className="fa fa-trash text-danger" style={{ fontSize: '1.5rem' }} />
+            </div>
+          ) : (
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(0, 123, 255, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <i className="fa fa-info-circle text-primary" style={{ fontSize: '1.5rem' }} />
+            </div>
+          )}
+        </div>
         <p className="mb-0">{message}</p>
       </Modal.Body>
-      <Modal.Footer className="justify-content-center text-center" style={{ justifyContent: "center", textAlign: "center" }}>
+      <Modal.Footer className="justify-content-center text-center" style={{ justifyContent: "center", textAlign: "center", gap: '1rem' }}>
         <button type="button" className="btn btn-light" onClick={onHide}>No</button>
         <button type="button" className={`btn ${intent === "delete" ? "btn-danger" : "btn-primary"}`} onClick={() => {
           onConfirm();
@@ -2817,6 +3043,7 @@ const makeRecordFromForm = async (slug, config, form, existing = {}) => {
     taluka: data.taluka || "",
     role: data.role || "",
     category: data.category || "",
+    sub_id: data.sub_id || existing.sub_id || "",
     subject: data.subject || "",
     difficulty: data.difficulty || "",
     testType: data["test-types"] || "",
@@ -2841,10 +3068,13 @@ const makeRecordFromForm = async (slug, config, form, existing = {}) => {
     amount: data.amount || data.price || "",
     price: data.price || "",
     credits: data.credits || existing.credits || "",
+    total_credit: data.total_credit || data.total_credits || data.credits || existing.total_credit || "",
+    total_credits: data.total_credits || data.total_credit || data.credits || existing.total_credits || "",
     creditsUsed: data["credits-used"] || existing.creditsUsed || "",
     creditsLeft: data["credits-left"] || existing.creditsLeft || "",
     days: data.days || existing.days || "",
-    offerPrice: data["offer-price"] || "",
+    offerPrice: data["offer-price"] || data.offer_price || existing.offerPrice || existing.offer_price || "",
+    offer_price: data["offer-price"] || data.offer_price || existing.offer_price || existing.offerPrice || "",
     message: data.message || "",
     sentBy: data["sent-by"] || existing.sentBy || "",
     description: data.description || data.bio || "",
@@ -2996,18 +3226,23 @@ const formFields = {
     ["District", "district", "select", defaultDistricts],
     ["Taluka", "taluka", "select", defaultTalukas],
     ["Price", "price", "number"],
+    ["Total Credits", "total_credits", "number"],
     ["Days", "days", "select", ["24 days", "28 days", "30 days"]],
     ["Status", "status", "select", ["Active", "Inactive"]],
   ],
   commerceSubscription: [
+    ["Sub ID", "sub_id", "number"],
     ["Subscription Title", "title"],
     ["Description", "description", "textarea"],
     ["Credits", "credits", "number"],
-    ["Days", "days", "select", ["24 days", "28 days", "30 days"]],
+    ["Days", "days", "number"],
+    ["Price", "price", "number"],
+    ["Offer Price", "offer-price", "number"],
     ["Status", "status", "select", ["Active", "Inactive"]],
   ],
   ecomBuy: [
     ["Product ID", "product-id"],
+    ["User ID", "user_id"],
     ["Product Title", "title"],
     ["Seller Name", "seller-name"],
     ["Seller Contact", "contact", "tel"],
@@ -3019,6 +3254,7 @@ const formFields = {
   ],
   ecomSell: [
     ["Product ID", "product-id"],
+    ["User ID", "user_id"],
     ["Product Title", "title"],
     ["Seller Name", "seller-name"],
     ["Seller Contact", "contact", "tel"],
@@ -3047,10 +3283,13 @@ const formFields = {
     ["Description", "description", "textarea"],
   ],
   adsSubscription: [
+    ["Sub ID", "sub_id", "number"],
     ["Subscription Title", "title"],
     ["Description", "description", "textarea"],
+    ["Price", "price", "number"],
+    ["Offer Price", "offer-price", "number"],
     ["Credits", "credits", "number"],
-    ["Days", "days", "select", ["24 days", "28 days", "30 days"]],
+    ["Days", "days", "number"],
     ["Status", "status", "select", ["Active", "Inactive"]],
   ],
   office: [
@@ -3311,18 +3550,6 @@ const ModalShell = ({ slug, children }) => {
   const navigate = useNavigate();
   return (
     <div className="modal-page">
-      <style>{`
-        .rti-glass-status-shell {
-          background: rgba(255,255,255,0.28);
-          backdrop-filter: blur(8px);
-          border: 1px solid rgba(255,255,255,0.35);
-          box-shadow: 0 24px 80px rgba(15, 23, 42, 0.25);
-          text-align: center;
-        }
-        .rti-glass-status-shell .modal-close {
-          margin-left: auto;
-        }
-      `}</style>
       <section className="delete-modal card rti-glass-status-shell">
         <button type="button" className="modal-close" onClick={() => navigate(`/admin/${slug}`)}>
           <i className="fa-solid fa-xmark" />

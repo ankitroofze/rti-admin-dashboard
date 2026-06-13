@@ -29,6 +29,11 @@ const MenuList = [
     to: "/admin/withdrawal",
     iconStyle: <i className="fa fa-money-bill-wave" />,
   },
+   {
+    title: "Subscription Plan",
+    to: "/admin/subscription-plan",
+    iconStyle: <i className="fa fa-gauge-high" />,
+  },
   {
     title: "News",
     to: "/admin/news",
@@ -39,7 +44,7 @@ const MenuList = [
     iconStyle: <i className="fa fa-cart-shopping" />,
     content: [
       {
-        title: "Subscription Module",
+        title: "Ecom-Subscription",
         to: "/admin/ecommerce-subscription",
       },
       {
@@ -62,19 +67,19 @@ const MenuList = [
     iconStyle: <i className="fa fa-file-pdf" />,
   },
   {
-    title: "Ads",
+    title: "Advertisement",
     iconStyle: <i className="fa fa-rectangle-ad" />,
     content: [
       {
-        title: "Ads Subscription",
+        title: "Advertisement Subscription",
         to: "/admin/ads-subscription",
       },
       {
-        title: "Ads Management",
+        title: "Advertisement Management",
         to: "/admin/ads-management",
       },
       {
-        title: "Ads View Tracking",
+        title: "Advertisement View Tracking",
         to: "/admin/ads-view-tracking",
       },
     ],

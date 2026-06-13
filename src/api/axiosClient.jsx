@@ -23,7 +23,7 @@ axiosClient.interceptors.request.use((config) => {
     if (!config.headers["Content-Type"]) {
       delete config.headers["Content-Type"];
     }
-    console.log("NEWS_FORMDATA_REQUEST", {
+    console.log("FORMDATA_REQUEST", {
       url: config.url,
       method: config.method,
       withCredentials: config.withCredentials,

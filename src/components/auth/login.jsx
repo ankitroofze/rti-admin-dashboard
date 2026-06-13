@@ -189,7 +189,7 @@ export default function Login() {
                                                 <button
                                                     type="button"
                                                     className="password-eye"
-                                                    style={{ position: 'absolute', right: '10px', top: '35%', border: 'none', background: 'none', zIndex: 10 }}
+                                                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                                     onClick={() => setShowPassword((value) => !value)}
                                                     disabled={showLoading}
                                                 >

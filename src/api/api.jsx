@@ -32,6 +32,25 @@ const API = {
    NEWS_UPDATE : (news) => `/news/${news}`,
    NEWS_DELETE : (news) => `/news/${news}`,
    NEWS_STATUS : (news) => `/news/${news}/status`,
+
+   // Ecom Subscription Routes
+   ECOM_SUBSCRIPTION_INDEX: '/ecom-subscriptions',
+   ECOM_SUBSCRIPTION_ADD: '/ecom-subscriptions',
+   ECOM_SUBSCRIPTION_SHOW: (subscription) => `/ecom-subscriptions/${subscription}`,
+   ECOM_SUBSCRIPTION_UPDATE: (subscription) => `/ecom-subscriptions/${subscription}`,
+   ECOM_SUBSCRIPTION_DELETE: (subscription) => `/ecom-subscriptions/${subscription}`,
+   ECOM_SUBSCRIPTION_STATUS: (subscription) => `/ecom-subscriptions/${subscription}/status`,
+
+   // Advertisement Subscription Routes
+   ADS_SUBSCRIPTION_INDEX: '/ads-subscriptions',
+   ADS_SUBSCRIPTION_ADD: '/ads-subscriptions',
+   ADS_SUBSCRIPTION_SHOW: (subscription) => `/ads-subscriptions/${subscription}`,
+   ADS_SUBSCRIPTION_UPDATE: (subscription) => `/ads-subscriptions/${subscription}`,
+   ADS_SUBSCRIPTION_DELETE: (subscription) => `/ads-subscriptions/${subscription}`,
+   ADS_SUBSCRIPTION_STATUS: (subscription) => `/ads-subscriptions/${subscription}/status`,
+
+  
+
 };
 
 export default API;

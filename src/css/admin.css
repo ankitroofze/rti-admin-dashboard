@@ -508,6 +508,60 @@ a {
   text-align: center;
 }
 
+.rti-glass-status-shell {
+  width: min(380px, calc(100vw - 32px));
+  gap: 7px;
+  padding: 18px 20px 20px;
+  background: rgba(255, 255, 255, 0.34) !important;
+  border: 1px solid rgba(255, 255, 255, 0.48) !important;
+  border-radius: 14px;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.18);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  backdrop-filter: blur(16px) saturate(130%);
+}
+
+.rti-glass-status-shell img {
+  width: 58px;
+  height: 58px;
+  border-width: 2px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.rti-glass-status-shell h3 {
+  margin: 2px 0 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.rti-glass-status-shell p {
+  max-width: 100%;
+  margin: 0;
+  color: #475569;
+  line-height: 1.28;
+  overflow-wrap: anywhere;
+}
+
+.rti-glass-status-shell .btn {
+  min-height: 34px;
+  padding: 7px 18px;
+}
+
+.rti-glass-status-shell .form-check {
+  margin: 2px 0 4px;
+}
+
+.rti-glass-status-shell .modal-close {
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.36);
+}
+
 .modal-close {
   position: absolute;
   top: 12px;
@@ -1782,6 +1836,21 @@ body[data-theme-version="dark"],
 [data-theme-version="dark"] .avatar-upload .avatar-preview > div {
   background: #0f172a;
   border-color: #273449;
+}
+
+[data-theme-version="dark"] .rti-glass-status-shell {
+  background: rgba(15, 23, 42, 0.62) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.38);
+}
+
+[data-theme-version="dark"] .rti-glass-status-shell p,
+[data-theme-version="dark"] .rti-glass-status-shell .modal-close {
+  color: #cbd5e1;
+}
+
+[data-theme-version="dark"] .rti-glass-status-shell .modal-close {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 @media (max-width: 300px) {
