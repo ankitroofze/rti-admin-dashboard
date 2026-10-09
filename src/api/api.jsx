@@ -26,10 +26,8 @@ const API = {
    QUIZ_RESTORE : (quiz) => `/quiz-types/${quiz}/restore`,
    QUIZ_STATUS: (quiz) => `/quiz-types/${quiz}/status`,
 
-   // Subscription Purchases (combined role + ads + ecom ledger)
-SUBSCRIPTION_PURCHASES_INDEX: '/subscription-purchases',
-// query params type & status client-side bhi filter honge, but agar backend
-// server-side filtering support karta hai to yahi endpoint ?type=&status= leta hai
+   // Payment History (admin combined role + ads + ecom + quiz ledger)
+PAYMENT_HISTORY_INDEX: '/payment-history',
 
    // Quiz Subscription Plans (Admin)
 QUIZ_SUBSCRIPTION_PLAN_INDEX: 'quiz-subscription-plans',
@@ -39,6 +37,8 @@ QUIZ_SUBSCRIPTION_PLAN_UPDATE: (id) => `quiz-subscription-plans/${id}`,
 QUIZ_SUBSCRIPTION_PLAN_STATUS: (id) => `quiz-subscription-plans/${id}/status`,
 QUIZ_SUBSCRIPTION_PLAN_DELETE: (id) => `quiz-subscription-plans/${id}`,
 QUIZ_SUBSCRIPTION_PLAN_RESTORE: (id) => `quiz-subscription-plans/${id}/restore`,
+QUIZ_SUBSCRIPTION_PURCHASERS_INDEX: '/quiz-subscription-plans/purchasers',
+QUIZ_SUBSCRIPTION_PLAN_PURCHASERS: (planId) => `/quiz-subscription-plans/${planId}/purchasers`,
 
 // Quiz Subscriptions (Admin — user purchases, read-only)
 QUIZ_SUBSCRIPTIONS_INDEX: '/quiz-subscriptions',
@@ -46,6 +46,9 @@ QUIZ_SUBSCRIPTIONS_INDEX: '/quiz-subscriptions',
 // Quiz Attempts (Admin — user quiz attempts, read-only)
 QUIZ_ATTEMPTS_INDEX: '/quiz-attempts',
 QUIZ_ATTEMPTS_SHOW: (id) => `/quiz-attempts/${id}`,
+// Admin: ek user ke attempts (alias: /quiz-attempts?user_id={id}) + delete (soft delete)
+QUIZ_ATTEMPTS_BY_USER: (userId) => `/users/${userId}/quiz-attempts`,
+QUIZ_ATTEMPTS_DELETE: (id) => `/quiz-attempts/${id}`,
 
    QUIZ_SUBSCRIPTION_BY_USER_INDEX: '/user-quiz-subscriptions',
    QUIZ_SUBSCRIPTION_BY_USER_SHOW: (subscription) => `/user-quiz-subscriptions/${subscription}`,
@@ -80,7 +83,9 @@ REFERRAL_ADMIN_DELETE: (userId) => `/referrals/${userId}`,
    ECOM_SUBSCRIPTION_SHOW: (subscription) => `/ecom-subscriptions/${subscription}`,
    ECOM_SUBSCRIPTION_UPDATE: (subscription) => `/ecom-subscriptions/${subscription}`,
    ECOM_SUBSCRIPTION_DELETE: (subscription) => `/ecom-subscriptions/${subscription}`,
-   ECOM_SUBSCRIPTION_STATUS: (subscription) => `/ecom-subscriptions/${subscription}/status`,
+ECOM_SUBSCRIPTION_STATUS: (subscription) => `/ecom-subscriptions/${subscription}/status`,
+ECOM_SUBSCRIPTION_PURCHASERS_INDEX: '/ecom-subscriptions/purchasers',
+ECOM_SUBSCRIPTION_PLAN_PURCHASERS: (planId) => `/ecom-subscriptions/${planId}/purchasers`,
 
 ADS_DETAIL_INDEX: "/ads-details",
 ADS_DETAIL_ADD: "/ads-details",
@@ -97,6 +102,8 @@ ADS_SUBSCRIPTION_SHOW: (subscription) => `/subscription-plans/${subscription}`,
 ADS_SUBSCRIPTION_UPDATE: (subscription) => `/subscription-plans/${subscription}`,
 ADS_SUBSCRIPTION_DELETE: (subscription) => `/subscription-plans/${subscription}`,
 ADS_SUBSCRIPTION_STATUS: (subscription) => `/subscription-plans/${subscription}/status`,
+ADS_SUBSCRIPTION_PURCHASERS_INDEX: '/subscription-plans/purchasers',
+ADS_SUBSCRIPTION_PLAN_PURCHASERS: (planId) => `/subscription-plans/${planId}/purchasers`,
 
 
 
@@ -154,10 +161,17 @@ AD_STATUS: (id) => `/advertisements/${id}/status`,
 
 // Wallet
 WALLET_INDEX: '/wallets',
-WALLET_DELETE: (id) => `/wallets/${id}`,
+WALLET_SHOW: (userId) => `/wallets/${userId}`,
+// DELETE /api/rti-admin/wallet/{transactionId} (alias: /wallet-transactions/{id}) — {id} = wallet TRANSACTION id
+// NOTE: ye /rti-admin prefix par hai (apiClient), /admin-rti (adminRtiClient) par nahi.
+WALLET_TXN_DELETE: (id) => `/wallet/${id}`,
 
 // Withdrawal
 WITHDRAWAL_INDEX: '/withdrawals',
+WITHDRAWAL_SHOW: (id) => `/withdrawals/${id}`,
+WITHDRAWAL_APPROVE: (id) => `/withdrawals/${id}/approve`,
+WITHDRAWAL_REJECT: (id) => `/withdrawals/${id}/reject`,
+// DELETE /api/rti-admin/withdrawals/{id} — sirf paid / rejected / cancelled par chalta hai (apiClient)
 WITHDRAWAL_DELETE: (id) => `/withdrawals/${id}`,
 
 // Office Address

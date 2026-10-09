@@ -168,6 +168,10 @@ import ReportsSubscriptionDeleted from "../pages/reports-subscription/reports-su
 import ReportsAdsView from "../pages/reports-ads-view/reports-ads-view";
 import ReportsAdsViewView from "../pages/reports-ads-view/reports-ads-view-view";
 import ReportsAdsViewDeleted from "../pages/reports-ads-view/reports-ads-view-deleted";
+import PaymentHistory from "../pages/payment-history/payment-history";
+import PaymentHistoryView from "../pages/payment-history/payment-history-view";
+import SubscriptionPurchasers from "../pages/subscription-purchasers/subscription-purchasers";
+import SubscriptionPurchasersView from "../pages/subscription-purchasers/subscription-purchasers-view";
 
 const moduleRoutes = [
   { slug: "dashboard", List: Dashboard, View: DashboardView, Deleted: DashboardDeleted, Status: DashboardStatus },
@@ -175,6 +179,10 @@ const moduleRoutes = [
   { slug: "network", List: Network, View: NetworkView, Deleted: NetworkDeleted, Status: NetworkStatus },
   { slug: "wallets", List: Wallets, View: WalletsView, Deleted: WalletsDeleted },
   { slug: "withdrawal", List: Withdrawal, View: WithdrawalView, Deleted: WithdrawalDeleted },
+  { slug: "payment-history", List: PaymentHistory, View: PaymentHistoryView },
+  { slug: "ads-subscription-purchasers", List: () => <SubscriptionPurchasers slug="ads-subscription-purchasers" />, View: () => <SubscriptionPurchasersView slug="ads-subscription-purchasers" /> },
+  { slug: "ecom-subscription-purchasers", List: () => <SubscriptionPurchasers slug="ecom-subscription-purchasers" />, View: () => <SubscriptionPurchasersView slug="ecom-subscription-purchasers" /> },
+  { slug: "quiz-subscription-purchasers", List: () => <SubscriptionPurchasers slug="quiz-subscription-purchasers" />, View: () => <SubscriptionPurchasersView slug="quiz-subscription-purchasers" /> },
   { slug: "news", List: News, View: NewsView, Add: NewsAdd, Update: NewsUpdate, Deleted: NewsDeleted, Status: NewsStatus },
   { slug: "subscription-plan", List: SubscriptionPlan, View: SubscriptionPlanView, Add: SubscriptionPlanAdd, Update: SubscriptionPlanUpdate, Deleted: SubscriptionPlanDeleted, Status: SubscriptionPlanStatus },
   { slug: "advertisement", List: Advertisement, View: AdvertisementView, Add: AdvertisementAdd, Update: AdvertisementUpdate, Deleted: AdvertisementDeleted, Status: AdvertisementStatus },

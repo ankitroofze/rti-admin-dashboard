@@ -136,6 +136,23 @@ const formatDisplayDate = (value) => {
   return `${day}-${month}-${parsed.getFullYear()}`;
 };
 
+// ISO / Laravel timestamp (2026-10-03T09:10:00.000000Z) -> 03-Oct-2026
+const formatIsoDate = (value) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const month = parsed.toLocaleString("en-US", { month: "short" });
+  return `${day}-${month}-${parsed.getFullYear()}`;
+};
+
+const moneyFormatter = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const formatMoney = (value) => {
+  if (value === undefined || value === null || value === "") return "-";
+  const n = Number(value);
+  return Number.isFinite(n) ? `₹${moneyFormatter.format(n)}` : String(value);
+};
+
 const extractTrailingNumber = (value) => {
   const match = String(value || "").match(/(\d+)(?!.*\d)/);
   return match ? Number(match[1]) : null;
@@ -447,42 +464,44 @@ const moduleConfig = {
   wallets: {
     title: "Wallet",
     add: false,
-   filters: ["search", "source"],
-    rows: [], // dummy data removed — dynamic API data expected
+    filters: ["search"],
+    rows: [],
     columns: [
       ["sr", "Sr.No"],
-      ["transactionId", "Transaction ID"],
       ["userId", "User ID"],
-      ["amount", "Amount"],
+      ["userName", "User"],
+      ["withdrawableBalance", "Withdrawable"],
+      ["approvedCommission", "Approved"],
+      ["pendingCommission", "Pending"],
+      ["withdrawnBalance", "Withdrawn"],
+      ["status", "Status"],
     ],
-    actions: ["view", "delete"],
-    details: ["id", "userId", "amount", "source", "balanceAfter", "createdAt"],
+    actions: ["view"],
+    details: [
+      "userId", "userName", "userEmail", "status", "frozenReason",
+      "withdrawableBalance", "approvedCommission", "pendingCommission",
+      "reversedCommission", "lockedBalance", "withdrawnBalance", "totalEarned", "createdAt",
+    ],
   },
   withdrawal: {
     title: "Withdrawal",
     add: false,
     filters: ["search", "status"],
-    rows: [], // dummy data removed — dynamic API data expected
+    rows: [],
     columns: [
       ["sr", "Sr.No"],
-      ["transactionId", "Transaction ID"],
-      ["userId", "User ID"],
-      ["orderId", "Order ID"],
-      ["paymentId", "Payment ID"],
+      ["withdrawalNumber", "Withdrawal No."],
+      ["userName", "User"],
+      ["amount", "Amount"],
+      ["method", "Method"],
       ["status", "Status"],
     ],
-    actions: ["view", "invoice", "delete"],
+    actions: ["view", "approve", "reject", "delete"], // delete button sirf paid/rejected/cancelled par dikhta hai (ActionButtons)
     details: [
-      "id",
-      "userId",
-      "orderId",
-      "paymentId",
-      "amount",
-      "gstAmount",
-      "totalAmount",
-      "paymentMethod",
-      "status",
-      "paidAt",
+      "withdrawalNumber", "userId", "userName", "amount", "method", "status",
+      "accountHolder", "accountNumber", "ifsc", "upiId",
+      "payoutReference", "payoutMode", "adminRemarks", "rejectReason",
+      "createdAt", "approvedAt", "paidAt",
     ],
   },
   news: {
@@ -542,30 +561,58 @@ details: ["title", "role", "state", "district", "taluka", "village", "price", "o
     // The form component should omit `used_credit` for Add mode. Keeping it in details for View.
     form: "commerceSubscription",
   },
+  "ads-subscription-purchasers": {
+    title: "Ads Subscription Purchasers",
+    add: false,
+    filters: ["search", "status"],
+    rows: [],
+    columns: [["sr", "Sr.No"], ["username", "User"], ["planTitle", "Plan"], ["amount", "Amount"], ["status", "Payment Status"], ["purchaseDate", "Purchase Date"], ["endDate", "Expiry"]],
+    actions: ["view"],
+    details: ["id", "username", "userEmail", "planTitle", "amount", "status", "purchaseDate", "startDate", "endDate", "validityStatus", "razorpayOrderId", "razorpayPaymentId", "failureReason"],
+  },
+  "ecom-subscription-purchasers": {
+    title: "Ecom Subscription Purchasers",
+    add: false,
+    filters: ["search", "status"],
+    rows: [],
+    columns: [["sr", "Sr.No"], ["username", "User"], ["planTitle", "Plan"], ["amount", "Amount"], ["status", "Payment Status"], ["purchaseDate", "Purchase Date"], ["endDate", "Expiry"]],
+    actions: ["view"],
+    details: ["id", "username", "userEmail", "planTitle", "amount", "status", "purchaseDate", "startDate", "endDate", "validityStatus", "razorpayOrderId", "razorpayPaymentId", "failureReason"],
+  },
+  "quiz-subscription-purchasers": {
+    title: "Quiz Subscription Purchasers",
+    add: false,
+    filters: ["search", "status"],
+    rows: [],
+    columns: [["sr", "Sr.No"], ["username", "User"], ["planTitle", "Plan"], ["credits", "Quiz Count"], ["amount", "Amount"], ["status", "Payment Status"], ["purchaseDate", "Purchase Date"], ["endDate", "Expiry"]],
+    actions: ["view"],
+    details: ["id", "username", "userEmail", "planTitle", "credits", "days", "amount", "status", "purchaseDate", "startDate", "endDate", "validityStatus", "razorpayOrderId", "razorpayPaymentId", "failureReason"],
+  },
 
 
 
-  "subscription-purchases": {
-  title: "Subscription Purchases",
+  "payment-history": {
+  title: "Payment History",
   add: false,
   filters: ["search", "type", "status"],
   rows: [],
   columns: [
     ["sr", "Sr.No"],
-    ["id", "Purchase ID"],
+    ["id", "Payment ID"],
     ["username", "User"],
-    ["type", "Type"],
+    ["type", "Module"],
     ["planTitle", "Plan"],
     ["credits", "Credits"],
-    ["days", "Days"],
+    ["purchaseDate", "Purchase Date"],
     ["amount", "Amount"],
     ["status", "Payment Status"],
+    ["validityStatus", "Validity"],
   ],
   actions: ["view"],   // read-only ledger — admin update/delete nahi karta
   details: [
     "id", "username", "userEmail", "type", "planTitle",
-    "credits", "days", "amount", "status",
-    "razorpayOrderId", "razorpayPaymentId", "failureReason", "createdAt",
+    "credits", "days", "amount", "status", "validityStatus",
+    "purchaseDate", "startDate", "endDate", "razorpayOrderId", "razorpayPaymentId", "failureReason", "seatLocation", "createdAt",
   ],
 },
 
@@ -926,22 +973,28 @@ details: ["title", "role", "state", "district", "taluka", "village", "price", "o
 "quiz-attempts": {
   title: "Quiz Attempts (By User)",
   add: false,
-  filters: ["search", "user"],
+  filters: ["search", "status"],
   rows: [],
   columns: [
     ["sr", "Sr.No"],
-    ["id", "ID"],
+    ["id", "Attempt ID"],
     ["user_id", "User ID"],
     ["username", "User"],
     ["quizTitle", "Quiz"],
     ["totalQuestions", "Total Qs"],
     ["correctAnswers", "Correct"],
     ["percentage", "Score %"],
-    ["result", "Result"],
+    ["timeTaken", "Time"],
+    ["attemptStatus", "Status"],
     ["attemptedAt", "Attempted On"],
   ],
-  actions: ["view"],
-  details: ["id", "user_id", "username", "quizTitle", "totalQuestions", "correctAnswers", "percentage", "result", "attemptedAt"],
+  actions: ["view", "delete"],
+  details: [
+    "id", "user_id", "username", "userEmail", "userMobile",
+    "quizTitle", "quizType",
+    "totalQuestions", "attemptedQuestions", "correctAnswers", "wrongAnswers", "skippedAnswers",
+    "marks", "percentage", "timeTaken", "attemptStatus", "attemptedAt", "submittedAt",
+  ],
 },
 
 "profile-update-requests": {
@@ -959,7 +1012,7 @@ details: ["title", "role", "state", "district", "taluka", "village", "price", "o
     ["status", "Status"],
   ],
   actions: ["view", "approve", "reject"],
-  details: ["user_name", "user_email", "changesSummary", "changesValue", "requested_at", "status", "admin_reason"],
+  details: ["user_name", "user_email", "changesSummary", "changesValue", "pendingProfileImage", "requested_at", "status", "admin_reason"],
 }
 };
 
@@ -1038,6 +1091,36 @@ const labels = {
   paymentMethod: "Payment Method",
   paidAt: "Paid At",
   groupKey: "Group Key",
+  userName: "User",
+  userEmail: "Email",
+  withdrawableBalance: "Withdrawable Balance (Nikaal sakte hain)",
+  approvedCommission: "Approved Commission",
+  pendingCommission: "Pending Commission (Approval baaki)",
+  reversedCommission: "Reversed Commission (Wapas liya gaya)",
+  lockedBalance: "Locked (Withdrawal process me)",
+  withdrawnBalance: "Withdrawn (Ab tak mila)",
+  totalEarned: "Total Earned",
+  frozenReason: "Freeze Reason",
+  withdrawalNumber: "Withdrawal No.",
+  method: "Method",
+  accountHolder: "Account Holder",
+  accountNumber: "Account Number",
+  ifsc: "IFSC",
+  upiId: "UPI ID",
+  payoutReference: "Payout Reference (UTR)",
+  payoutMode: "Payout Mode",
+  adminRemarks: "Admin Remarks",
+  rejectReason: "Reject Reason",
+  approvedAt: "Approved At",
+  planTitle: "Plan",
+  validityStatus: "Validity",
+  purchaseDate: "Purchase Date",
+  startDate: "Start Date",
+  endDate: "End Date",
+  razorpayOrderId: "Razorpay Order ID",
+  razorpayPaymentId: "Razorpay Payment ID",
+  failureReason: "Failure Reason",
+  seatLocation: "Seat Location",
 quizTypeId: "Quiz Type",
   credits: "Credits",
   creditsUsed: "Credits Used",
@@ -1102,6 +1185,21 @@ adsSubId: "Ads Subscription",
 redirection: "Redirection",
 redirectionUrl: "Redirection URL",
 };
+Object.assign(labels, {
+  userMobile: "Mobile",
+  quizType: "Quiz Type",
+  attemptedQuestions: "Attempted Qs",
+  wrongAnswers: "Wrong",
+  skippedAnswers: "Skipped",
+  timeTaken: "Time Taken",
+  attemptStatus: "Status",
+  attemptedAt: "Attempted On",
+  submittedAt: "Submitted At",
+  quizTitle: "Quiz",
+  totalQuestions: "Total Questions",
+  correctAnswers: "Correct Answers",
+  percentage: "Score %",
+});
 
 const profileFieldLabels = {
   name: "Name",
@@ -1110,44 +1208,71 @@ const profileFieldLabels = {
   contact_number: "Phone Number",
   phone_number: "Phone Number",
   mobile_number: "Phone Number",
+  phone: "Phone Number",
+  profile_image: "Profile Image",
 };
 
 const summarizeProfileUpdateRequest = (row = {}, index = 0) => {
-  const requested = row.requested_updates || row.requestedUpdates || {};
+  // "-" / khali values ko skip karke pehli real value uthata hai
+  const pick = (...values) => values.find((v) => v !== undefined && v !== null && v !== "" && v !== "-");
+  const fullNameOf = (person = {}) => [person.firstname, person.lastname].filter(Boolean).join(" ").trim();
+  const nested = row.user || {};
+
+  // requested values: ya to requested_updates object, ya pending_* fields (pending_name, pending_bio, pending_phone ...)
+  const requested = { ...(row.requested_updates || row.requestedUpdates || row.pending_updates || {}) };
+  Object.entries(row).forEach(([key, value]) => {
+    if (!key.startsWith("pending_") || /(_url|image|photo)$/.test(key)) return;
+    if (value === null || value === undefined || value === "") return;
+    requested[key.replace(/^pending_/, "")] = value;
+  });
+
   const seenLabels = new Set();
   const labelsList = [];
   const valuesList = [];
-  const order = ["name", "email", "bio", "contact_number", "phone_number", "mobile_number"];
-  order.forEach((key) => {
-    if (requested[key] === undefined) return;
-    const label = profileFieldLabels[key] || key;
+  Object.entries(requested).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    const label = profileFieldLabels[key] || key.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
     if (seenLabels.has(label)) return;
     seenLabels.add(label);
     labelsList.push(label);
-    valuesList.push(requested[key] || "-");
+    valuesList.push(typeof value === "object" ? JSON.stringify(value) : String(value));
   });
-  const normalizedStatus = String(row.status || "Pending").trim().toLowerCase();
-  const status = normalizedStatus === "approved" ? "Approved" : normalizedStatus === "rejected" ? "Rejected" : "Pending";
+
+  const rawStatus = String(pick(row.profile_update_status, row.approval_status, row.status) || "Pending").trim().toLowerCase();
+  const status = rawStatus === "approved" ? "Approved" : rawStatus === "rejected" ? "Rejected" : "Pending";
+  const userId = pick(row.user_id, row.userId, row.id) || "";
   return {
     ...row,
-    _rowKey: String(row.id || row._rowKey || `profile-update-${index}`),
+    _rowKey: String(userId || row._rowKey || `profile-update-${index}`),
     sr: row.sr || index + 1,
-    id: row.id || `profile-update-${index}`,
-    user_name: row.user_name || row.userName || "-",
-    user_email: row.user_email || row.userEmail || "-",
+    id: userId || `profile-update-${index}`,
+    user_id: userId,
+    user_name: pick(row.user_name, row.userName, row.name, fullNameOf(row), nested.name, fullNameOf(nested)) || "-",
+    user_email: pick(row.user_email, row.userEmail, row.email, nested.email) || "-",
     requested_updates: requested,
     changesSummary: labelsList.join(", ") || "-",
     changesValue: valuesList.join(", ") || "-",
-    requested_at: formatDisplayDate(row.requested_at || row.requestedAt) || row.requested_at || "-",
+    pendingProfileImage: absoluteStorageUrl(pick(row.pending_profile_image_url, row.pending_profile_image)) || "",
+    requested_at: formatDisplayDate(pick(row.requested_at, row.requestedAt, row.pending_requested_at, row.profile_update_requested_at, row.updated_at)) || "-",
     status,
     admin_reason: row.admin_reason || row.adminReason || "",
   };
 };
 
+
 const requestStatusBadge = (status) => {
   const normalized = String(status || "Pending").trim().toLowerCase();
-  const variant = normalized === "approved" ? "success" : normalized === "rejected" ? "danger" : "warning";
-  const label = normalized === "approved" ? "Approved" : normalized === "rejected" ? "Rejected" : "Pending";
+  const map = {
+    pending: ["warning", "Pending"],
+    approved: ["success", "Approved"],
+    paid: ["success", "Paid"],
+    active: ["success", "Active"],
+    processing: ["info", "Processing"],
+    rejected: ["danger", "Rejected"],
+    cancelled: ["secondary", "Cancelled"],
+    frozen: ["danger", "Frozen"],
+  };
+  const [variant, label] = map[normalized] || ["warning", normalized.charAt(0).toUpperCase() + normalized.slice(1)];
   return <span className={`badge light badge-${variant}`}>{label}</span>;
 };
 
@@ -1181,9 +1306,31 @@ const MODULE_API_SLUGS = [
   "network",                    // ✅ FIX: pehle missing tha, isliye fetch effect chalta hi nahi tha
   "user-follows", "user-blocks", "profile-update-requests", // ✅ NAYA — Admin RTI live APIs
 ];
+const PAYMENT_LIST_SLUGS = ["payment-history", "ads-subscription-purchasers", "ecom-subscription-purchasers", "quiz-subscription-purchasers"];
+MODULE_API_SLUGS.push(...PAYMENT_LIST_SLUGS);
+const PURCHASER_TYPE = { "ads-subscription-purchasers": "ads", "ecom-subscription-purchasers": "ecom", "quiz-subscription-purchasers": "quiz" };
+const PURCHASER_SLUGS = Object.keys(PURCHASER_TYPE);
 const LIVE_API_SLUGS = [...USER_API_SLUGS, ...MODULE_API_SLUGS];
 
 const moduleApi = {
+  "ads-subscription-purchasers": {
+    index: API.ADS_SUBSCRIPTION_PURCHASERS_INDEX,
+    planIndex: API.ADS_SUBSCRIPTION_PLAN_PURCHASERS,
+    singular: "purchaser",
+    collection: "purchasers",
+  },
+  "ecom-subscription-purchasers": {
+    index: API.ECOM_SUBSCRIPTION_PURCHASERS_INDEX,
+    planIndex: API.ECOM_SUBSCRIPTION_PLAN_PURCHASERS,
+    singular: "purchaser",
+    collection: "purchasers",
+  },
+  "quiz-subscription-purchasers": {
+    index: API.QUIZ_SUBSCRIPTION_PURCHASERS_INDEX,
+    planIndex: API.QUIZ_SUBSCRIPTION_PLAN_PURCHASERS,
+    singular: "purchaser",
+    collection: "purchasers",
+  },
   news: {
     index: API.NEWS_INDEX,
     add: API.NEWS_ADD,
@@ -1212,10 +1359,10 @@ const moduleApi = {
     collection: "ecom_subscriptions",
   },
 
-  "subscription-purchases": {
-  index: API.SUBSCRIPTION_PURCHASES_INDEX,
-  singular: "subscription_purchase",
-  collection: "subscription_purchases",
+  "payment-history": {
+  index: API.PAYMENT_HISTORY_INDEX,
+  singular: "payment",
+  collection: "payments",
 },
   "ads-subscription": {
     index: API.ADS_SUBSCRIPTION_INDEX,
@@ -1246,7 +1393,8 @@ const moduleApi = {
 },
 "quiz-attempts": {
   index: API.QUIZ_ATTEMPTS_INDEX,
-  show: API.QUIZ_ATTEMPTS_SHOW,
+  delete: API.QUIZ_ATTEMPTS_DELETE,   // DELETE /quiz-attempts/{attemptId}
+  // show hata diya: list response me saari details aati hain, detail page cached row se khulta hai
   singular: "quiz_attempt",
   collection: "quiz_attempts",
 },
@@ -1367,8 +1515,8 @@ advertisement: {
   update: API.AD_UPDATE, delete: API.AD_DELETE, status: API.AD_STATUS,
   singular: "advertisement", collection: "advertisements",
 },
-wallets: { index: API.WALLET_INDEX, delete: API.WALLET_DELETE, singular: "wallet", collection: "wallets" },
-withdrawal: { index: API.WITHDRAWAL_INDEX, delete: API.WITHDRAWAL_DELETE, singular: "withdrawal", collection: "withdrawals" },
+wallets: { index: API.WALLET_INDEX, show: API.WALLET_SHOW, singular: "wallet", collection: "wallets" },
+withdrawal: { index: API.WITHDRAWAL_INDEX, show: API.WITHDRAWAL_SHOW, delete: API.WITHDRAWAL_DELETE, singular: "withdrawal", collection: "withdrawals" },
 "offices-addresses": {
   index: API.OFFICE_INDEX, add: API.OFFICE_ADD, show: API.OFFICE_SHOW,
   update: API.OFFICE_UPDATE, delete: API.OFFICE_DELETE,
@@ -1445,10 +1593,10 @@ const buildMultipartHeaders = () => ({
   ...apiHeaders(),
   "Content-Type": "multipart/form-data",
 });
-const SUBSCRIPTION_API_SLUGS = ["ecommerce-subscription", "ads-subscription", "subscription-purchases"];
+const SUBSCRIPTION_API_SLUGS = ["ecommerce-subscription", "ads-subscription"];
 // const SUBSCRIPTION_API_SLUGS = ["ecommerce-subscription", "ads-subscription", "subscription-plan"];
 const isSubscriptionApiSlug = (slug) => SUBSCRIPTION_API_SLUGS.includes(slug);
-const ADMIN_RTI_API_SLUGS = ["user-follows", "user-blocks", "profile-update-requests"];
+const ADMIN_RTI_API_SLUGS = ["user-follows", "user-blocks", "profile-update-requests", "wallets", "withdrawal"];
 const isAdminRtiApiSlug = (slug) => ADMIN_RTI_API_SLUGS.includes(slug);
 const moduleClientForSlug = (slug) =>
   slug === "news" ? axiosClient
@@ -1479,6 +1627,11 @@ const readPath = (source, path) =>
   path.split(".").reduce((value, key) => value?.[key], source);
 
 const extractRows = (payload) => {
+  const paymentRows = [
+    payload?.payments?.data, payload?.data?.payments?.data, payload?.payments, payload?.data?.payments,
+    payload?.purchasers?.data, payload?.data?.purchasers?.data, payload?.purchasers, payload?.data?.purchasers,
+  ].find(Array.isArray);
+  if (paymentRows) return paymentRows;
   
   const candidates = [
     payload?.ecom_enquiries,
@@ -1534,6 +1687,24 @@ const extractRows = (payload) => {
     payload?.data?.follows,
     payload?.blocks,                            // ✅ NEW: user-blocks list ke liye
     payload?.data?.blocks,
+    payload?.wallets?.data,
+    payload?.data?.wallets?.data,
+    payload?.wallets,
+    payload?.data?.wallets,
+    payload?.transactions?.data,                // wallets: paginated transactions
+    payload?.data?.transactions?.data,
+    payload?.transactions,
+    payload?.data?.transactions,
+    payload?.withdrawals?.data,                 // withdrawals: paginated list
+    payload?.data?.withdrawals?.data,
+    payload?.withdrawals,
+    payload?.data?.withdrawals,
+    payload?.pending_profiles,                  // pending-profiles list
+    payload?.data?.pending_profiles,
+    payload?.profiles,
+    payload?.data?.profiles,
+    payload?.requests,
+    payload?.data?.requests,
   ];
   return candidates.find(Array.isArray) || [];
 };
@@ -1867,26 +2038,41 @@ if (slug === "reports-subscription") {
 }
 
 
-if (slug === "subscription-purchases") {
-  const typeRaw = String(row.subscription_type || row.type || "").toLowerCase();
-  const statusRaw = String(row.payment_status || row.status || "created").toLowerCase();
+if (PURCHASER_SLUGS.includes(slug)) {
+  const base = normalizeModuleRow("payment-history")({ ...row, module: row.module || row.subscription_type || row.type || PURCHASER_TYPE[slug] }, index);
+  const fallbackId = row.id || row.payment_id || row.purchase_id || row.subscription_id || row.razorpay_payment_id || row.razorpay_order_id || `${slug}-${index}`;
+  return { ...base, id: String(fallbackId), _rowKey: String(fallbackId) };
+}
+
+if (slug === "payment-history") {
+  const typeRaw = String(row.module || row.subscription_type || row.type || "").toLowerCase();
+  const statusRaw = String(row.status || row.payment_status || "created").toLowerCase();
   const statusLabel = statusRaw === "paid" ? "Paid" : statusRaw === "failed" ? "Failed" : "Created";
+  const validityRaw = String(row.validity_status || "").toLowerCase();
+  const seat = row.seat && typeof row.seat === "object" ? row.seat : null;
   return {
     ...row,
-    _rowKey: String(row.id || `sub-purchase-${index}`),
+    _rowKey: String(row.payment_id || row.id || `payment-${index}`),
     sr: row.sr || index + 1,
-    id: row.id || "",
+    id: row.payment_id || row.id || "",
     username: row.user?.name || row.user_name || row.username || "-",
-    userEmail: row.user?.email || row.user_email || "-",
-    type: typeRaw === "role" ? "Role" : typeRaw === "ads" ? "Ads" : typeRaw === "ecom" ? "Ecom" : typeRaw,
-    planTitle: row.plan_title || row.planTitle || row.title || "-",
-    credits: row.credits ?? "-",
-    days: row.days ?? "-",
-    amount: row.amount || row.price || "-",
+userEmail: row.user?.email || row.user_email || "-",
+    userId: row.user_id ?? row.user?.id ?? "",
+    planId: row.plan_id ?? row.plan?.id ?? "",
+    type: typeRaw === "role" ? "Role" : typeRaw === "ads" ? "Ads" : typeRaw === "ecom" ? "Ecom" : typeRaw === "quiz" ? "Quiz" : typeRaw || "-",
+    planTitle: row.plan?.title || row.plan_title || row.planTitle || row.title || "-",
+    credits: row.plan?.credits ?? row.plan?.quiz_count ?? row.credits ?? "-",
+    days: row.plan?.days ?? row.days ?? "-",
+    amount: formatMoney(row.amount ?? row.price),
     status: statusLabel,          // 👈 FilterBar ka generic `status` filter isi field ko check karta hai
+    validityStatus: validityRaw === "active" ? "Active" : validityRaw === "expired" ? "Expired" : "-",
+    purchaseDate: formatDisplayDate(row.purchase_date || row.purchaseDate) || "-",
+    startDate: formatDisplayDate(row.start_date || row.startDate) || "-",
+    endDate: row.end_date || row.endDate ? formatDisplayDate(row.end_date || row.endDate) : "No expiry",
     razorpayOrderId: row.razorpay_order_id || row.razorpayOrderId || "-",
     razorpayPaymentId: row.razorpay_payment_id || row.razorpayPaymentId || "-",
-    failureReason: row.failure_reason || row.failureReason || "-",
+    failureReason: row.failure_description || row.failure_reason || row.failureReason || "-",
+    seatLocation: seat ? [seat.level, seat.village, seat.taluka, seat.district, seat.state].filter(Boolean).join(", ") || "-" : "-",
     createdAt: formatDisplayDate(row.created_at || row.createdAt) || "-",
   };
 }
@@ -1994,23 +2180,47 @@ if (slug === "quiz-subscription-by-user") {
 }
 
 if (slug === "quiz-attempts") {
-  const total = Number(row.total_questions ?? row.totalQuestions ?? 0) || 0;
-  const correct = Number(row.correct_answers ?? row.correctAnswers ?? row.score ?? 0) || 0;
-  const percentage = total ? Math.round((correct / total) * 100) : Number(row.percentage ?? NaN);
+  // Admin API: GET /quiz-attempts -> { data: [ { attempt_id, user_name, quiz_title, ... } ], meta }
+  const attemptId = row.attempt_id ?? row.id ?? "";
+  const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+  const total = num(row.total_questions ?? row.totalQuestions);
+  const correct = num(row.correct_answers ?? row.correctAnswers);
+  const rawPct = row._pctRaw ?? row.percentage;
+  const parsedPct = rawPct === null || rawPct === undefined || rawPct === "" ? NaN : Number(String(rawPct).replace("%", ""));
+  const pct = Number.isFinite(parsedPct) ? parsedPct : (total ? Math.round((correct / total) * 100) : NaN);
+  const completed = String(row.status_label ?? "").toLowerCase() === "completed"
+    || Number(row.status) === 1
+    || String(row.status ?? "").toLowerCase() === "completed";
+  const secs = row.time_taken === null || row.time_taken === undefined || row.time_taken === "" ? NaN : Number(row.time_taken);
+  const mmss = Number.isFinite(secs) ? `${String(Math.floor(secs / 60)).padStart(2, "0")}:${String(Math.floor(secs % 60)).padStart(2, "0")}` : "";
+  const statusText = completed ? "Completed" : "In Progress";
+  // NOTE: pass_status abhi hamesha null hai -> pass/fail column dikhaya hi nahi
+  // NOTE: CellValue 0 ko "-" dikhata hai, isliye numbers String() me
   return {
     ...row,
-    _rowKey: String(row.id || `quiz-attempt-${index}`),
+    _rowKey: String(attemptId || `quiz-attempt-${index}`),
+    _pctRaw: Number.isFinite(pct) ? pct : "",
     sr: row.sr || index + 1,
-    id: row.id || "",
-    user_id: row.user_id || row.userId || "",
-    username: row.user?.name || row.username || row.user_name || "-",
-    quizTitle: row.quiz?.title || row.quiz_title || row.quizTitle || row.title || "-",
-    totalQuestions: row.total_questions ?? row.totalQuestions ?? total ?? "",
-    correctAnswers: row.correct_answers ?? row.correctAnswers ?? correct ?? "",
-    percentage: Number.isFinite(percentage) ? `${percentage}%` : "-",
-    result: row.result || (Number.isFinite(percentage) ? (percentage >= 40 ? "Pass" : "Fail") : "-"),
-    attemptedAt: formatDisplayDate(row.attempted_at || row.attemptedAt || row.created_at || row.createdAt) || "",
-    createdAt: formatDisplayDate(row.created_at || row.createdAt) || "",
+    id: attemptId === "" ? "" : String(attemptId),
+    user_id: String(row.user_id ?? row.userId ?? row.user?.id ?? ""),
+    username: row.user_name || row.user?.name || row.username || "-",
+    userEmail: row.user_email || row.user?.email || row.userEmail || "-",
+    userMobile: row.user_mobile || row.user?.mobile || row.userMobile || "-",
+    quizTitle: row.quiz_title || row.quiz?.title || row.quizTitle || row.title || "-",
+    quizType: row.quiz_type || row.quizType || "-",
+    totalQuestions: String(total),
+    attemptedQuestions: String(num(row.attempted_questions ?? row.attemptedQuestions)),
+    correctAnswers: String(correct),
+    wrongAnswers: String(num(row.wrong_answers ?? row.wrongAnswers)),
+    skippedAnswers: String(num(row.skipped_answers ?? row.skippedAnswers)),
+    marks: `${num(row.obtained_marks ?? row.obtainedMarks)} / ${num(row.total_marks ?? row.totalMarks)}`,
+    percentage: Number.isFinite(pct) ? `${pct}%` : "-",
+    timeTaken: row.time_taken_formatted || mmss || "-",
+    status: statusText,          // client-side status filter ke liye
+    attemptStatus: statusText,   // column/detail ke liye (status key StatusToggle dikhata hai, isliye alag)
+    attemptedAt: formatIsoDate(row.attempt_date || row.attempted_at || row.created_at) || "",
+    submittedAt: formatIsoDate(row.submitted_at) || "-",
+    createdAt: formatIsoDate(row.attempt_date || row.created_at) || "",
   };
 }
 
@@ -2044,6 +2254,64 @@ if (slug === "user-blocks") {
     blocked_email: row.blocked?.email || row.blocked_email || row.blocked_user?.email || "-",
     reason: row.reason || row.block_reason || "",
     createdAt: formatDisplayDate(row.createdAt || row.created_at) || "",
+  };
+}
+
+
+if (slug === "wallets") {
+  console.log("RAW_WALLET_ROW", row); // TEMP — fields verify karke hata dena
+  const u = row.user && typeof row.user === "object" ? row.user : {};
+  const walletUserId = row.user_id ?? row.userId ?? u.id ?? "";
+  const frozen = row.is_frozen === true || Number(row.is_frozen) === 1;
+  return {
+    ...row,
+    _rowKey: String(walletUserId || `wallet-${index}`),
+    sr: row.sr || index + 1,
+    id: walletUserId,   // wallet detail API /wallets/{userId} hai, isliye id = userId
+    userId: walletUserId,
+    userName: u.name || [u.firstname, u.lastname].filter(Boolean).join(" ").trim() || row.user_name || row.userName || (typeof row.user === "string" ? row.user : "") || row.name || "-",
+    user: u.name || row.userName || (typeof row.user === "string" ? row.user : "") || "",
+    userEmail: u.email || row.email || "",
+    pendingCommission: formatMoney(row.pending_commission ?? row.pending_balance),
+    approvedCommission: formatMoney(row.approved_commission ?? row.approved_balance),
+    reversedCommission: formatMoney(row.reversed_commission),
+    withdrawableBalance: formatMoney(row.withdrawable_balance),
+    lockedBalance: formatMoney(row.locked_balance),
+    withdrawnBalance: formatMoney(row.withdrawn_balance),
+    totalEarned: formatMoney(row.total_earned),
+    status: frozen ? "Frozen" : "Active",
+    frozenReason: row.frozen_reason || row.freeze_reason || "",
+    createdAt: formatDisplayDate(row.created_at || row.createdAt) || "",
+  };
+}
+
+if (slug === "withdrawal") {
+  console.log("RAW_WITHDRAWAL_ROW", row); // TEMP
+  const u = row.user && typeof row.user === "object" ? row.user : {};
+  const rawStatus = String(row.status ?? "").trim().toLowerCase();
+  return {
+    ...row,
+    _rowKey: String(row.id || `withdrawal-${index}`),
+    sr: row.sr || index + 1,
+    id: row.id || "",
+    userId: row.user_id ?? row.userId ?? u.id ?? "",
+    userName: u.name || [u.firstname, u.lastname].filter(Boolean).join(" ").trim() || row.user_name || row.userName || (typeof row.user === "string" ? row.user : "") || "-",
+    user: u.name || row.userName || (typeof row.user === "string" ? row.user : "") || "",
+    withdrawalNumber: row.withdrawal_no || row.withdrawal_number || row.reference_no || row.reference || row.id || "",
+    amount: formatMoney(row.amount),
+    method: String(row.method || "").toUpperCase(),
+    accountHolder: row.account_holder_name || row.account_holder || row.holder_name || "",
+    accountNumber: row.account_number || row.account_number_masked || "",   // list me masked, detail me full
+    ifsc: row.ifsc || row.ifsc_code || "",
+    upiId: row.upi_id || "",
+    payoutReference: row.payout_reference || "",
+    payoutMode: row.payout_mode || "",
+    adminRemarks: row.admin_remarks || "",
+    rejectReason: row.reject_reason || row.rejection_reason || row.reason || "",
+    status: rawStatus ? rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1) : "Pending",
+    createdAt: formatDisplayDate(row.created_at || row.createdAt) || "",
+    approvedAt: formatDisplayDate(row.approved_at) || "",
+    paidAt: formatDisplayDate(row.paid_at) || "",
   };
 }
 
@@ -2325,7 +2593,98 @@ const extractSavedRow = (payload, slug) => {
   return payload?.[singular] || payload?.data?.[singular] || payload?.data?.record || payload?.record || payload?.data || payload;
 };
 
-const loadModuleFromApi = async (slug) => {
+// Wallet and withdrawal endpoints require user_id; rows for all users are merged client-side.
+const WALLET_KEYS = ["withdrawable_balance", "approved_commission", "approved_balance", "pending_commission", "pending_balance", "withdrawn_balance", "locked_balance"];
+const isWalletObject = (obj) => obj && typeof obj === "object" && !Array.isArray(obj) && WALLET_KEYS.some((key) => key in obj);
+const pickWalletObject = (data) =>
+  [data?.wallet, data?.data?.wallet, data?.summary, data?.data?.summary, data?.data, data].find(isWalletObject) || null;
+const toList = (value) => (Array.isArray(value) ? value : Array.isArray(value?.data) ? value.data : []);
+
+const userIdRequiredSlugs = new Set(["wallets", "withdrawal"]);
+const isUserIdRequiredError = (error) =>
+  error?.response?.status === 422 && Boolean(error.response?.data?.errors?.user_id);
+
+const loadWalletOrWithdrawalIndex = async (slug, extraParams = {}) => {
+  const client = moduleClientForSlug(slug);
+
+  // For APIs which allow an unscoped index call, use it directly.
+  if (!userIdRequiredSlugs.has(slug)) {
+    try {
+      const res = await client.get(moduleApi[slug].index, { headers: apiHeaders(), params: extraParams, timeout: 12000 });
+      console.log(`RAW_${slug.toUpperCase()}_LIST_RESPONSE`, res.data); // TEMP
+      return extractRows(res.data).map(normalizeModuleRow(slug));
+    } catch (error) {
+      if (!isUserIdRequiredError(error)) throw error;   // koi aur error ho to toast me dikhao
+      userIdRequiredSlugs.add(slug);                    // backend ko user_id chahiye -> STEP 2
+    }
+  }
+
+  // Backend requires user_id, so request each user's records and merge them for the table.
+  const { rows: allUsers } = await loadUsersFromApi("user-profile");
+  const users = allUsers.filter((u) => u.id).slice(0, 200);
+  if (!users.length) throw new Error("Users list khali hai, isliye wallet/withdrawal load nahi ho sakta (backend ko user_id chahiye).");
+  const settledAll = [];
+  for (let i = 0; i < users.length; i += 10) {           // 10-10 ke batch, server par load na pade
+    const batch = users.slice(i, i + 10);
+    const settled = await Promise.allSettled(
+      batch.map(async (u, batchIndex) => {
+        const res = await client.get(moduleApi[slug].index, {
+          headers: apiHeaders(),
+          params: { ...extraParams, user_id: u.id },
+          timeout: 12000,
+        });
+        if (i === 0 && batchIndex === 0) console.log(`RAW_${slug.toUpperCase()}_RESPONSE user_id=${u.id}`, res.data); // TEMP
+        const userInfo = { id: u.id, name: u.name, email: u.email };
+        if (slug === "wallets") {
+          const wallet = pickWalletObject(res.data);
+          return wallet ? [{ ...wallet, user_id: u.id, user: wallet.user || userInfo }] : [];
+        }
+        return extractRows(res.data).map((row) => ({ user_id: u.id, user: row.user || userInfo, ...row }));
+      })
+    );
+    settledAll.push(...settled);
+  }
+  const failed = settledAll.filter((r) => r.status === "rejected");
+  if (failed.length && failed.length === settledAll.length) throw failed[0].reason;
+  return settledAll
+    .flatMap((r) => (r.status === "fulfilled" ? r.value : []))
+    .map(normalizeModuleRow(slug));
+};
+// Payment history + purchasers: all-users list, optional user_id filter, optional plan-wise endpoint
+const loadPaymentModule = async (slug, { userId = "", planId = "" } = {}) => {
+  const cfg = moduleApi[slug];
+  const params = { per_page: 100 };
+  if (userId) params.user_id = userId;
+  const url = planId && cfg.planIndex ? endpoint(cfg.planIndex, planId) : cfg.index;
+  const res = await moduleClientForSlug(slug).get(url, { headers: apiHeaders(), params, timeout: 12000 });
+  console.log(`RAW_${slug.toUpperCase()}_RESPONSE`, url, params, res.data); // TEMP — shape check ke baad hata dena
+  return extractRows(res.data).map(normalizeModuleRow(slug));
+};
+
+// Quiz attempts (admin): GET /quiz-attempts?per_page=100&page=N&user_id=
+// Backend paginated hai (max 100/page), isliye saare pages merge karte hain taaki table me sab dikhe.
+const loadQuizAttemptsModule = async ({ userId = "", ...rest } = {}) => {
+  const params = { per_page: 100, ...rest };
+  if (userId) params.user_id = userId;
+  const all = [];
+  let page = 1;
+  let lastPage = 1;
+  do {
+    const res = await apiClient.get(moduleApi["quiz-attempts"].index, {
+      headers: apiHeaders(),
+      params: { ...params, page },
+      timeout: 20000,
+    });
+    if (page === 1) console.log("RAW_QUIZ_ATTEMPTS_RESPONSE", params, res.data); // TEMP — shape check ke baad hata dena
+    all.push(...extractRows(res.data));
+    lastPage = Number(res.data?.meta?.last_page ?? 1) || 1;
+    page += 1;
+  } while (page <= lastPage && page <= 50);
+  return all.map(normalizeModuleRow("quiz-attempts"));
+};
+
+const loadModuleFromApi = async (slug, extraParams = {}) => {
+
   if (!moduleApi[slug]) {
     console.warn(`No API configuration found for slug: ${slug}`);
     return [];
@@ -2334,7 +2693,13 @@ const loadModuleFromApi = async (slug) => {
     const response = await axiosClient.get(API.NEWS_INDEX, { headers: apiHeaders(), timeout: 12000 });
     return extractRows(response.data).map(normalizeModuleRow("news"));
   }
-  const response = await moduleClientForSlug(slug).get(moduleApi[slug].index, { headers: apiHeaders(), timeout: 12000 });
+  if (slug === "quiz-attempts") {
+    return loadQuizAttemptsModule(extraParams);
+  }
+  if (["wallets", "withdrawal"].includes(slug)) {
+    return loadWalletOrWithdrawalIndex(slug, extraParams);
+  }
+  const response = await moduleClientForSlug(slug).get(moduleApi[slug].index, { headers: apiHeaders(), params: extraParams, timeout: 12000 });
   return extractRows(response.data).map(normalizeModuleRow(slug));
 };
 
@@ -2413,9 +2778,19 @@ const saveModuleToApi = async (slug, record, mode, currentRow = {}, form) => {
   }
 };
 
+// Ye endpoints /api/rti-admin/* par real HTTP DELETE maangte hain (admin token; user token par 403 admin_required)
+const REAL_DELETE_RTI_ADMIN_SLUGS = ["quiz-attempts", "withdrawal"];
+
 const deleteModuleFromApi = (slug, row) => {
   const deleteIdentifier = resolveRecordIdentifier(row);
   const client = moduleClientForSlug(slug);
+
+  if (REAL_DELETE_RTI_ADMIN_SLUGS.includes(slug)) {
+    // NOTE: withdrawal ka list/approve/reject adminRtiClient (/admin-rti) par hai, lekin delete /rti-admin par -> apiClient
+    const url = endpoint(moduleApi[slug]?.delete, row);
+    console.log("DELETE_REQUEST", { resource: slug, identifier: deleteIdentifier, endpoint: url, method: "DELETE" });
+    return apiClient.delete(url, { headers: apiHeaders(), timeout: 12000 });
+  }
 
   // Admin RTI (user-follows / user-blocks) real DELETE method use karta hai —
   // baaki modules Laravel-style spoofed POST (_method=DELETE) use karte hain.
@@ -2444,7 +2819,7 @@ const deleteModuleFromApi = (slug, row) => {
   return client.post(endpoint(moduleApi[slug]?.delete, row), payload, requestConfig);
 };
 
-const STATUS_ONE_TWO_SLUGS = ["ecommerce-subscription", "subscription-purchases", "ecom-sell"];
+const STATUS_ONE_TWO_SLUGS = ["ecommerce-subscription", "payment-history", "ecom-sell"];
 const usesOneTwoStatus = (slug) => STATUS_ONE_TWO_SLUGS.includes(slug);
 
 const updateModuleStatusInApi = async (slug, row, status) => {
@@ -2473,10 +2848,16 @@ const restoreQuizFromApi = (row) =>
   apiClient.post(endpoint(API.QUIZ_RESTORE, row), {}, { headers: apiHeaders(), timeout: 12000 });
 
 const approveProfileRequestInApi = (row) =>
-  adminRtiClient.patch(endpoint(API.PROFILE_UPDATE_REQUESTS_APPROVE, row), {}, { headers: apiHeaders(), timeout: 12000 });
+  adminRtiClient.post(endpoint(API.PROFILE_UPDATE_REQUESTS_APPROVE, row), {}, { headers: apiHeaders(), timeout: 12000 });
+
+const approveWithdrawalInApi = (row, admin_remarks) =>
+  adminRtiClient.patch(endpoint(API.WITHDRAWAL_APPROVE, row), admin_remarks ? { admin_remarks } : {}, { headers: apiHeaders(), timeout: 12000 });
+
+const rejectWithdrawalInApi = (row, reason) =>
+  adminRtiClient.patch(endpoint(API.WITHDRAWAL_REJECT, row), { reason }, { headers: apiHeaders(), timeout: 12000 });
 
 const rejectProfileRequestInApi = (row, reason) =>
-  adminRtiClient.patch(endpoint(API.PROFILE_UPDATE_REQUESTS_REJECT, row), { reason }, { headers: apiHeaders(), timeout: 12000 });
+  adminRtiClient.post(endpoint(API.PROFILE_UPDATE_REQUESTS_REJECT, row), { reason }, { headers: apiHeaders(), timeout: 12000 });
 const buildQuestionAnswerJsonPayload = (record = {}) => {
   const rawQuestions = record.questions?.length ? record.questions : [{
     id: record.id,
@@ -2792,7 +3173,7 @@ const pickRecordSubTitle = (row) => {
 };
 
 const mobilePrimaryText = (row = {}) => {
-  const title = row.title || row.sellerName || row.name || row.username || row.productName || row.adTitle || row.adName || row.product || row.officeName || row.user || row.viewerName || row.id || "Record";
+  const title = row.title || row.sellerName || row.name || row.username || row.productName || row.adTitle || row.adName || row.product || row.officeName || row.userName || (typeof row.user === "string" ? row.user : "") || row.viewerName || row.id || "Record";
   const category = row.category || row.location || "";
   return category ? `${title} • ${category}` : title;
 };
@@ -2856,9 +3237,10 @@ const FilterBar = ({ filters = [], values, onChange, onReset, slug }) => {
   const [open, setOpen] = useState(false);
   if (!filters.length) return null;
   const hasActiveFilters = Object.values(values || {}).some((value) => String(value || "").trim());
-  const statusOptions = slug === "withdrawal" ? ["Approved", "Failed", "Pending"]
+  const statusOptions = slug === "withdrawal" ? ["Pending", "Approved", "Processing", "Paid", "Rejected", "Cancelled"]
+  : slug === "quiz-attempts" ? ["Completed", "In Progress"]
   : slug === "profile-update-requests" ? ["Pending", "Approved", "Rejected"]
-  : slug === "subscription-purchases" ? ["Created", "Paid", "Failed"]
+ : PAYMENT_LIST_SLUGS.includes(slug) ? ["Created", "Paid", "Failed"]
   : ["Active", "Inactive"];
   const selectFilters = {
     state: ["State", stateOptions],
@@ -2866,7 +3248,7 @@ const FilterBar = ({ filters = [], values, onChange, onReset, slug }) => {
     source: ["Source", ["Referral", "Ads Credit", "Ecom", "Manual"]],
     taluka: ["Taluka", defaultTalukas],
     status: ["Status", statusOptions],
-    type: ["Type", ["Role", "Ads", "Ecom"]],
+    type: ["Type", slug === "payment-history" ? ["Role", "Ads", "Ecom", "Quiz"] : ["Role", "Ads", "Ecom"]],
     filterStatus: ["Filter Status", statusOptions],
     category: ["Category", newsCategories],
     subject: ["Subject", ["RTI", "BNS", "Journalism"]],
@@ -2895,6 +3277,16 @@ const FilterBar = ({ filters = [], values, onChange, onReset, slug }) => {
             {filters.includes("search") && (
               <div className="col-md-6 col-12">
                 <input className="form-control mb-3" type="search" placeholder="Search..." value={values.search} onChange={(event) => onChange("search", event.target.value)} />
+              </div>
+            )}
+{(PAYMENT_LIST_SLUGS.includes(slug) || slug === "quiz-attempts") && (
+              <div className="col-md-6 col-12">
+                <input className="form-control mb-3" type="number" min="1" placeholder="User ID (server filter)" value={values.apiUserId || ""} onChange={(event) => onChange("apiUserId", event.target.value)} />
+              </div>
+            )}
+            {PURCHASER_SLUGS.includes(slug) && (
+              <div className="col-md-6 col-12">
+                <input className="form-control mb-3" type="number" min="1" placeholder="Plan ID (specific plan purchasers)" value={values.apiPlanId || ""} onChange={(event) => onChange("apiPlanId", event.target.value)} />
               </div>
             )}
             {Object.entries(selectFilters).map(([name, [label, options]]) => filters.includes(name) && (
@@ -3001,8 +3393,12 @@ const openWithdrawalInvoice = (row) => {
 const pdfHref = (row = {}, field = "pdfFiles") =>
   row[`${field}Url`] || row.pdfFilesUrl || row.pdfUrl || row.fileUrl || row.url || "";
 
+// Withdrawal delete backend sirf paid / rejected / cancelled par allow karta hai (baaki par 422 withdrawal_active)
+const DELETABLE_WITHDRAWAL_STATUSES = ["paid", "rejected", "cancelled"];
+
 const ActionButtons = ({ slug, actions, row, onDelete, onStatus, onApprove, onReject }) => {
   const linkSlug = slug === "dashboard" ? "user-profile" : slug; 
+  const canDelete = slug !== "withdrawal" || DELETABLE_WITHDRAWAL_STATUSES.includes(String(row.status || "").trim().toLowerCase());
   return (
     <div className="rti-action-buttons" onClick={(event) => event.stopPropagation()}>
     {actions.includes("generatePdf") && (
@@ -3061,8 +3457,8 @@ const ActionButtons = ({ slug, actions, row, onDelete, onStatus, onApprove, onRe
         <i className="fa fa-times" />
       </button>
     )}
-    {actions.includes("delete") && (
-      <button type="button" onClick={() => onDelete(row)} className="btn btn-danger shadow btn-xs sharp">
+    {actions.includes("delete") && canDelete && (
+      <button type="button" onClick={() => onDelete(row)} className="btn btn-danger shadow btn-xs sharp" title="Delete">
         <i className="fa fa-trash" />
       </button>
     )}
@@ -3080,7 +3476,11 @@ const CellValue = ({ field, row, slug, onImage }) => {
     return <button type="button" className="rti-image-button" onClick={() => onImage(row.productImage || row.image || profile)}><img src={row.productImage || row.image || profile} alt={row.productName || "Product"} className="rounded" width="44" height="34" /></button>;
   }
    if (field === "status") {
-    return slug === "profile-update-requests" ? requestStatusBadge(row.status) : statusBadge(row.status);
+    return ["profile-update-requests", "withdrawal", "wallets"].includes(slug) ? requestStatusBadge(row.status) : statusBadge(row.status);
+  }
+  if (field === "attemptStatus") {
+    const done = String(row.attemptStatus || "").toLowerCase() === "completed";
+    return <span className={`badge light badge-${done ? "success" : "warning"}`}>{row.attemptStatus || "-"}</span>;
   }
   if (field === "result") {
     const normalizedResult = String(row.result || "").toLowerCase();
@@ -3257,7 +3657,7 @@ const RejectReasonModal = ({ show, row, onHide, onConfirm }) => {
       </Modal.Header>
       <Modal.Body>
         <p className="mb-2">
-          Reject profile update request from <strong>{row?.user_name || "this user"}</strong>?
+          {row?.withdrawalNumber ? "Reject withdrawal" : "Reject profile update request from"} <strong>{row?.withdrawalNumber || row?.user_name || "this user"}</strong>?
         </p>
         <label className="form-label">Reason for rejection (user ko yeh dikhega)</label>
         <textarea
@@ -3304,7 +3704,9 @@ export const ModuleList = ({ slug }) => {
     id: "",
     userId: "",
     username: "",
-    transactionId: "",
+       transactionId: "",
+    apiUserId: "",
+    apiPlanId: "",
     amount: "",
     orderId: "",
     title: "",
@@ -3376,12 +3778,14 @@ export const ModuleList = ({ slug }) => {
   }, [slug]);
 
   useEffect(() => {
-    if (!MODULE_API_SLUGS.includes(slug)) return;
+    if (!MODULE_API_SLUGS.includes(slug) || PAYMENT_LIST_SLUGS.includes(slug) || slug === "quiz-attempts") return;
     let active = true;
+    // List pages use their all-users index endpoints; pagination only.
+    const extraParams = ["wallets", "withdrawal"].includes(slug) ? { per_page: 100 } : {};
     Promise.resolve().then(() => {
       if (active) setIsLoading(true);
     });
-  loadModuleFromApi(slug)
+  loadModuleFromApi(slug, extraParams)
   .then((apiRows) => {
     if (!active) return;
     const validApiRows = apiRows.filter((row) => row.id); // ✅ sirf real id wale rows
@@ -3404,6 +3808,65 @@ export const ModuleList = ({ slug }) => {
       active = false;
     };
   }, [slug]);
+
+  // Quiz attempts: table open hote hi saare users ke attempts; User ID filter = server-side (?user_id=)
+  useEffect(() => {
+    if (slug !== "quiz-attempts") return;
+    let active = true;
+    const userId = String(filters.apiUserId || "").trim();
+    const timer = setTimeout(() => {
+      setIsLoading(true);
+      loadQuizAttemptsModule({ userId })
+        .then((apiRows) => {
+          if (!active) return;
+          const sorted = sortRowsNewestFirst(apiRows.filter((row) => row.id));
+          setModuleRows(sorted);
+          saveStoredRows(slug, sorted);
+        })
+        .catch((error) => {
+          if (!active) return;
+          setModuleRows([]);
+          setToast(apiMessage(error, "Unable to load quiz attempts from server"));
+        })
+        .finally(() => {
+          if (active) setIsLoading(false);
+        });
+    }, userId ? 500 : 0);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [slug, filters.apiUserId]);
+
+  // Payment history + purchasers (server-side user_id / plan filter)
+  useEffect(() => {
+    if (!PAYMENT_LIST_SLUGS.includes(slug)) return;
+    let active = true;
+    const userId = String(filters.apiUserId || "").trim();
+    const planId = String(filters.apiPlanId || "").trim();
+    const timer = setTimeout(() => {
+      setIsLoading(true);
+      loadPaymentModule(slug, { userId, planId })
+        .then((apiRows) => {
+          if (!active) return;
+          const sorted = sortRowsNewestFirst(apiRows);
+          setModuleRows(sorted);
+          saveStoredRows(slug, sorted);
+        })
+        .catch((error) => {
+          if (!active) return;
+          setModuleRows([]);
+          setToast(apiMessage(error, "Unable to load data from server"));
+        })
+        .finally(() => {
+          if (active) setIsLoading(false);
+        });
+    }, userId || planId ? 500 : 0);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [slug, filters.apiUserId, filters.apiPlanId]);
 
  const filteredRows = useMemo(() => {
     const sourceRows = [...moduleRows];
@@ -3581,7 +4044,7 @@ export const ModuleList = ({ slug }) => {
                   <div className="card-body">
                     <div className="d-flex justify-content-between gap-2">
                       <strong>{mobilePrimaryText(row)}</strong>
-                      {row.status && statusBadge(row.status)}
+                      {row.status && (["wallets", "withdrawal"].includes(slug) ? requestStatusBadge(row.status) : slug === "quiz-attempts" ? CellValue({ field: "attemptStatus", row }) : statusBadge(row.status))}
                     </div>
                     <p className="mb-1">{mobileSecondaryText(row) || row.id || "-"}</p>
                     <p className="mb-3">{mobileMetaText(row) || "-"}</p>
@@ -3633,7 +4096,13 @@ export const ModuleList = ({ slug }) => {
         title="Delete Confirmation"
         row={deleteRow}
         intent="delete"
-        message={`Are you sure you want to delete ${pickRecordTitle(deleteRow)}?`}
+        message={
+          slug === "quiz-attempts"
+            ? `Delete quiz attempt #${deleteRow?.id || ""} of ${deleteRow?.username || "this user"}? It will also disappear from the user's quiz history.`
+            : slug === "withdrawal"
+              ? `Delete withdrawal ${deleteRow?.withdrawalNumber || ""} (${deleteRow?.amount || "-"}) of ${deleteRow?.userName || "this user"}?`
+              : `Are you sure you want to delete ${pickRecordTitle(deleteRow)}?`
+        }
         confirmText="Delete"
         variant="danger"
         onHide={() => setDeleteRow(null)}
@@ -3658,7 +4127,11 @@ export const ModuleList = ({ slug }) => {
             saveDeletedKeys(slug, Array.from(new Set([...getDeletedKeys(slug), deletedKey])));
             sessionStorage.removeItem(activeRecordKey(slug));
             setDeleteRow(null);
-            setToast(`${pickRecordTitle(rowToDelete)} deleted successfully`);
+            setToast(
+              slug === "quiz-attempts" ? "Quiz attempt deleted successfully."
+                : slug === "withdrawal" ? "Withdrawal deleted successfully."
+                  : `${pickRecordTitle(rowToDelete)} deleted successfully`
+            );
           } catch (error) {
             setDeleteRow(null);
             setToast(apiMessage(error, "Delete failed. Please check server response."));
@@ -3701,12 +4174,24 @@ export const ModuleList = ({ slug }) => {
         show={Boolean(approveRow)}
         title="Approve Confirmation"
         row={approveRow}
-        message={`Approve profile update request from ${approveRow?.user_name || "this user"}?`}
+        message={slug === "withdrawal" ? `Approve withdrawal ${approveRow?.withdrawalNumber} of ${approveRow?.amount}?` : `Approve profile update request from ${approveRow?.user_name || "this user"}?`}
         confirmText="Approve"
         onHide={() => setApproveRow(null)}
         onConfirm={async () => {
           const rowToApprove = approveRow;
           try {
+            if (slug === "withdrawal") {
+              await approveWithdrawalInApi(rowToApprove);
+              const approvedId = resolveRecordIdentifier(rowToApprove);
+              setModuleRows((currentRows) => {
+                const nextRows = currentRows.map((item) => resolveRecordIdentifier(item) === approvedId ? { ...item, status: "Approved" } : item);
+                saveStoredRows(slug, nextRows);
+                return nextRows;
+              });
+              setApproveRow(null);
+              setToast(`Withdrawal ${rowToApprove.withdrawalNumber} approved`);
+              return;
+            }
             await approveProfileRequestInApi(rowToApprove);
             // Approve hote hi pending list se hat jata hai (backend ab isko pending nahi maanta)
             const approvedKey = resolveRecordIdentifier(rowToApprove);
@@ -3730,6 +4215,18 @@ export const ModuleList = ({ slug }) => {
         onConfirm={async (reason) => {
           const rowToReject = rejectRow;
           try {
+            if (slug === "withdrawal") {
+              await rejectWithdrawalInApi(rowToReject, reason);
+              const rejectedId = resolveRecordIdentifier(rowToReject);
+              setModuleRows((currentRows) => {
+                const nextRows = currentRows.map((item) => resolveRecordIdentifier(item) === rejectedId ? { ...item, status: "Rejected" } : item);
+                saveStoredRows(slug, nextRows);
+                return nextRows;
+              });
+              setRejectRow(null);
+              setToast(`Withdrawal ${rowToReject.withdrawalNumber} rejected`);
+              return;
+            }
             await rejectProfileRequestInApi(rowToReject, reason);
             // Reject hote hi pending data (aur uploaded pending image) backend se delete ho jata hai
             const rejectedKey = resolveRecordIdentifier(rowToReject);
@@ -3760,7 +4257,7 @@ const DetailGrid = ({ fields, row, onStatus, slug }) => (
           <small className="text-muted d-block">{labels[field] || field}</small>
           <strong>
           {field === "status" ? (
-  slug === "profile-update-requests"
+  ["profile-update-requests", "withdrawal", "wallets"].includes(slug)
     ? requestStatusBadge(row[field])
     : <StatusToggle status={row[field] || "Active"} onClick={onStatus} />
 ) : field === "pdfFiles" ? (
@@ -3774,7 +4271,9 @@ const DetailGrid = ({ fields, row, onStatus, slug }) => (
                 {row[field] || labels[field]}
               </a>
                        ) : field === "pendingProfileImage" ? (
-              <img src={row.pendingProfileImage} alt="Pending profile" className="rti-detail-image" />
+              row.pendingProfileImage
+                ? <img src={row.pendingProfileImage} alt="Pending profile" className="rti-detail-image" />
+                : "-"
             ) : field === "productImage" ? (
               <img src={row.productImage || row.image || profile} alt={row.productName || "Product"} className="rti-detail-image" />
             ) : field === "profile_image" ? (
@@ -3931,12 +4430,60 @@ const QuizDetail = ({ row, editable = false, onStatus }) => {
   );
 };
 
+const RecentTable = ({ title, rows = [], columns }) => (
+  <div className="mt-4">
+    <h5>{title}</h5>
+    <div className="table-responsive">
+      <table className="table table-sm">
+        <thead><tr>{columns.map(([key, label]) => <th key={key}>{label}</th>)}</tr></thead>
+        <tbody>
+          {rows.length ? rows.map((item, i) => (
+            <tr key={item.id ?? i}>{columns.map(([key, , fmt]) => <td key={key}>{fmt ? fmt(item) : (item[key] ?? "-")}</td>)}</tr>
+          )) : <tr><td colSpan={columns.length} className="text-center text-muted">No records</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
+const WalletRecent = ({ row, onDeleteTransaction }) => {
+  const recent = row.recent || {};
+  const date = (item) => formatDisplayDate(item.created_at) || "-";
+  return (
+    <>
+      <RecentTable title="Recent Commissions" rows={recent.commissions} columns={[
+        ["id", "ID"], ["level", "Level"],
+        ["amount", "Amount", (i) => formatMoney(i.amount ?? i.commission_amount)],
+        ["status", "Status"], ["created_at", "Date", date],
+      ]} />
+      <RecentTable title="Recent Transactions" rows={recent.transactions} columns={[
+        ["id", "ID"], ["type", "Type"], ["direction", "Direction"],
+        ["amount", "Amount", (i) => formatMoney(i.amount)],
+        ["balance_after", "Withdrawable After", (i) => formatMoney(i.balance_after?.withdrawable)],
+        ["created_at", "Date", date],
+        ["_delete", "Action", (i) => onDeleteTransaction ? (
+          <button type="button" className="btn btn-danger shadow btn-xs sharp" title="Delete transaction" onClick={() => onDeleteTransaction(i)}>
+            <i className="fa fa-trash" />
+          </button>
+        ) : "-"],
+      ]} />
+      <RecentTable title="Recent Withdrawals" rows={recent.withdrawals} columns={[
+        ["id", "Withdrawal", (i) => i.withdrawal_no || i.withdrawal_number || i.id],
+        ["amount", "Amount", (i) => formatMoney(i.amount)],
+        ["method", "Method", (i) => String(i.method || "-").toUpperCase()],
+        ["status", "Status"], ["created_at", "Date", date],
+      ]} />
+    </>
+  );
+};
+
 export const ModuleView = ({ slug }) => {
   const config = getConfig(slug);
   const [row, setRow] = useState(() => activeRow(slug));
   const [imagePreview, setImagePreview] = useState("");
   const [confirmStatus, setConfirmStatus] = useState(false);
   const [toast, setToast] = useState("");
+  const [walletTxnDelete, setWalletTxnDelete] = useState(null); // wallet transaction jise delete karna hai
 useEffect(() => {
  if (slug === "quiz-subscription-by-user" || slug === "question-bank") return;
   let active = true;
@@ -4020,6 +4567,52 @@ useEffect(() => {
         return;
       }
 
+      // Wallet detail: row pe click -> GET /wallets/{userId} (summary + recent commissions/transactions/withdrawals)
+      if (slug === "wallets") {
+        const targetUserId = row.userId ?? row.user_id ?? resolveRecordIdentifier(row);
+        if (!targetUserId) return;
+        const response = await adminRtiClient.get(API.WALLET_SHOW(encodeURIComponent(targetUserId)), { headers: apiHeaders(), timeout: 12000 });
+        console.log(`RAW_WALLET_DETAIL_RESPONSE user_id=${targetUserId}`, response.data); // TEMP
+        if (!active) return;
+        const d = response.data?.data && !Array.isArray(response.data.data) ? response.data.data : response.data;
+        const walletObj = pickWalletObject(response.data) || {};
+        const normalized = {
+          ...normalizeModuleRow("wallets")({ ...row, ...walletObj, user_id: targetUserId, user: walletObj.user || d?.user || row.user }),
+          recent: {
+            commissions: toList(d?.recent_commissions ?? d?.commissions),
+            transactions: toList(d?.recent_transactions ?? d?.transactions ?? d?.wallet_transactions),
+            withdrawals: toList(d?.recent_withdrawals ?? d?.withdrawals),
+          },
+        };
+        setRow(normalized);
+        updateStoredRow(slug, normalized);
+        sessionStorage.setItem(activeRecordKey(slug), rowKey(normalized));
+        return;
+      }
+
+      // Profile update request: single user ka pending data GET /users/pending-profiles?user_id={id}
+      if (slug === "profile-update-requests") {
+        const targetUserId = resolveRecordIdentifier(row);
+        if (!targetUserId) return;
+        const response = await adminRtiClient.get(API.PROFILE_UPDATE_REQUESTS_INDEX, {
+          headers: apiHeaders(),
+          params: { user_id: targetUserId },
+          timeout: 12000,
+        });
+        console.log(`RAW_PENDING_PROFILE_RESPONSE user_id=${targetUserId}`, response.data);
+        if (!active) return;
+        const list = extractRows(response.data);
+        const match = list.find((item) => String(item?.user_id ?? item?.userId ?? item?.id) === String(targetUserId))
+          || list[0]
+          || (response.data?.data && !Array.isArray(response.data.data) ? response.data.data : null);
+        if (!match || typeof match !== "object") return;
+        const normalized = summarizeProfileUpdateRequest(match);
+        setRow(normalized);
+        updateStoredRow(slug, normalized);
+        sessionStorage.setItem(activeRecordKey(slug), rowKey(normalized));
+        return;
+      }
+
       const apiRow = await showModuleFromApi(slug, row);
       if (!active) return;
 
@@ -4046,9 +4639,51 @@ useEffect(() => {
   loadDetail();
   return () => { active = false; };
 }, [slug]);
+
+  // Wallet transaction delete: DELETE /api/rti-admin/wallet/{transactionId}
+  // Sirf list se hide hota hai, wallet balance NAHI badalta.
+  const removeWalletTransactionFromView = (txnId) => {
+    const next = {
+      ...row,
+      recent: {
+        ...(row.recent || {}),
+        transactions: toList(row.recent?.transactions).filter((item) => String(item.id) !== String(txnId)),
+      },
+    };
+    setRow(next);
+    updateStoredRow(slug, next);
+  };
+  const confirmWalletTransactionDelete = async () => {
+    const txn = walletTxnDelete;
+    setWalletTxnDelete(null);
+    if (!txn?.id) return;
+    try {
+      await apiClient.delete(API.WALLET_TXN_DELETE(encodeURIComponent(txn.id)), { headers: apiHeaders(), timeout: 12000 });
+      removeWalletTransactionFromView(txn.id);
+      setToast("Wallet transaction deleted successfully.");
+    } catch (error) {
+      if (error?.response?.status === 404) {
+        removeWalletTransactionFromView(txn.id); // already deleted / galat id -> list se hata do
+        setToast("Transaction already deleted or not found.");
+        return;
+      }
+      setToast(apiMessage(error, "Wallet transaction delete failed."));
+    }
+  };
+
   return (
     <>
       <AppToast show={Boolean(toast)} message={toast} onClose={() => setToast("")} />
+      <ConfirmModal
+        show={Boolean(walletTxnDelete)}
+        title="Delete Transaction"
+        intent="delete"
+        message={`Delete wallet transaction #${walletTxnDelete?.id || ""} (${formatMoney(walletTxnDelete?.amount)})? This only hides it from the list — the wallet balance will NOT change.`}
+        confirmText="Delete"
+        variant="danger"
+        onHide={() => setWalletTxnDelete(null)}
+        onConfirm={confirmWalletTransactionDelete}
+      />
       <div className="d-flex align-items-center gap-3 flex-wrap mb-4">
         <Link to={`/admin/${slug}`} className="btn btn-light">
           <i className="fa fa-arrow-left me-2" />
@@ -4065,20 +4700,15 @@ useEffect(() => {
           <div className="card">
             <div className="card-header d-flex justify-content-between">
               <h4 className="card-title mb-0">{config.title} Details</h4>
-              {slug === "withdrawal" && (
-                <button type="button" className="btn btn-primary btn-sm" onClick={() => openWithdrawalInvoice(row)}>
-                  <i className="fa fa-download me-1" />
-                  Download Invoice
-                </button>
-              )}
             </div>
             <div className="card-body">
-              {(row.image || row.profile_image) && (
+              {(row.image || row.profile_image) && slug !== "profile-update-requests" && (
                 <button type="button" className="rti-image-button mb-3" onClick={() => setImagePreview(row.image || row.profile_image || profile)}>
                   <img src={row.image || row.profile_image || profile} alt={pickRecordTitle(row)} className="rti-detail-image" />
                 </button>
               )}
               <DetailGrid fields={config.details} row={row} onStatus={() => setConfirmStatus(true)} slug={slug} />
+              {slug === "wallets" && <WalletRecent row={row} onDeleteTransaction={setWalletTxnDelete} />}
             </div>
           </div>
         </>

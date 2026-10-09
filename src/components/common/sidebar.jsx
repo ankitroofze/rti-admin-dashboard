@@ -46,6 +46,11 @@ const MenuList = [
     to: "/admin/withdrawal",
     iconStyle: <i className="fa fa-money-bill-wave" />,
   },
+  {
+    title: "Payment History",
+    to: "/admin/payment-history",
+    iconStyle: <i className="fa fa-clock-rotate-left" />,
+  },
    {
     title: "Subscription Plan",
     to: "/admin/subscription-plan",
@@ -63,6 +68,10 @@ const MenuList = [
       {
         title: "Ecom-Subscription",
         to: "/admin/ecommerce-subscription",
+      },
+      {
+        title: "Ecom Subscription Purchasers",
+        to: "/admin/ecom-subscription-purchasers",
       },
       // {
       //   title: "Buy",
@@ -90,6 +99,10 @@ const MenuList = [
       {
         title: "Advertisement Subscription",
         to: "/admin/ads-subscription",
+      },
+      {
+        title: "Ads Subscription Purchasers",
+        to: "/admin/ads-subscription-purchasers",
       },
       {
         title: "Advertisement Management",
@@ -134,6 +147,10 @@ const MenuList = [
       {
         title: "Quiz Subscription Create",  // ✅ New
         to: "/admin/quiz-subscription-create",
+      },
+      {
+        title: "Quiz Subscription Purchasers",
+        to: "/admin/quiz-subscription-purchasers",
       },
         {
         title: "Quiz Subscription By User",  // ✅ New
