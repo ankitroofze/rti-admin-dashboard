@@ -4,7 +4,13 @@ import { Modal } from "react-bootstrap";
 
 import API from "../api/api";
 import axiosClient from "../api/axiosClient";
-import { allocateNewspaperPages } from "./newspaper_layout/allocationEngine";
+import {
+  allocateNewspaperPages,
+  mergeUniqueArticles,
+  collectUsedArticleKeys,
+  getArticleKeys,
+} from "./newspaper_layout/allocationEngine";
+import { buildBaseSections, downloadElementAsPdf } from "./newspaper_layout/epaperExport";
 import { getBlockConfig } from "./newspaper_layout/newspaperLayouts";
 
 import LayoutOne from "./newspaper_layout/layoutOne";
@@ -213,78 +219,64 @@ const DigitalNewspaper = () => {
   const [saveMessage, setSaveMessage] = useState("");
    const [fetchStatus, setFetchStatus] = useState("New e-paper");
 
+  // Saved draft ho to pehle wahi load karo
   useEffect(() => {
     if (savedRow.layoutData?.newspaperData) {
       setNewspaperData(savedRow.layoutData.newspaperData);
       setFetchStatus("Continuing saved e-paper draft");
-      return;
     }
+  }, [savedRow.layoutData]);
+
+  // News module se LIVE news laao (API -> fail ho to saved News module). Ek hi baar fetch,
+  // usi list se "News Modules" dropdown aur blocks ka auto-fill dono chalte hain.
+  // mergeUniqueArticles/allocator ensure karte hain ki same news dobara kisi block me na aaye.
+  useEffect(() => {
     let ignore = false;
     const loadNews = async () => {
+      let list = [];
+      let source = "";
       try {
         const response = await axiosClient.get(API.NEWS_INDEX, { timeout: 12000 });
         const fetched = extractArticleList(response.data);
-        if (!ignore && fetched.length > 0) {
-          setNewspaperData((current) => ({ ...current, articles: fetched.map(normalizeNewsForBlock) }));
-          setFetchStatus("Fetched from News module");
+        if (fetched.length > 0) {
+          list = fetched.map(normalizeNewsForBlock);
+          source = "Fetched from News module";
         }
       } catch (error) {
-        const localNews = readStoredRows("news").map(normalizeNewsForBlock);
-        if (!ignore && localNews.length) {
-          setNewspaperData((current) => ({ ...current, articles: localNews }));
-          setFetchStatus("Loaded from saved News module");
-        } else if (!ignore) {
-          setFetchStatus("Showing sample filled newspaper");
-        }
+        // niche local fallback
+      }
+      if (list.length === 0) {
+        list = readStoredRows("news").map(normalizeNewsForBlock);
+        if (list.length) source = "Loaded from saved News module";
+      }
+      if (ignore) return;
+
+      setNewsModuleList(list);
+      if (list.length > 0) {
+        // saved draft ho ya naya — jo news pehle se hai use chhodke nayi news jodo
+        setNewspaperData((current) => ({
+          ...current,
+          articles: mergeUniqueArticles(current.articles, list),
+        }));
+        if (!savedRow.layoutData?.newspaperData) setFetchStatus(source);
+      } else if (!savedRow.layoutData?.newspaperData) {
+        setFetchStatus("No news found in News module");
       }
     };
     loadNews();
     return () => {
       ignore = true;
     };
-  }, [savedRow.layoutData]);
-
-  // News Modules button ke dropdown ke liye hamesha LIVE News module data fetch karo
-  useEffect(() => {
-    let ignore = false;
-    const loadNewsModuleList = async () => {
-      try {
-        const response = await axiosClient.get(API.NEWS_INDEX, { timeout: 12000 });
-        const fetched = extractArticleList(response.data);
-        if (!ignore && fetched.length > 0) {
-          setNewsModuleList(fetched.map(normalizeNewsForBlock));
-          return;
-        }
-      } catch (error) {
-        // niche fallback try karenge
-      }
-      if (!ignore) {
-        const localNews = readStoredRows("news").map(normalizeNewsForBlock);
-        setNewsModuleList(localNews);
-      }
-    };
-    loadNewsModuleList();
-    return () => { ignore = true; };
   }, []);
 
-  const baseSections = useMemo(() => ({
-    header: newspaperData.header,
-    headline: { title: newspaperData.title },
-    masthead: {
-      date: newspaperData.header.date,
-      title: newspaperData.header.newspaperName,
-      website: "www.rtinewsnetwork.com",
-    },
-    heading: { title: newspaperData.title },
-    footer: newspaperData.footer,
-        slogan: { text: "" },
-  }), [newspaperData]);
+  const baseSections = useMemo(() => buildBaseSections(newspaperData), [newspaperData]);
 
   const generatedPages = useMemo(() => allocateNewspaperPages({
     articles: newspaperData.articles,
     baseSections,
     adminOverrides,
-  }), [newspaperData.articles, baseSections, adminOverrides]);
+    priorityLayout: selectedTemplate,
+  }), [newspaperData.articles, baseSections, adminOverrides, selectedTemplate]);
 
   const selectedTemplatePage = generatedPages.find((page) => page.layoutName === selectedTemplate);
   const visiblePages = [
@@ -300,6 +292,16 @@ const DigitalNewspaper = () => {
   const selectedBlock = selectedPage?.sections?.[activeSection] || {};
  const newsOptions = newsModuleList;
 
+  // Jo news kisi bhi block me use ho chuki hai (auto ya manual) — dropdown me dobara select na ho
+  const usedNewsKeys = useMemo(() => collectUsedArticleKeys(generatedPages), [generatedPages]);
+  const selectedBlockKeys = getArticleKeys(selectedBlock);
+  const isNewsUsedElsewhere = (news) => {
+    const keys = getArticleKeys(news);
+    if (!keys.some((key) => usedNewsKeys.has(key))) return false;
+    // jo news isi selected block me hai wo "elsewhere" nahi hai
+    return !keys.some((key) => selectedBlockKeys.includes(key));
+  };
+
   const handleSelectTemplate = (template) => {
     setSelectedTemplate(template);
     setNewspaperData((current) => ({ ...current, template }));
@@ -308,6 +310,21 @@ const DigitalNewspaper = () => {
 
   const handleExportPDF = async () => {
     printElementAsPdf(previewRef.current, newspaperData.title || "e-paper");
+  };
+
+  const [downloading, setDownloading] = useState(false);
+  const handleDownloadPDF = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      await downloadElementAsPdf(previewRef.current, newspaperData.title || "e-paper");
+      setSaveMessage("PDF download ho gaya");
+    } catch (error) {
+      console.error("PDF download failed", error);
+      alert(`PDF download nahi ho paya: ${error?.message || "unknown error"}\n\nPrint button se bhi PDF save kar sakte hain.`);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const buildEPaperRecord = () => ({
@@ -389,6 +406,10 @@ const DigitalNewspaper = () => {
 
   const applyNewsToSelectedBlock = (news) => {
     if (!selectedPage || !activeSection || !news) return;
+    if (isNewsUsedElsewhere(news)) {
+      alert("Ye news pehle se kisi dusre block me use ho chuki hai.");
+      return;
+    }
     const blockConfig = getBlockConfig(selectedPage.layoutName, activeSection);
     handleSectionChange(selectedPage.id, activeSection, {
       ...normalizeNewsForBlock(news),
@@ -469,9 +490,13 @@ const DigitalNewspaper = () => {
             <i className="fa fa-plus me-2" />
             Templates
           </button>
-          <button className="btn btn-primary" onClick={handleExportPDF}>
-            <i className="fa fa-file-pdf me-2" />
-            Export PDF
+          <button className="btn btn-primary" onClick={handleDownloadPDF} disabled={downloading}>
+            <i className="fa fa-download me-2" />
+            {downloading ? "Preparing PDF..." : "Download PDF"}
+          </button>
+          <button className="btn btn-outline-primary" onClick={handleExportPDF}>
+            <i className="fa fa-print me-2" />
+            Print
           </button>
         </div>
       </div>
@@ -538,17 +563,24 @@ const DigitalNewspaper = () => {
                 </button>
                 {activeSection && newsPickerOpen && (
                   <div style={styles.newsDropdown}>
-                    {newsOptions.map((news, index) => (
-                      <button
-                        type="button"
-                        className="dropdown-item text-start"
-                        key={`${news.id}-${index}`}
-                        onClick={() => applyNewsToSelectedBlock(news)}
-                      >
-                        <strong>{news.userId ? `${news.userId} - ` : ""}{news.title}</strong>
-                        <small className="d-block text-muted">{news.sub || news.reporter || "News module"}</small>
-                      </button>
-                    ))}
+                    {newsOptions.map((news, index) => {
+                      const used = isNewsUsedElsewhere(news);
+                      return (
+                        <button
+                          type="button"
+                          className="dropdown-item text-start"
+                          key={`${news.id}-${index}`}
+                          disabled={used}
+                          style={used ? { opacity: 0.5 } : undefined}
+                          onClick={() => applyNewsToSelectedBlock(news)}
+                        >
+                          <strong>{news.userId ? `${news.userId} - ` : ""}{news.title}</strong>
+                          <small className="d-block text-muted">
+                            {used ? "Already used in another block" : (news.sub || news.reporter || "News module")}
+                          </small>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>

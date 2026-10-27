@@ -16,8 +16,10 @@ import avatar3 from "../assets/images/avatar/3.jpg";
 import logo from "../assets/images/rti.png";
 import qrcode from "../assets/images/qr.png";
 import AppToast from "../components/common/AppToast";
+import { downloadSavedEPaper } from "./newspaper_layout/epaperExport";
 import statesDistricts from "../data/statesDistricts.json";
 import districtBlocks from "../data/districtBlocks.json";
+import { getVillagesByTaluka } from "../utils/villages";
 
    const getAllStates = () => statesDistricts.map((s) => s.name);
 
@@ -3396,12 +3398,33 @@ const pdfHref = (row = {}, field = "pdfFiles") =>
 // Withdrawal delete backend sirf paid / rejected / cancelled par allow karta hai (baaki par 422 withdrawal_active)
 const DELETABLE_WITHDRAWAL_STATUSES = ["paid", "rejected", "cancelled"];
 
+// E-paper ka PDF: uploaded PDF link ho to wahi, warna saved layout se PDF bana ke seedha download
+const canGenerateEPaperPdf = (row = {}) => !!row.layoutData?.newspaperData;
+
 const ActionButtons = ({ slug, actions, row, onDelete, onStatus, onApprove, onReject }) => {
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const handleGeneratePdf = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      await downloadSavedEPaper(row);
+    } catch (error) {
+      console.error("E-paper PDF download failed", error);
+      alert(error?.message || "PDF download nahi ho paya.");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
   const linkSlug = slug === "dashboard" ? "user-profile" : slug; 
   const canDelete = slug !== "withdrawal" || DELETABLE_WITHDRAWAL_STATUSES.includes(String(row.status || "").trim().toLowerCase());
   return (
     <div className="rti-action-buttons" onClick={(event) => event.stopPropagation()}>
-    {actions.includes("generatePdf") && (
+    {actions.includes("generatePdf") && !pdfHref(row) && canGenerateEPaperPdf(row) && (
+      <button type="button" onClick={handleGeneratePdf} disabled={pdfBusy} title="Download PDF" className="btn btn-secondary shadow btn-xs sharp">
+        <i className={`fa ${pdfBusy ? "fa-spinner fa-spin" : "fa-download"}`} />
+      </button>
+    )}
+    {actions.includes("generatePdf") && (pdfHref(row) || !canGenerateEPaperPdf(row)) && (
       <a href={pdfHref(row) || "#"} target="_blank" rel="noreferrer" className={`btn btn-secondary shadow btn-xs sharp ${pdfHref(row) ? "" : "disabled"}`} aria-disabled={!pdfHref(row)}>
         <i className="fa fa-file-pdf" />
       </a>
@@ -3489,6 +3512,18 @@ const CellValue = ({ field, row, slug, onImage }) => {
   }
   if (field === "pdfFiles") {
     const href = pdfHref(row, field);
+    if (!href && canGenerateEPaperPdf(row)) {
+      return (
+        <a href="#" className="text-primary" title="Download PDF" onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          downloadSavedEPaper(row).catch((error) => alert(error?.message || "PDF download nahi ho paya."));
+        }}>
+          <i className="fa fa-file-pdf me-1" />
+          {row.pdfFiles}
+        </a>
+      );
+    }
     return (
       <a href={href || "#"} target="_blank" rel="noreferrer" className={href ? "text-primary" : "text-muted"} onClick={(event) => event.stopPropagation()} aria-disabled={!href}>
         <i className="fa fa-file-pdf me-1" />
@@ -5420,6 +5455,23 @@ useEffect(() => {
     });
   }, [currentRow.state, currentRow.district, currentRow.taluka, currentRow.village]);
 
+  // ✅ Village dropdown: selected District + Taluka ke hisaab se villages (village-directory.csv se bani JSON)
+  const [villageState, setVillageState] = useState({ list: [], loading: false });
+  useEffect(() => {
+    if (!["subscription", "user"].includes(config.form)) return;
+    const { district, taluka } = locationState;
+    if (!district || !taluka) {
+      setVillageState({ list: [], loading: false });
+      return;
+    }
+    let active = true;
+    setVillageState({ list: [], loading: true });
+    getVillagesByTaluka(district, taluka)
+      .then((list) => { if (active) setVillageState({ list, loading: false }); })
+      .catch(() => { if (active) setVillageState({ list: [], loading: false }); });
+    return () => { active = false; };
+  }, [config.form, locationState.district, locationState.taluka]);
+
   // ✅ NAYA — Role list location ke hisaab se badlegi:
   // kuch bhi nahi -> National, State -> State roles, State+District -> District roles,
   // State+District+Taluka -> Taluka roles, sab 4 bhare -> Village roles. Premium hamesha last me.
@@ -5544,13 +5596,36 @@ useEffect(() => {
       );
     }
    if (["subscription", "user"].includes(config.form) && name === "village") {
+      // Taluka select hone ke baad us taluka ke villages dropdown me aate hain.
+      // Agar kisi taluka ka village data nahi mila to purana text input chalega (kuch toot'ta nahi).
+      const talukaChosen = Boolean(locationState.taluka);
+      const noVillageData = talukaChosen && !villageState.loading && villageState.list.length === 0;
+      if (noVillageData) {
+        return (
+          <Field
+            key={`${name}-text-${locationState.taluka}`}
+            label={label}
+            name={name}
+            value={locationState.village}
+            required={false}
+            onValueChange={(value) => setLocationState((current) => ({ ...current, village: value }))}
+          />
+        );
+      }
+      // edit karte waqt purani saved village list me na ho to bhi dikhe
+      const villageOptions = locationState.village && !villageState.list.includes(locationState.village)
+        ? [locationState.village, ...villageState.list]
+        : villageState.list;
       return (
         <Field
-          key={name}
-          label={label}
+          key={`${name}-${locationState.taluka}-${villageState.list.length}-${villageState.loading}`}
+          label={villageState.loading ? `${label} (loading...)` : label}
           name={name}
+          as="select"
+          options={villageOptions}
           value={locationState.village}
           required={false}
+          disabled={!talukaChosen || villageState.loading}
           onValueChange={(value) => setLocationState((current) => ({ ...current, village: value }))}
         />
       );
