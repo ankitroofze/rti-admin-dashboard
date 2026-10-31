@@ -51,6 +51,11 @@ const MenuList = [
     to: "/admin/payment-history",
     iconStyle: <i className="fa fa-clock-rotate-left" />,
   },
+  {
+    title: "Subscription Seats",
+    to: "/admin/subscription-seats",
+    iconStyle: <i className="fa fa-map-location-dot" />,
+  },
    {
     title: "Subscription Plan",
     to: "/admin/subscription-plan",

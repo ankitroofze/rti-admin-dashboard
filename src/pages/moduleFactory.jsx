@@ -293,6 +293,38 @@ const roleLabelById = subscriptionRoles.reduce((map, label, index) => {
 const OPEN_ROLE_LABEL = "Premium (All Roles - Open)";
 const subscriptionRoleOptions = [...subscriptionRoles, OPEN_ROLE_LABEL];
 
+// ✅ NAYA — Plan ab LEVEL se banta hai (location se nahi). Admin ek role ka plan ek hi baar banayega.
+// Level khaali = National (role id 1-5), State = 6-10, District = 11-15, Taluka = 16-20, Village = 21-25
+const SUBSCRIPTION_LEVELS = ["State", "District", "Taluka", "Village"];
+const LEVEL_START_INDEX = { "": 0, State: 5, District: 10, Taluka: 15, Village: 20 };
+const getRoleOptionsForLevel = (level) => {
+  const start = LEVEL_START_INDEX[level] ?? 0;
+  return subscriptionRoles.slice(start, start + 5);
+};
+const getLevelFromRoleId = (roleId) => {
+  const id = Number(roleId);
+  if (!id || id <= 5) return "";
+  if (id <= 10) return "State";
+  if (id <= 15) return "District";
+  if (id <= 20) return "Taluka";
+  return "Village";
+};
+const resolveRoleIdFromLevelAndLabel = (record = {}) => {
+  const start = LEVEL_START_INDEX[record.level || ""] ?? 0;
+  const index = getRoleOptionsForLevel(record.level || "").indexOf(String(record.role || "").trim());
+  return index >= 0 ? start + index + 1 : "";
+};
+
+// ✅ NAYA — form level ("State") <-> backend location_level ("state")
+const toLocationLevelValue = (level) => {
+  const value = String(level || "").trim();
+  return SUBSCRIPTION_LEVELS.includes(value) ? value.toLowerCase() : "";
+};
+const fromLocationLevelValue = (value) => {
+  const lower = String(value || "").trim().toLowerCase();
+  return SUBSCRIPTION_LEVELS.find((level) => level.toLowerCase() === lower) || "";
+};
+
 // ✅ NAYA — role label me selected location ka naam inject karta hai
 // e.g. "State Chief Editor" + "Maharashtra" -> "Maharashtra Chief Editor"
 const localizeRoleLabel = (label, levelWord, locationValue) => {
@@ -538,7 +570,7 @@ const moduleConfig = {
   ["status", "Status"],
 ],
   actions: ["view", "update", "delete", "status"],
-details: ["title", "role", "state", "district", "taluka", "village", "price", "offerPrice", "credits", "days", "description", "status"],
+details: ["title", "role", "levelLabel", "price", "offerPrice", "credits", "days", "description", "status"],
   form: "subscription",
 },
   "ecommerce-subscription": {
@@ -1050,6 +1082,7 @@ const labels = {
   createdAt: "Created At",
   updatedAt: "Updated At",
   role: "Role / पद",
+  levelLabel: "Level",
   price: "Price (₹)",
   subscriptionStartDate: "Subscription Start Date",
   subscriptionEndDate: "Subscription End Date",
@@ -1865,8 +1898,10 @@ const normalizeModuleRow = (slug) => (row = {}, index = 0) => {
   if (slug === "subscription-plan") {
     const roleIdRaw = row.role_id ?? row.roleId ?? "";
     const baseRoleLabel = roleIdRaw ? (roleLabelById[Number(roleIdRaw)] || roleLabelById[roleIdRaw] || "") : "";
-    const { levelWord, locationValue } = getRoleLevelInfo(row.state, row.district, row.taluka, row.village);
-  const roleLabel = baseRoleLabel ? localizeRoleLabel(baseRoleLabel, levelWord, locationValue) : OPEN_ROLE_LABEL;
+    const roleLabel = baseRoleLabel || OPEN_ROLE_LABEL;
+    const planLevel = baseRoleLabel
+      ? (fromLocationLevelValue(row.location_level ?? row.locationLevel) || getLevelFromRoleId(roleIdRaw))
+      : "";
   return {
     ...row,
     _rowKey: String(row.id || `subplan-${index}`),
@@ -1875,10 +1910,8 @@ const normalizeModuleRow = (slug) => (row = {}, index = 0) => {
     role: roleLabel,
     role_id: roleIdRaw,
     title: row.title || `Plan #${row.id || index + 1}`,   // 👈 sirf actual title, roleLabel fallback hata do
-    state: resolveLocationValue(row.state, "state"),
-    district: resolveLocationValue(row.district, "district"),
-       taluka: resolveLocationValue(row.taluka, "taluka"),
-    village: row.village || "",
+    level: planLevel,
+    levelLabel: baseRoleLabel ? (planLevel || "National") : "All Levels (Premium)",
     price: row.price || "",
     offerPrice: row.offer_price || row.offerPrice || "",
     credits: row.credits || "",
@@ -2513,12 +2546,10 @@ if (slug === "subscription-plan") {
   append("offer_price", record.offerPrice || record.offer_price);
   append("status", normalizeStatusValue(record.status));
 
-   append("role_id", resolveRoleIdFromLocalizedLabel(record) || "");
-
-  append("state", record.state);
-  append("district", record.district);
-   append("taluka", record.taluka);
-  append("village", record.village);
+   append("role_id", resolveRoleIdFromLevelAndLabel(record) || "");
+  // ✅ NAYA — location_level payload me bhejna (State/District/Taluka/Village -> lowercase).
+  // National / Premium me khaali jayega (backend null kar dega, update me purana value bhi clear hoga).
+  payload.append("location_level", toLocationLevelValue(record.level));
   return payload;
 }
 if (slug === "ads-management") {
@@ -4945,6 +4976,7 @@ const makeRecordFromForm = async (slug, config, form, existing = {}) => {
       taluka: data.taluka || "",
     village: data.village || existing.village || "",
     role: data.role || "",
+    level: data.level || "",
     category: data.category || "",
     sub_id: data.sub_id || existing.sub_id || "",
     subscription_id: data.subscription_id || existing.subscription_id || "",
@@ -5061,24 +5093,6 @@ const validateModuleForm = (slug, form) => {
     }
   }
 
-  // ✅ FIX: Subscription plan me state/district/taluka OPTIONAL hain —
-  // khaali chhodne ka matlab "sabhi jagah ke liye" (all states / all districts / all talukas).
-  // Bas hierarchy sahi honi chahiye: state ke bina district nahi, district ke bina taluka nahi.
-  if (slug === "subscription-plan") {
-    const stateVal = form.elements.state?.value || "";
-    const districtVal = form.elements.district?.value || "";
-    const talukaVal = form.elements.taluka?.value || "";
-
-    if (districtVal && !stateVal) {
-      swal("Select State First", "District select karne se pehle State choose karein, ya District bhi khaali chhod dein.", "error");
-      return false;
-    }
-    if (talukaVal && !districtVal) {
-      swal("Select District First", "Taluka select karne se pehle District choose karein, ya Taluka bhi khaali chhod dein.", "error");
-      return false;
-    }
-  }
-
   return true;
 };
 
@@ -5156,15 +5170,12 @@ const formFields = {
   ],
   subscription: [
   ["Title", "title"],
+  ["Level (blank = National)", "level", "select", SUBSCRIPTION_LEVELS],
   ["Role", "role", "select", subscriptionRoleOptions],
-  ["State ", "state", "select", stateOptions],
-  ["District", "district", "select", defaultDistricts],
-   ["Taluka", "taluka", "select", defaultTalukas],
-  ["Village", "village"],
   ["Price", "price", "number"],
-  ["Offer Price", "offer-price", "number"],   
-  ["Credits", "credits", "number"],           
-  ["Days", "days", "number"],                 
+  ["Offer Price", "offer-price", "number"],
+  ["Credits", "credits", "number"],
+  ["Days", "days", "number"],
   ["Description", "description", "textarea"],
   ["Status", "status", "select", ["Active", "Inactive"]],
 ],
@@ -5455,6 +5466,10 @@ useEffect(() => {
     });
   }, [currentRow.state, currentRow.district, currentRow.taluka, currentRow.village]);
 
+  // ✅ NAYA — Subscription plan ka Level (khaali = National)
+  const [planLevel, setPlanLevel] = useState(currentRow.level || "");
+  useEffect(() => { setPlanLevel(currentRow.level || ""); }, [currentRow.level]);
+
   // ✅ Village dropdown: selected District + Taluka ke hisaab se villages (village-directory.csv se bani JSON)
   const [villageState, setVillageState] = useState({ list: [], loading: false });
   useEffect(() => {
@@ -5477,10 +5492,8 @@ useEffect(() => {
   // State+District+Taluka -> Taluka roles, sab 4 bhare -> Village roles. Premium hamesha last me.
   const roleOptionsForLocation = useMemo(() => {
     if (config.form !== "subscription") return subscriptionRoleOptions;
-    const { state, district, taluka, village } = locationState;
-    const { localizedRoles } = getRoleOptionsForLocation(state, district, taluka, village);
-    return [...localizedRoles, OPEN_ROLE_LABEL];
-  }, [config.form, locationState]);
+    return [...getRoleOptionsForLevel(planLevel), OPEN_ROLE_LABEL];
+  }, [config.form, planLevel]);
 
   const [toast, setToast] = useState("");
   const [saving, setSaving] = useState(false);
@@ -5560,8 +5573,13 @@ useEffect(() => {
   };
 
   const renderField = ([label, name, type, options]) => {
+    if (config.form === "subscription" && name === "level") {
+      return <Field key={name} label={label} name={name} as="select" options={options} value={planLevel} required={false} onValueChange={(value) => setPlanLevel(value)} />;
+    }
     if (config.form === "subscription" && name === "role") {
-      return <Field key={name} label={label} name={name} as="select" options={roleOptionsForLocation} value={fieldValue(name)} required={false} />;
+      const savedRole = fieldValue(name);
+      const roleValue = roleOptionsForLocation.includes(savedRole) ? savedRole : "";
+      return <Field key={`${name}-${planLevel}`} label={label} name={name} as="select" options={roleOptionsForLocation} value={roleValue} required={false} />;
     }
      if (isQuestionBank && name === "quiz-type-id") {
       const currentLabel = quizTypeOptions.find((opt) => opt.startsWith(`${fieldValue(name)} —`)) || (fieldValue(name) ? String(fieldValue(name)) : "");

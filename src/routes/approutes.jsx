@@ -172,6 +172,7 @@ import PaymentHistory from "../pages/payment-history/payment-history";
 import PaymentHistoryView from "../pages/payment-history/payment-history-view";
 import SubscriptionPurchasers from "../pages/subscription-purchasers/subscription-purchasers";
 import SubscriptionPurchasersView from "../pages/subscription-purchasers/subscription-purchasers-view";
+import SubscriptionSeats from "../pages/subscription-seats/subscription-seats";
 
 const moduleRoutes = [
   { slug: "dashboard", List: Dashboard, View: DashboardView, Deleted: DashboardDeleted, Status: DashboardStatus },
@@ -180,6 +181,7 @@ const moduleRoutes = [
   { slug: "wallets", List: Wallets, View: WalletsView, Deleted: WalletsDeleted },
   { slug: "withdrawal", List: Withdrawal, View: WithdrawalView, Deleted: WithdrawalDeleted },
   { slug: "payment-history", List: PaymentHistory, View: PaymentHistoryView },
+  { slug: "subscription-seats", List: SubscriptionSeats, View: SubscriptionSeats },
   { slug: "ads-subscription-purchasers", List: () => <SubscriptionPurchasers slug="ads-subscription-purchasers" />, View: () => <SubscriptionPurchasersView slug="ads-subscription-purchasers" /> },
   { slug: "ecom-subscription-purchasers", List: () => <SubscriptionPurchasers slug="ecom-subscription-purchasers" />, View: () => <SubscriptionPurchasersView slug="ecom-subscription-purchasers" /> },
   { slug: "quiz-subscription-purchasers", List: () => <SubscriptionPurchasers slug="quiz-subscription-purchasers" />, View: () => <SubscriptionPurchasersView slug="quiz-subscription-purchasers" /> },
