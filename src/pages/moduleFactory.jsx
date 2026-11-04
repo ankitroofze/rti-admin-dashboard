@@ -293,6 +293,11 @@ const roleLabelById = subscriptionRoles.reduce((map, label, index) => {
 const OPEN_ROLE_LABEL = "Premium (All Roles - Open)";
 const subscriptionRoleOptions = [...subscriptionRoles, OPEN_ROLE_LABEL];
 
+// ✅ FIX — Backend ab role_id ko "required" maang raha hai, isliye Premium (open) plan me bhi role_id bhejna zaroori hai.
+// Premium = koi specific role nahi -> 0 (subscription-seats me bhi Premium/Open ke liye 0 hi use hota hai).
+// Agar backend ne Premium ke liye koi alag id rakhi ho to sirf yahi value badal do.
+const PREMIUM_ROLE_ID = "0";
+
 // ✅ NAYA — Plan ab LEVEL se banta hai (location se nahi). Admin ek role ka plan ek hi baar banayega.
 // Level khaali = National (role id 1-5), State = 6-10, District = 11-15, Taluka = 16-20, Village = 21-25
 const SUBSCRIPTION_LEVELS = ["State", "District", "Taluka", "Village"];
@@ -567,10 +572,11 @@ const moduleConfig = {
   ["offerPrice", "Offer Price"],
   ["credits", "Credits"],
   ["days", "Days"],
+  ["hideAds", "Hide Ads"],
   ["status", "Status"],
 ],
   actions: ["view", "update", "delete", "status"],
-details: ["title", "role", "levelLabel", "price", "offerPrice", "credits", "days", "description", "status"],
+details: ["title", "role", "levelLabel", "price", "offerPrice", "credits", "days", "hideAds", "description", "status"],
   form: "subscription",
 },
   "ecommerce-subscription": {
@@ -672,18 +678,19 @@ details: ["title", "role", "levelLabel", "price", "offerPrice", "credits", "days
   "product-enquiry": {
     title: "Product Enquiry",
     add: false,
-    filters: ["search", "status"],
+    filters: ["search", "status", "type"],
     rows: [], // dummy data removed — dynamic API data expected
       columns: [
       ["id", "Enquiry ID"],
       ["user_id", "User ID"],
+      ["typeLabel", "Type"],
       ["productName", "Product Name"],
       ["customerName", "Customer Name"],
       ["date", "Date"],
       ["status", "Status"],
     ],
     actions: ["view", "delete"],
-    details: ["id", "user_id", "productName", "customerName", "mobileNumber", "email", "productImage", "message", "dateTime", "status"],
+    details: ["id", "user_id", "typeLabel", "productName", "customerName", "mobileNumber", "email", "productImage", "message", "dateTime", "status"],
   },
   "e-paper": {
     title: "E-Paper",
@@ -1083,6 +1090,8 @@ const labels = {
   updatedAt: "Updated At",
   role: "Role / पद",
   levelLabel: "Level",
+  hideAds: "Hide Ads",
+  typeLabel: "Type",
   price: "Price (₹)",
   subscriptionStartDate: "Subscription Start Date",
   subscriptionEndDate: "Subscription End Date",
@@ -1631,7 +1640,8 @@ const buildMultipartHeaders = () => ({
 const SUBSCRIPTION_API_SLUGS = ["ecommerce-subscription", "ads-subscription"];
 // const SUBSCRIPTION_API_SLUGS = ["ecommerce-subscription", "ads-subscription", "subscription-plan"];
 const isSubscriptionApiSlug = (slug) => SUBSCRIPTION_API_SLUGS.includes(slug);
-const ADMIN_RTI_API_SLUGS = ["user-follows", "user-blocks", "profile-update-requests", "wallets", "withdrawal"];
+// product-enquiry: list + status => /admin-rti/ecom-enquiries (show/delete purane /rti-admin route par hi rehte hain)
+const ADMIN_RTI_API_SLUGS = ["user-follows", "user-blocks", "profile-update-requests", "wallets", "withdrawal", "product-enquiry"];
 const isAdminRtiApiSlug = (slug) => ADMIN_RTI_API_SLUGS.includes(slug);
 const moduleClientForSlug = (slug) =>
   slug === "news" ? axiosClient
@@ -1743,6 +1753,17 @@ const extractRows = (payload) => {
   ];
   return candidates.find(Array.isArray) || [];
 };
+
+const toBoolFlag = (value) => {
+  if (typeof value === "boolean") return value;
+  const v = String(value ?? "").trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes" || v === "on";
+};
+
+// Ads / Ecom enquiry status: 1 = New, 2 = Review, 3 = Closed
+const ENQ_STATUS_LABELS = { 1: "New", 2: "Review", 3: "Closed" };
+const ENQ_STATUS_VALUES = { New: 1, Review: 2, Closed: 3 };
+const enqStatusLabel = (value, label) => label || ENQ_STATUS_LABELS[Number(value)] || "New";
 
 const normalizeStatus = (value) => {
   if (typeof value === "boolean") return value ? "Active" : "Inactive";
@@ -1916,6 +1937,9 @@ const normalizeModuleRow = (slug) => (row = {}, index = 0) => {
     offerPrice: row.offer_price || row.offerPrice || "",
     credits: row.credits || "",
     days: row.days || "",
+    // ✅ hide_ads (true => is plan ke active purchaser ko ads nahi dikhte)
+    hide_ads: toBoolFlag(row.hide_ads ?? row.hideAds),
+    hideAds: toBoolFlag(row.hide_ads ?? row.hideAds) ? "Yes" : "No",
     description: row.description || "",
     status: normalizeStatus(row.status ?? row.is_active ?? row.active),
     createdAt: formatDisplayDate(row.createdAt || row.created_at) || "",
@@ -2032,7 +2056,12 @@ if (slug === "product-enquiry") {
     message: row.message || "",
     dateTime: formatDisplayDate(row.created_at) || "",
     date: formatDisplayDate(row.created_at) || "",
-    status: normalizeStatus(row.status),
+    // type: ads | ecom   ,  enq_status: 1 New / 2 Review / 3 Closed
+    type: String(row.type || "ecom").toLowerCase(),
+    typeLabel: String(row.type || "ecom").toLowerCase() === "ads" ? "Ads" : "Ecom",
+    enq_status: Number(row.enq_status ?? 1) || 1,
+    enq_status_label: enqStatusLabel(row.enq_status, row.enq_status_label),
+    status: enqStatusLabel(row.enq_status, row.enq_status_label),
   };
 }
 
@@ -2545,11 +2574,16 @@ if (slug === "subscription-plan") {
   append("price", record.price);
   append("offer_price", record.offerPrice || record.offer_price);
   append("status", normalizeStatusValue(record.status));
+  // ✅ hide_ads boolean (create + update dono me; OFF => "0" bhejna zaroori hai taaki DB me false save ho)
+  payload.append("hide_ads", toBoolFlag(record.hideAds ?? record.hide_ads) ? "1" : "0");
 
-   append("role_id", resolveRoleIdFromLevelAndLabel(record) || "");
+  // ✅ FIX — role_id hamesha payload me jayega (Premium me PREMIUM_ROLE_ID, baaki me level+role se 1-25)
+  const isPremiumPlan = String(record.role || "").trim() === OPEN_ROLE_LABEL;
+  const resolvedRoleId = isPremiumPlan ? PREMIUM_ROLE_ID : resolveRoleIdFromLevelAndLabel(record);
+  payload.append("role_id", String(resolvedRoleId ?? ""));
   // ✅ NAYA — location_level payload me bhejna (State/District/Taluka/Village -> lowercase).
   // National / Premium me khaali jayega (backend null kar dega, update me purana value bhi clear hoga).
-  payload.append("location_level", toLocationLevelValue(record.level));
+  payload.append("location_level", isPremiumPlan ? "" : toLocationLevelValue(record.level));
   return payload;
 }
 if (slug === "ads-management") {
@@ -2716,6 +2750,28 @@ const loadQuizAttemptsModule = async ({ userId = "", ...rest } = {}) => {
   return all.map(normalizeModuleRow("quiz-attempts"));
 };
 
+// Admin enquiries: GET /admin-rti/ecom-enquiries?enq_status=1|2|3 (filter na ho to sab) — pagination ho to saare pages merge
+const loadEnquiryModule = async (extraParams = {}) => {
+  const all = [];
+  let page = 1;
+  let lastPage = 1;
+  do {
+    const res = await adminRtiClient.get(moduleApi["product-enquiry"].index, {
+      headers: apiHeaders(),
+      params: { ...extraParams, per_page: 100, page },
+      timeout: 20000,
+    });
+    all.push(...extractRows(res.data));
+    lastPage = Number(res.data?.meta?.last_page ?? res.data?.last_page ?? 1) || 1;
+    page += 1;
+  } while (page <= lastPage && page <= 50);
+  return all.map(normalizeModuleRow("product-enquiry"));
+};
+
+// PATCH /admin-rti/ecom-enquiries/{id}/status   { enq_status: 1|2|3 }
+const updateEnquiryStatusInApi = (row, enqStatus) =>
+  adminRtiClient.patch(endpoint(API.ECOM_ENQUIRY_STATUS, row), { enq_status: Number(enqStatus) }, { headers: apiHeaders(), timeout: 12000 });
+
 const loadModuleFromApi = async (slug, extraParams = {}) => {
 
   if (!moduleApi[slug]) {
@@ -2728,6 +2784,9 @@ const loadModuleFromApi = async (slug, extraParams = {}) => {
   }
   if (slug === "quiz-attempts") {
     return loadQuizAttemptsModule(extraParams);
+  }
+  if (slug === "product-enquiry") {
+    return loadEnquiryModule(extraParams);
   }
   if (["wallets", "withdrawal"].includes(slug)) {
     return loadWalletOrWithdrawalIndex(slug, extraParams);
@@ -2751,7 +2810,8 @@ const showModuleFromApi = async (slug, row) => {
     const response = await axiosClient.get(API.NEWS_SHOW(detailIdentifier), { headers: apiHeaders(), timeout: 12000 });
     return normalizeModuleRow("news")(extractSavedRow(response.data, "news"));
   }
-  const response = await moduleClientForSlug(slug).get(endpoint(moduleApi[slug]?.show, detailIdentifier), { headers: apiHeaders(), timeout: 12000 });
+  const showClient = slug === "product-enquiry" ? apiClient : moduleClientForSlug(slug);
+  const response = await showClient.get(endpoint(moduleApi[slug]?.show, detailIdentifier), { headers: apiHeaders(), timeout: 12000 });
   return normalizeModuleRow(slug)(extractSavedRow(response.data, slug));
 };
 
@@ -2823,6 +2883,11 @@ const deleteModuleFromApi = (slug, row) => {
     const url = endpoint(moduleApi[slug]?.delete, row);
     console.log("DELETE_REQUEST", { resource: slug, identifier: deleteIdentifier, endpoint: url, method: "DELETE" });
     return apiClient.delete(url, { headers: apiHeaders(), timeout: 12000 });
+  }
+
+  // Enquiry delete pehle ki tarah /rti-admin par spoofed POST (list/status admin-rti par shift hue hain)
+  if (slug === "product-enquiry") {
+    return apiClient.post(endpoint(moduleApi[slug]?.delete, row), spoofedFormData("DELETE"), { headers: apiHeaders(), timeout: 12000 });
   }
 
   // Admin RTI (user-follows / user-blocks) real DELETE method use karta hai —
@@ -3273,6 +3338,7 @@ const FilterBar = ({ filters = [], values, onChange, onReset, slug }) => {
   const statusOptions = slug === "withdrawal" ? ["Pending", "Approved", "Processing", "Paid", "Rejected", "Cancelled"]
   : slug === "quiz-attempts" ? ["Completed", "In Progress"]
   : slug === "profile-update-requests" ? ["Pending", "Approved", "Rejected"]
+  : slug === "product-enquiry" ? ["New", "Review", "Closed"]
  : PAYMENT_LIST_SLUGS.includes(slug) ? ["Created", "Paid", "Failed"]
   : ["Active", "Inactive"];
   const selectFilters = {
@@ -3281,7 +3347,7 @@ const FilterBar = ({ filters = [], values, onChange, onReset, slug }) => {
     source: ["Source", ["Referral", "Ads Credit", "Ecom", "Manual"]],
     taluka: ["Taluka", defaultTalukas],
     status: ["Status", statusOptions],
-    type: ["Type", slug === "payment-history" ? ["Role", "Ads", "Ecom", "Quiz"] : ["Role", "Ads", "Ecom"]],
+    type: ["Type", slug === "payment-history" ? ["Role", "Ads", "Ecom", "Quiz"] : slug === "product-enquiry" ? ["Ads", "Ecom"] : ["Role", "Ads", "Ecom"]],
     filterStatus: ["Filter Status", statusOptions],
     category: ["Category", newsCategories],
     subject: ["Subject", ["RTI", "BNS", "Journalism"]],
@@ -3519,7 +3585,7 @@ const ActionButtons = ({ slug, actions, row, onDelete, onStatus, onApprove, onRe
   </div>
 );
 };
-const CellValue = ({ field, row, slug, onImage }) => {
+const CellValue = ({ field, row, slug, onImage, onEnquiryStatus, enquiryBusyId }) => {
   if (field === "profileImage") {
     return <button type="button" className="rti-image-button" onClick={() => onImage(row.image || row.profile_image || profile)}><img src={row.image || row.profile_image || profile} alt={row.name} className="rounded-circle" width="38" height="38" /></button>;
   }
@@ -3528,6 +3594,24 @@ const CellValue = ({ field, row, slug, onImage }) => {
   }
   if (field === "productImage") {
     return <button type="button" className="rti-image-button" onClick={() => onImage(row.productImage || row.image || profile)}><img src={row.productImage || row.image || profile} alt={row.productName || "Product"} className="rounded" width="44" height="34" /></button>;
+  }
+  if (field === "status" && slug === "product-enquiry") {
+    const busy = String(enquiryBusyId || "") === String(row.id);
+    return (
+      <select
+        className="form-select form-select-sm"
+        style={{ minWidth: 110 }}
+        value={Number(row.enq_status) || 1}
+        disabled={Boolean(enquiryBusyId)}
+        title={busy ? "Updating..." : "Change status"}
+        onClick={(event) => event.stopPropagation()}
+        onChange={(event) => onEnquiryStatus?.(row, Number(event.target.value))}
+      >
+        <option value={1}>New</option>
+        <option value={2}>Review</option>
+        <option value={3}>Closed</option>
+      </select>
+    );
   }
    if (field === "status") {
     return ["profile-update-requests", "withdrawal", "wallets"].includes(slug) ? requestStatusBadge(row.status) : statusBadge(row.status);
@@ -3793,6 +3877,30 @@ export const ModuleList = ({ slug }) => {
   const [page, setPage] = useState(1);
   const [deleteRow, setDeleteRow] = useState(null);
   const [statusRow, setStatusRow] = useState(null);
+  const [enquiryBusyId, setEnquiryBusyId] = useState("");
+  // Enquiry status (admin): PATCH /admin-rti/ecom-enquiries/{id}/status  { enq_status }
+  const handleEnquiryStatus = async (row, value) => {
+    if (enquiryBusyId || Number(row.enq_status) === Number(value)) return;
+    const rowId = resolveRecordIdentifier(row);
+    setEnquiryBusyId(String(row.id));
+    try {
+      const res = await updateEnquiryStatusInApi(row, value);
+      const saved = res?.data?.ecom_enquiry || res?.data?.data?.ecom_enquiry || res?.data?.data || {};
+      const nextValue = Number(saved.enq_status ?? value) || value;
+      const nextLabel = enqStatusLabel(nextValue, saved.enq_status_label);
+      setModuleRows((currentRows) => {
+        const nextRows = currentRows.map((item) => resolveRecordIdentifier(item) === rowId
+          ? { ...item, enq_status: nextValue, enq_status_label: nextLabel, status: nextLabel }
+          : item);
+        saveStoredRows(slug, nextRows);
+        return nextRows;
+      });
+      setToast(res?.data?.message || "Enquiry status updated successfully");
+    } catch (error) {
+      setToast(apiMessage(error, "Enquiry status update failed."));
+    }
+    setEnquiryBusyId("");
+  };
   const [approveRow, setApproveRow] = useState(null);
   const [rejectRow, setRejectRow] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
@@ -3847,7 +3955,8 @@ export const ModuleList = ({ slug }) => {
     if (!MODULE_API_SLUGS.includes(slug) || PAYMENT_LIST_SLUGS.includes(slug) || slug === "quiz-attempts") return;
     let active = true;
     // List pages use their all-users index endpoints; pagination only.
-    const extraParams = ["wallets", "withdrawal"].includes(slug) ? { per_page: 100 } : {};
+    const extraParams = ["wallets", "withdrawal"].includes(slug) ? { per_page: 100 }
+      : slug === "product-enquiry" && ENQ_STATUS_VALUES[filters.status] ? { enq_status: ENQ_STATUS_VALUES[filters.status] } : {};
     Promise.resolve().then(() => {
       if (active) setIsLoading(true);
     });
@@ -3873,7 +3982,7 @@ export const ModuleList = ({ slug }) => {
     return () => {
       active = false;
     };
-  }, [slug]);
+  }, [slug, slug === "product-enquiry" ? filters.status : ""]);
 
   // Quiz attempts: table open hote hi saare users ke attempts; User ID filter = server-side (?user_id=)
   useEffect(() => {
@@ -4085,7 +4194,7 @@ export const ModuleList = ({ slug }) => {
   key={`${slug}-${row.sr || row.id || rowIndex}-${rowIndex}`} className="rti-clickable-row"  onClick={() => openRowView(row)}>
                         {config.columns.map(([field]) => (
                           <td key={field}>
-                            <CellValue field={field} row={displayRow} slug={slug} onImage={setImagePreview} />
+                            <CellValue field={field} row={displayRow} slug={slug} onImage={setImagePreview} onEnquiryStatus={handleEnquiryStatus} enquiryBusyId={enquiryBusyId} />
                           </td>
                         ))}
                         <td>
@@ -5015,6 +5124,8 @@ const makeRecordFromForm = async (slug, config, form, existing = {}) => {
     attempts_used: data.attempts_used || existing.attempts_used || "",
     attempts_left: data.attempts_left || existing.attempts_left || "",
     quiz_count: data["quiz-count"] || existing.quiz_count || "",
+    hideAds: data["hide-ads"] || existing.hideAds || "No",
+    hide_ads: toBoolFlag(data["hide-ads"] ?? existing.hide_ads ?? existing.hideAds),
     offerPrice: data["offer-price"] || data.offer_price || existing.offerPrice || existing.offer_price || "",
     offer_price: data["offer-price"] || data.offer_price || existing.offer_price || existing.offerPrice || "",
     message: data.message || "",
@@ -5082,6 +5193,12 @@ const validateModuleForm = (slug, form) => {
   if (start && end && new Date(end) <= new Date(start)) {
     swal("Invalid Date Range", "End date must be after start date.", "error");
     (form.elements["end-date"] || form.elements["end-date-time"])?.focus();
+    return false;
+  }
+
+  // ✅ FIX: subscription-plan me Role select karna zaroori hai (backend role_id required hai)
+  if (slug === "subscription-plan" && !form.elements.role?.value) {
+    swal("Role Required", "Please select a role (ya Premium (All Roles - Open)) before saving.", "error");
     return false;
   }
 
@@ -5170,12 +5287,13 @@ const formFields = {
   ],
   subscription: [
   ["Title", "title"],
-  ["Level (blank = National)", "level", "select", SUBSCRIPTION_LEVELS],
+  ["Level ", "level", "select", SUBSCRIPTION_LEVELS],
   ["Role", "role", "select", subscriptionRoleOptions],
   ["Price", "price", "number"],
   ["Offer Price", "offer-price", "number"],
   ["Credits", "credits", "number"],
   ["Days", "days", "number"],
+  ["Hide Ads ", "hide-ads", "select", ["No", "Yes"]],
   ["Description", "description", "textarea"],
   ["Status", "status", "select", ["Active", "Inactive"]],
 ],
@@ -5544,6 +5662,7 @@ useEffect(() => {
       "ad-id": currentRow.adId || currentRow.id,
       "product-name": currentRow.productName || currentRow.product,
       "offer-price": currentRow.offerPrice,
+      "hide-ads": currentRow.hideAds || "No",
       "credits-used": currentRow.creditsUsed,
       "credits-left": currentRow.creditsLeft,
       days: currentRow.days,
