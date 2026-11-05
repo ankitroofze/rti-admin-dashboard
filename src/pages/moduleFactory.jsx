@@ -16,7 +16,6 @@ import avatar3 from "../assets/images/avatar/3.jpg";
 import logo from "../assets/images/rti.png";
 import qrcode from "../assets/images/qr.png";
 import AppToast from "../components/common/AppToast";
-import { downloadSavedEPaper } from "./newspaper_layout/epaperExport";
 import statesDistricts from "../data/statesDistricts.json";
 import districtBlocks from "../data/districtBlocks.json";
 import { getVillagesByTaluka } from "../utils/villages";
@@ -692,22 +691,6 @@ details: ["title", "role", "levelLabel", "price", "offerPrice", "credits", "days
     actions: ["view", "delete"],
     details: ["id", "user_id", "typeLabel", "productName", "customerName", "mobileNumber", "email", "productImage", "message", "dateTime", "status"],
   },
-  "e-paper": {
-    title: "E-Paper",
-    add: true,
-    filters: ["search"],
-    rows: [], // dummy data removed — dynamic API data expected
-    columns: [
-      ["sr", "Sr.No"],
-      ["id", "ID"],
-      ["title", "Title"],
-      ["pdfFiles", "PDF Files"],
-      ["publishDate", "Publish Date"],
-    ],
-    actions: ["generatePdf", "view", "update", "delete"],
-    details: ["id", "title", "pdfFiles", "publishDate", "totalPage"],
-    form: "epaper",
-  },
   quiz: {
     title: "Quiz",
     add: true,
@@ -1343,7 +1326,7 @@ const MODULE_API_SLUGS = [
   "news", "quiz", "ecommerce-subscription", "ads-subscription",
   "subscription-plan", "ecom-sell", "product-enquiry", "ads-management",
   "reports-product-enquiry", "reports-user-wise", "reports-subscription", "reports-ads-view",
-  "e-paper", "advertisement", "wallets", "withdrawal", "offices-addresses",
+  "advertisement", "wallets", "withdrawal", "offices-addresses",
   "news-notification", "contact-us", "ads-view-tracking",
   "quiz-subscription-create", "quiz-subscription-by-user", "quiz-attempts",
   "question-bank",
@@ -1547,12 +1530,6 @@ adsViews: {
   show: (id) => `/ads-views/${id}`,
 }
 ,
-
-"e-paper": {
-  index: API.EPAPER_INDEX, add: API.EPAPER_ADD, show: API.EPAPER_SHOW,
-  update: API.EPAPER_UPDATE, delete: API.EPAPER_DELETE,
-  singular: "e_paper", collection: "e_papers",
-},
 
 advertisement: {
   index: API.AD_INDEX, add: API.AD_ADD, show: API.AD_SHOW,
@@ -3495,37 +3472,11 @@ const pdfHref = (row = {}, field = "pdfFiles") =>
 // Withdrawal delete backend sirf paid / rejected / cancelled par allow karta hai (baaki par 422 withdrawal_active)
 const DELETABLE_WITHDRAWAL_STATUSES = ["paid", "rejected", "cancelled"];
 
-// E-paper ka PDF: uploaded PDF link ho to wahi, warna saved layout se PDF bana ke seedha download
-const canGenerateEPaperPdf = (row = {}) => !!row.layoutData?.newspaperData;
-
 const ActionButtons = ({ slug, actions, row, onDelete, onStatus, onApprove, onReject }) => {
-  const [pdfBusy, setPdfBusy] = useState(false);
-  const handleGeneratePdf = async () => {
-    if (pdfBusy) return;
-    setPdfBusy(true);
-    try {
-      await downloadSavedEPaper(row);
-    } catch (error) {
-      console.error("E-paper PDF download failed", error);
-      alert(error?.message || "PDF download nahi ho paya.");
-    } finally {
-      setPdfBusy(false);
-    }
-  };
   const linkSlug = slug === "dashboard" ? "user-profile" : slug; 
   const canDelete = slug !== "withdrawal" || DELETABLE_WITHDRAWAL_STATUSES.includes(String(row.status || "").trim().toLowerCase());
   return (
     <div className="rti-action-buttons" onClick={(event) => event.stopPropagation()}>
-    {actions.includes("generatePdf") && !pdfHref(row) && canGenerateEPaperPdf(row) && (
-      <button type="button" onClick={handleGeneratePdf} disabled={pdfBusy} title="Download PDF" className="btn btn-secondary shadow btn-xs sharp">
-        <i className={`fa ${pdfBusy ? "fa-spinner fa-spin" : "fa-download"}`} />
-      </button>
-    )}
-    {actions.includes("generatePdf") && (pdfHref(row) || !canGenerateEPaperPdf(row)) && (
-      <a href={pdfHref(row) || "#"} target="_blank" rel="noreferrer" className={`btn btn-secondary shadow btn-xs sharp ${pdfHref(row) ? "" : "disabled"}`} aria-disabled={!pdfHref(row)}>
-        <i className="fa fa-file-pdf" />
-      </a>
-    )}
     {actions.includes("view") && (
       <Link to={`/admin/${slug}/view`} className="btn btn-info shadow btn-xs sharp" onClick={() => setActiveRecord(slug, row)}>
         <i className="fa fa-eye" />
@@ -3624,27 +3575,6 @@ const CellValue = ({ field, row, slug, onImage, onEnquiryStatus, enquiryBusyId }
     const normalizedResult = String(row.result || "").toLowerCase();
     const variant = normalizedResult === "pass" ? "success" : normalizedResult === "fail" ? "danger" : "secondary";
     return <span className={`badge light badge-${variant}`}>{row.result || "-"}</span>;
-  }
-  if (field === "pdfFiles") {
-    const href = pdfHref(row, field);
-    if (!href && canGenerateEPaperPdf(row)) {
-      return (
-        <a href="#" className="text-primary" title="Download PDF" onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          downloadSavedEPaper(row).catch((error) => alert(error?.message || "PDF download nahi ho paya."));
-        }}>
-          <i className="fa fa-file-pdf me-1" />
-          {row.pdfFiles}
-        </a>
-      );
-    }
-    return (
-      <a href={href || "#"} target="_blank" rel="noreferrer" className={href ? "text-primary" : "text-muted"} onClick={(event) => event.stopPropagation()} aria-disabled={!href}>
-        <i className="fa fa-file-pdf me-1" />
-        {row.pdfFiles}
-      </a>
-    );
   }
   const fallbackValue = field === "name" ? [row.firstname, row.lastname].filter(Boolean).join(" ").trim() || row.username || "" : "";
   const value = row[field] || fallbackValue || "-";
@@ -4111,7 +4041,6 @@ export const ModuleList = ({ slug }) => {
           slug === "ecommerce-subscription" ? "Add Plan" :
             slug === "ads-subscription" ? "Add Plan" :
               slug === "offices-addresses" ? "Add Office Address" :
-                slug === "e-paper" ? "Add E-Paper" :
                   slug === "subscription-plan" ? "Add Subscription" :
                     slug === "quiz" ? "Add Quiz" :
                       slug === "news-notification" ? "Add Notification" :
@@ -5342,13 +5271,6 @@ const formFields = {
 //   ["Description", "description", "textarea"],
 //   ["Status", "status", "select", ["Active", "Inactive"]],
 // ],
-  epaper: [
-    // ["E-Paper ID", "epaper-id"],
-    ["Title", "title"],
-    ["PDF Files", "pdf-files", "file"],
-    ["Publish Date", "publish-date", "date"],
-    ["Total Page", "total-page", "number"],
-  ],
   ad: [
     // ["ID", "ad-id"],
     ["Status", "status", "select", ["Active", "Inactive"]],

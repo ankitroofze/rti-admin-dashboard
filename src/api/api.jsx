@@ -144,12 +144,14 @@ REPORTS_ADS_VIEW_INDEX: '/reports/ads-view',
 REPORTS_ADS_VIEW_DELETE: (id) => `/reports/ads-view/${id}`,
 
 
-// E-Paper
-EPAPER_INDEX: '/e-papers',
-EPAPER_ADD: '/e-papers',
-EPAPER_SHOW: (id) => `/e-papers/${id}`,
-EPAPER_UPDATE: (id) => `/e-papers/${id}`,
-EPAPER_DELETE: (id) => `/e-papers/${id}`,
+// Newspapers (Admin RTI) — adminRtiClient par chalte hain: base = /api/admin-rti
+// (purana /e-papers endpoint hata diya gaya hai)
+NEWSPAPER_INDEX: '/newspapers',                              // GET
+NEWSPAPER_ADD: '/newspapers',                                // POST (multipart)
+NEWSPAPER_SHOW: (id) => `/newspapers/${id}`,                 // GET
+NEWSPAPER_UPDATE: (id) => `/newspapers/${id}`,               // PUT (multipart ke liye POST + _method=PUT)
+NEWSPAPER_PUBLISH: (id) => `/newspapers/${id}/publish`,      // POST
+NEWSPAPER_DELETE: (id) => `/newspapers/${id}`,               // POST + _method=DELETE (real DELETE use nahi hota)
 
 // Advertisement
 AD_INDEX: '/advertisements',

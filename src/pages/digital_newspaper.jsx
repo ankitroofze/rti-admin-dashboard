@@ -10,7 +10,8 @@ import {
   collectUsedArticleKeys,
   getArticleKeys,
 } from "./newspaper_layout/allocationEngine";
-import { buildBaseSections, downloadElementAsPdf } from "./newspaper_layout/epaperExport";
+import { buildBaseSections, downloadElementAsPdf, elementToEPaperFiles } from "./newspaper_layout/epaperExport";
+import { NEWSPAPER_LIST_PATH, setPendingDesign } from "../services/newspaperService";
 import { getBlockConfig } from "./newspaper_layout/newspaperLayouts";
 
 import LayoutOne from "./newspaper_layout/layoutOne";
@@ -79,7 +80,9 @@ const sampleArticles = [
 const extractArticleList = (payload) => {
   const candidates = [
     payload?.news,
+    payload?.news?.data,
     payload?.data?.news,
+    payload?.data?.news?.data,
     payload?.data?.list,
     payload?.data?.data,
     payload?.records,
@@ -109,10 +112,49 @@ const saveStoredRows = (slug, rows) => {
 const recordKey = (row = {}) =>
   String(row._rowKey || row.id || row.news_id || row.newsId || row.title || "");
 
-const activeEPaperRow = () => {
-  const rows = readStoredRows("e-paper");
-  const activeKey = sessionStorage.getItem(activeRecordKey("e-paper"));
+// Designer drafts ka apna storage hai. E-paper list ab server se chalti hai, isliye
+// uske data ko chhua nahi jaata.
+const DRAFT_SLUG = "digital-newspaper";
+
+const activeDraftRow = () => {
+  const rows = readStoredRows(DRAFT_SLUG);
+  const activeKey = sessionStorage.getItem(activeRecordKey(DRAFT_SLUG));
   return rows.find((row) => recordKey(row) === activeKey) || {};
+};
+
+const toIsoDate = (date = new Date()) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+// Pending / rejected / inactive ya trash me gayi news newspaper me nahi aani chahiye.
+// (is_deleted ka meaning alag-alag modules me ulta hai, isliye sirf deleted_at dekhte hain.)
+const isPublishableNews = (news = {}) => {
+  if (news.deleted_at || news.deletedAt) return false;
+  const status = String(news.status ?? "").trim().toLowerCase();
+  return !["pending", "0", "inactive", "rejected", "declined", "false"].includes(status);
+};
+
+// News API (paginated ho sakti hai) se saari pages ki news laao
+const fetchAllNews = async () => {
+  const rows = [];
+  let page = 1;
+  let lastPage = 1;
+  do {
+    let response;
+    try {
+      response = await axiosClient.get(API.NEWS_INDEX, { params: { page, per_page: 100 }, timeout: 12000 });
+    } catch (error) {
+      if (page > 1 || [401, 419].includes(error?.response?.status)) throw error;
+      // kuch backends extra params par 422 deti hain — News module jaise bina params try karo
+      response = await axiosClient.get(API.NEWS_INDEX, { timeout: 12000 });
+    }
+    rows.push(...extractArticleList(response.data));
+    const data = response.data || {};
+    lastPage = Number(
+      data.news?.last_page ?? data.data?.news?.last_page ?? data.data?.last_page ?? data.meta?.last_page ?? data.last_page ?? 1
+    ) || 1;
+    page += 1;
+  } while (page <= lastPage && page <= 20);
+  return rows;
 };
 const normalizeNewsForBlock = (news = {}, index = 0) => ({
   id: news.id || news.news_id || news.newsId || `news-${index}`,
@@ -120,7 +162,12 @@ const normalizeNewsForBlock = (news = {}, index = 0) => ({
   title: news.title || news.tittle || news.headline || news.news_title || "Untitled News",
   sub: news.sub || news.sub_tittle || news.subtitle || news.category || news.report_type || "",
   body: news.body || news.description || news.content || news.news || "",
-  reporter: news.reporter || news.author || news.created_by || "",
+  reporter:
+    news.reporter ||
+    news.author ||
+    [news.user?.firstname, news.user?.lastname].filter(Boolean).join(" ").trim() ||
+    news.created_by ||
+    "",
   location: news.location || news.city || "",
   date: news.date || news.publishDate || news.published_at || news.createdAt || news.created_at || "",
     image:
@@ -151,7 +198,11 @@ const printElementAsPdf = (element, title = "e-paper") => {
   const PAGE_WIDTH_MM = 297; // A3 portrait width
   const PX_TO_MM = 0.264583; // 1px @ 96dpi = 0.264583mm
 
-  const contentHeightPx = element.scrollHeight || 1500;
+  // har newspaper page apne alag printed page par aaye; page ki height = sabse lambe page jitni
+  const pageEls = Array.from(element.querySelectorAll("[data-epaper-page]"));
+  const contentHeightPx = pageEls.length
+    ? Math.max(...pageEls.map((el) => el.offsetHeight))
+    : (element.scrollHeight || 1500);
   // content height ko mm mein convert karo aur margins add karo, safety ke liye thoda extra
   const pageHeightMm = Math.ceil(contentHeightPx * PX_TO_MM) + (MARGIN_MM * 2) + 10;
 
@@ -171,6 +222,8 @@ const printElementAsPdf = (element, title = "e-paper") => {
             .manual-block-layer > .clickable-section { border: none !important; }
           }
           .no-print { display: none !important; }
+          [data-epaper-page] { margin: 0 !important; page-break-after: always; break-after: page; }
+          [data-epaper-page]:last-child { page-break-after: auto; break-after: auto; }
           .manual-block-layer > .clickable-section { border: none !important; }
           html, body { height: auto !important; overflow: visible !important; }
         </style>
@@ -188,10 +241,12 @@ const DigitalNewspaper = () => {
   const navigate = useNavigate();
   const previewRef = useRef(null);
   const isUpdateMode = location.pathname.includes("/update");
-  const savedRow = useMemo(() => (isUpdateMode ? activeEPaperRow() : {}), [isUpdateMode]);
+  const savedRow = useMemo(() => (isUpdateMode ? activeDraftRow() : {}), [isUpdateMode]);
   const [newspaperData, setNewspaperData] = useState({
     id: savedRow.layoutData?.newspaperData?.id || savedRow.id || id || `EP-${Date.now()}`,
     title: "",
+    description: "",
+    publishDate: toIsoDate(),
     template: "layoutOne",
     header: {
       newspaperName: "RTI News",
@@ -218,6 +273,11 @@ const DigitalNewspaper = () => {
   const [newsPickerOpen, setNewsPickerOpen] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
    const [fetchStatus, setFetchStatus] = useState("New e-paper");
+  const [newsReload, setNewsReload] = useState(0);
+  const [newsLoading, setNewsLoading] = useState(true);
+  const [publishing, setPublishing] = useState(false);
+  const [showDrafts, setShowDrafts] = useState(false);
+  const [drafts, setDrafts] = useState([]);
 
   // Saved draft ho to pehle wahi load karo
   useEffect(() => {
@@ -235,21 +295,26 @@ const DigitalNewspaper = () => {
     const loadNews = async () => {
       let list = [];
       let source = "";
+      let errorText = "";
+      setNewsLoading(true);
       try {
-        const response = await axiosClient.get(API.NEWS_INDEX, { timeout: 12000 });
-        const fetched = extractArticleList(response.data);
-        if (fetched.length > 0) {
-          list = fetched.map(normalizeNewsForBlock);
-          source = "Fetched from News module";
+        const all = await fetchAllNews();
+        // approved news pehle; agar status se sab hat jaaye to saari (non-trash) news le lo
+        const approved = all.filter(isPublishableNews);
+        const usable = approved.length ? approved : all.filter((row) => !row.deleted_at && !row.deletedAt);
+        if (usable.length > 0) {
+          list = usable.map(normalizeNewsForBlock);
+          source = `${usable.length} news News module se aayi`;
         }
       } catch (error) {
-        // niche local fallback
+        errorText = error?.response?.data?.message || error?.message || "News API error";
       }
       if (list.length === 0) {
-        list = readStoredRows("news").map(normalizeNewsForBlock);
+        list = readStoredRows("news").filter(isPublishableNews).map(normalizeNewsForBlock);
         if (list.length) source = "Loaded from saved News module";
       }
       if (ignore) return;
+      setNewsLoading(false);
 
       setNewsModuleList(list);
       if (list.length > 0) {
@@ -258,16 +323,16 @@ const DigitalNewspaper = () => {
           ...current,
           articles: mergeUniqueArticles(current.articles, list),
         }));
-        if (!savedRow.layoutData?.newspaperData) setFetchStatus(source);
-      } else if (!savedRow.layoutData?.newspaperData) {
-        setFetchStatus("No news found in News module");
+        setFetchStatus(savedRow.layoutData?.newspaperData ? `${source} (draft me nayi news jud gayi)` : source);
+      } else {
+        setFetchStatus(errorText ? `News load nahi hui: ${errorText}` : "News module me abhi koi news nahi hai");
       }
     };
     loadNews();
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [newsReload]);
 
   const baseSections = useMemo(() => buildBaseSections(newspaperData), [newspaperData]);
 
@@ -278,15 +343,8 @@ const DigitalNewspaper = () => {
     priorityLayout: selectedTemplate,
   }), [newspaperData.articles, baseSections, adminOverrides, selectedTemplate]);
 
-  const selectedTemplatePage = generatedPages.find((page) => page.layoutName === selectedTemplate);
-  const visiblePages = [
-    selectedTemplatePage || {
-      id: `${selectedTemplate}-preview`,
-      pageNumber: 1,
-      layoutName: selectedTemplate,
-      sections: baseSections,
-    },
-  ];
+  // Saare pages (kam se kam 4) ek ke niche ek dikhte hain — wahi sab ek hi PDF/e-paper me jaate hain
+  const visiblePages = generatedPages;
 
   const selectedPage = generatedPages.find((page) => page.id === activePageId) || generatedPages[0];
   const selectedBlock = selectedPage?.sections?.[activeSection] || {};
@@ -329,12 +387,12 @@ const DigitalNewspaper = () => {
 
   const buildEPaperRecord = () => ({
     ...savedRow,
-    _rowKey: savedRow._rowKey || newspaperData.id,
+    _rowKey: newspaperData.id,
     sr: savedRow.sr || Date.now(),
     id: newspaperData.id,
     title: newspaperData.title || savedRow.title || "Untitled E-Paper",
-    pdfFiles: savedRow.pdfFiles || "Generated from editor",
     publishDate: newspaperData.header?.date || new Date().toLocaleDateString("en-IN"),
+    savedAt: new Date().toISOString(),
     totalPage: String(generatedPages.length || 1),
     layoutData: {
       newspaperData,
@@ -343,16 +401,80 @@ const DigitalNewspaper = () => {
     },
   });
 
-  const handleSave = (message = "E-paper saved successfully") => {
+  // Draft local browser me save hota hai (server par sirf "Publish to E-Paper" se jaata hai)
+  const handleSave = (message = "Draft saved successfully") => {
     const record = buildEPaperRecord();
-    const rows = readStoredRows("e-paper");
+    const rows = readStoredRows(DRAFT_SLUG);
     const key = recordKey(record);
     const nextRows = rows.some((row) => recordKey(row) === key)
       ? rows.map((row) => recordKey(row) === key ? record : row)
       : [record, ...rows];
-    saveStoredRows("e-paper", nextRows);
-    sessionStorage.setItem(activeRecordKey("e-paper"), recordKey(record));
-    setSaveMessage(message);
+    saveStoredRows(DRAFT_SLUG, nextRows);
+    sessionStorage.setItem(activeRecordKey(DRAFT_SLUG), recordKey(record));
+    setSaveMessage(typeof message === "string" ? message : "Draft saved successfully");
+  };
+
+  const openDrafts = () => {
+    setDrafts(readStoredRows(DRAFT_SLUG).filter((row) => row.layoutData?.newspaperData));
+    setShowDrafts(true);
+  };
+
+  const loadDraft = (row) => {
+    const layout = row.layoutData;
+    if (!layout?.newspaperData) return;
+    sessionStorage.setItem(activeRecordKey(DRAFT_SLUG), recordKey(row));
+    // nayi news bhi saath me jud jaaye
+    setNewspaperData({
+      ...layout.newspaperData,
+      articles: mergeUniqueArticles(layout.newspaperData.articles, newsModuleList),
+    });
+    setSelectedTemplate(layout.selectedTemplate || "layoutOne");
+    setAdminOverrides(layout.adminOverrides || {});
+    setActiveSection("");
+    setShowDrafts(false);
+    setFetchStatus("Continuing saved draft");
+  };
+
+  const deleteDraft = (row) => {
+    const key = recordKey(row);
+    const rest = readStoredRows(DRAFT_SLUG).filter((item) => recordKey(item) !== key);
+    saveStoredRows(DRAFT_SLUG, rest);
+    setDrafts(rest.filter((item) => item.layoutData?.newspaperData));
+  };
+
+  const setHeaderField = (field, value) =>
+    setNewspaperData((current) => ({ ...current, header: { ...(current.header || {}), [field]: value } }));
+
+  const handlePublishDateChange = (iso) =>
+    setNewspaperData((current) => {
+      const [y, m, d] = String(iso || "").split("-").map(Number);
+      const display = y ? new Date(y, m - 1, d).toLocaleDateString("en-IN") : current.header?.date;
+      return { ...current, publishDate: iso, header: { ...(current.header || {}), date: display } };
+    });
+
+  // Designer -> PDF + thumbnail banao -> e-paper "Add" form (title/date/PDF pehle se bhare) me bhejo.
+  // Final upload/publish wahi purane e-paper form se hota hai.
+  const handlePublishToEPaper = async () => {
+    if (publishing) return;
+    setPublishing(true);
+    try {
+      const title = newspaperData.title || newspaperData.header?.newspaperName || "E-Paper";
+      const { pdfFile, thumbnailFile } = await elementToEPaperFiles(previewRef.current, title);
+      handleSave("Draft saved");
+      setPendingDesign({
+        title,
+        publishedForDate: newspaperData.publishDate || toIsoDate(),
+        description: newspaperData.description || "",
+        pdfFile,
+        thumbnailFile,
+      });
+      navigate(`${NEWSPAPER_LIST_PATH}/add`);
+    } catch (error) {
+      console.error("Publish to e-paper failed", error);
+      alert(`PDF ban nahi paya: ${error?.message || "unknown error"}`);
+    } finally {
+      setPublishing(false);
+    }
   };
 
   const handleSectionChange = (pageId, sectionId, updated) => {
@@ -472,35 +594,94 @@ const DigitalNewspaper = () => {
 
   return (
     <div className="digital-newspaper-container" style={styles.shell}>
-      <div className="d-flex justify-content-between align-items-center mb-3">
+      <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div>
-          <h3 className="mb-0">Digital Newspaper Editor</h3>
+          <h4 className="mb-0">Digital Newspaper Editor</h4>
           <small className="text-muted">{fetchStatus}</small>
         </div>
-        <div className="btn-group">
-          <button className="btn btn-success" onClick={handleSave}>
-            <i className="fa fa-save me-2" />
-            Save
+        <div className="d-flex flex-wrap gap-2 epaper-toolbar">
+          <button className="btn btn-primary btn-sm" onClick={() => handleSave()}>
+            <i className="fa fa-save me-1" />
+            Save Draft
           </button>
-          <button className="btn btn-light" onClick={() => navigate("/admin/e-paper")}>
-            <i className="fa fa-arrow-left me-2" />
-            Back
+          <button className="btn btn-primary btn-sm" onClick={openDrafts}>
+            <i className="fa fa-folder-open me-1" />
+            Drafts
           </button>
-          <button className="btn btn-info" onClick={() => setShowTemplateModal(true)}>
-            <i className="fa fa-plus me-2" />
+          <button className="btn btn-primary btn-sm" onClick={() => setNewsReload((n) => n + 1)} disabled={newsLoading} title="News module se latest news dobara laao">
+            <i className={`fa fa-rotate me-1 ${newsLoading ? "fa-spin" : ""}`} />
+            {newsLoading ? "Loading..." : "Refresh News"}
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowTemplateModal(true)}>
+            <i className="fa fa-table-columns me-1" />
             Templates
           </button>
-          <button className="btn btn-primary" onClick={handleDownloadPDF} disabled={downloading}>
-            <i className="fa fa-download me-2" />
-            {downloading ? "Preparing PDF..." : "Download PDF"}
+          <button className="btn btn-primary btn-sm" onClick={handleDownloadPDF} disabled={downloading}>
+            <i className="fa fa-download me-1" />
+            {downloading ? "Preparing..." : "Download PDF"}
           </button>
-          <button className="btn btn-outline-primary" onClick={handleExportPDF}>
-            <i className="fa fa-print me-2" />
+          <button className="btn btn-primary btn-sm" onClick={handleExportPDF}>
+            <i className="fa fa-print me-1" />
             Print
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={handlePublishToEPaper} disabled={publishing} title="PDF banakar e-paper form me bhejo">
+            <i className="fa fa-upload me-1" />
+            {publishing ? "Preparing..." : "Publish to E-Paper"}
+          </button>
+          <button className="btn btn-outline-primary btn-sm" onClick={() => navigate("/admin/e-paper")}>
+            <i className="fa fa-arrow-left me-1" />
+            Back
           </button>
         </div>
       </div>
       {saveMessage && <div className="alert alert-success py-2">{saveMessage}</div>}
+
+      <div className="card mb-3">
+        <div className="card-body py-2">
+          <div className="row g-2 align-items-end">
+            <div className="col-md-4">
+              <label className="form-label small mb-1">Newspaper title / headline</label>
+              <input className="form-control form-control-sm" placeholder="E-paper title" value={newspaperData.title || ""} onChange={(event) => setNewspaperData((current) => ({ ...current, title: event.target.value }))} />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label small mb-1">Newspaper name</label>
+              <input className="form-control form-control-sm" value={newspaperData.header?.newspaperName || ""} onChange={(event) => setHeaderField("newspaperName", event.target.value)} />
+            </div>
+            <div className="col-md-2">
+              <label className="form-label small mb-1">Published for</label>
+              <input type="date" className="form-control form-control-sm" value={newspaperData.publishDate || toIsoDate()} onChange={(event) => handlePublishDateChange(event.target.value)} />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label small mb-1">Description (e-paper form me jayega)</label>
+              <input className="form-control form-control-sm" value={newspaperData.description || ""} onChange={(event) => setNewspaperData((current) => ({ ...current, description: event.target.value }))} />
+            </div>
+          </div>
+          <small className="text-muted d-block mt-1">
+            News module ki {newsModuleList.length} approved news mili — blocks me automatic fill hoti hain, koi news repeat nahi hoti.
+          </small>
+        </div>
+      </div>
+
+      <Modal show={showDrafts} onHide={() => setShowDrafts(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Saved Drafts</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {!drafts.length && <p className="text-muted mb-0">Koi saved draft nahi hai.</p>}
+          {drafts.map((row) => (
+            <div key={recordKey(row)} className="d-flex align-items-center justify-content-between border-bottom py-2">
+              <div>
+                <strong>{row.title || "Untitled E-Paper"}</strong>
+                <small className="d-block text-muted">{row.publishDate} {row.savedAt ? `· saved ${new Date(row.savedAt).toLocaleString("en-IN")}` : ""}</small>
+              </div>
+              <div className="d-flex gap-1">
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => loadDraft(row)}>Open</button>
+                <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => deleteDraft(row)}>Delete</button>
+              </div>
+            </div>
+          ))}
+        </Modal.Body>
+      </Modal>
 
       <Modal show={showTemplateModal} onHide={() => setShowTemplateModal(false)} size="lg" centered>
         <Modal.Header closeButton>
@@ -537,7 +718,7 @@ const DigitalNewspaper = () => {
       <div className="row">
         <div className="col-lg-9" ref={previewRef}>
           {visiblePages.map((page) => (
-            <div key={page.id} className="mb-4">
+            <div key={page.id} data-epaper-page={page.id} className="mb-4">
               {renderTemplate(page)}
             </div>
           ))}

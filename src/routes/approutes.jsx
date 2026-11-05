@@ -65,10 +65,9 @@ import AdvertisementUpdate from "../pages/advertisement/advertisement-update";
 import AdvertisementDeleted from "../pages/advertisement/advertisement-deleted";
 import AdvertisementStatus from "../pages/advertisement/advertisement-status";
 
-import EPaper from "../pages/e-paper/e-paper";
-import EPaperView from "../pages/e-paper/e-paper-view";
-import EPaperUpdate from "../pages/e-paper/e-paper-update";
-import EPaperDeleted from "../pages/e-paper/e-paper-deleted";
+import Newspaper from "../pages/newspaper/newspaper";
+import NewspaperView from "../pages/newspaper/newspaper-view";
+import NewspaperForm from "../pages/newspaper/newspaper-form";
 
 import DigitalNewspaper from "../pages/digital_newspaper";
 
@@ -188,8 +187,8 @@ const moduleRoutes = [
   { slug: "news", List: News, View: NewsView, Add: NewsAdd, Update: NewsUpdate, Deleted: NewsDeleted, Status: NewsStatus },
   { slug: "subscription-plan", List: SubscriptionPlan, View: SubscriptionPlanView, Add: SubscriptionPlanAdd, Update: SubscriptionPlanUpdate, Deleted: SubscriptionPlanDeleted, Status: SubscriptionPlanStatus },
   { slug: "advertisement", List: Advertisement, View: AdvertisementView, Add: AdvertisementAdd, Update: AdvertisementUpdate, Deleted: AdvertisementDeleted, Status: AdvertisementStatus },
-  { slug: "e-paper", List: EPaper, View: EPaperView, Add: DigitalNewspaper, Update: DigitalNewspaper, Deleted: EPaperDeleted },
-  { slug: "digital-newspaper", List: DigitalNewspaper },
+  { slug: "e-paper", List: Newspaper, View: NewspaperView, Add: () => <NewspaperForm mode="Add" />, Update: () => <NewspaperForm mode="Update" /> },
+  { slug: "digital-newspaper", List: DigitalNewspaper, Add: DigitalNewspaper, Update: DigitalNewspaper },
   { slug: "quiz", List: Quiz, View: QuizView, Add: QuizAdd, Update: QuizUpdate, Deleted: QuizDeleted, Status: QuizStatus },
   { slug: "quiz-subscription-create", List: QuizSubscriptionCreate, View: QuizSubscriptionCreateView, Add: QuizSubscriptionCreateAdd, Update: QuizSubscriptionCreateUpdate, Deleted: QuizSubscriptionCreateDeleted, Status: QuizSubscriptionCreateStatus },
   { slug: "quiz-subscription-by-user", List: QuizSubscriptionUser, View: QuizSubscriptionUserView, Add: QuizSubscriptionUserAdd, Update: QuizSubscriptionUserUpdate, Deleted: QuizSubscriptionUserDelete, Status: QuizSubscriptionUserStatus },

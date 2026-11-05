@@ -93,7 +93,7 @@ const MenuList = [
     ],
   },
   {
-    title: "E-Paper",
+    title: "Newspaper",
     to: "/admin/e-paper",
     iconStyle: <i className="fa fa-file-pdf" />,
   },

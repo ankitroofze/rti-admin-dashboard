@@ -107,10 +107,9 @@ export const collectUsedArticleKeys = (pages = []) => {
 //     Phir baaki pages order se bharte hain.
 //  4. Har page ke andar best-fit: bada article bade block ko, chhota chhote ko.
 //  5. Har news sirf EK baar use hoti hai. News kam ho to extra blocks khali rahenge
-//     (repeat nahi honge).
+//     (repeat nahi honge). News zyada ho to 4 pages ke baad aage page nahi banega.
 //
-// Kam se kam layoutSequence.length (4) pages hamesha banenge taaki selectedTemplate
-// hamesha ek REAL generated page se match kare.
+// Hamesha EXACTLY layoutSequence.length (4) pages banenge (layoutOne..layoutfouth) — koi layout repeat nahi hota.
 export const allocateNewspaperPages = ({
   articles = [],
   baseSections = {},
@@ -131,13 +130,12 @@ export const allocateNewspaperPages = ({
   );
 
   // Step 1: pages + unke FREE slots collect karo
+  // Sirf layoutSequence (4 layouts) ke utne hi pages banenge — 4 ke baad layout dobara REPEAT nahi hoga.
+  // Agar news 4 pages ke slots se zyada hai to extra news bas place nahi hogi (repeat nahi hogi).
   const pageMetas = [];
-  let cycleIndex = 0;
-  let freeSlotCount = 0;
 
-  while (freeSlotCount < queue.length || cycleIndex < layoutSequence.length) {
-    const layoutName = layoutSequence[cycleIndex % layoutSequence.length];
-    const pageKey = `${layoutName}-${pageMetas.length}`;
+  layoutSequence.forEach((layoutName, pageIndex) => {
+    const pageKey = `${layoutName}-${pageIndex}`;
     const pageOverrides = adminOverrides[pageKey] || {};
     const freeSlots = [];
 
@@ -146,13 +144,10 @@ export const allocateNewspaperPages = ({
       // Locked / manually-filled / removed blocks auto-fill pool mein nahi jaayenge
       if (override?.locked || override?.article || override?.removed) return;
       freeSlots.push({ blockId: block.id, block });
-      freeSlotCount += 1;
     });
 
     pageMetas.push({ pageKey, layoutName, pageOverrides, freeSlots });
-    cycleIndex += 1;
-    if (pageMetas.length > 500) break; // safety guard
-  }
+  });
 
   // Step 2: fill order — selected layout ka pehla page sabse pehle, phir baaki order se
   const priorityIndex = pageMetas.findIndex((meta) => meta.layoutName === priorityLayout);

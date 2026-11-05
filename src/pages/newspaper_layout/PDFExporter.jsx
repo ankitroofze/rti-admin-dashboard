@@ -52,9 +52,16 @@ const waitForImages = (root, timeoutMs = 8000) =>
 const findPageElement = (element) =>
   element.querySelector('[style*="width: 1056px"]') || element;
 
-// ─── DOWNLOAD: element -> PDF file (browser me seedha download hota hai) ────
+// Saare newspaper pages (data-epaper-page wrapper) — ek PDF ke multiple pages banenge
+export const PAGE_ATTR = "data-epaper-page";
+const collectPageElements = (element) => {
+  const wrappers = Array.from(element.querySelectorAll(`[${PAGE_ATTR}]`));
+  return wrappers.length ? wrappers.map(findPageElement) : [findPageElement(element)];
+};
+
+// ─── Core: element -> { pdf, canvas } (download aur upload dono yahi use karte hain) ───
 // Zaroori packages:  npm i html2canvas jspdf
-export const downloadElementAsPdf = async (element, title = "e-paper") => {
+const buildPdfFromElement = async (element) => {
   if (!element) throw new Error("Newspaper preview nahi mila.");
 
   const [{ default: html2canvas }, jsPdfModule] = await Promise.all([
@@ -68,34 +75,65 @@ export const downloadElementAsPdf = async (element, title = "e-paper") => {
   }
   await waitForImages(element);
 
-  const target = findPageElement(element);
-  const canvas = await html2canvas(target, {
-    scale: 2,
-    useCORS: true,
-    allowTaint: false,
-    backgroundColor: "#ffffff",
-    logging: false,
-    onclone: (clonedDoc) => {
-      const style = clonedDoc.createElement("style");
-      style.textContent = `
-        .no-print { display: none !important; }
-        .clickable-section, .clickable-section * { outline: none !important; }
-        .manual-block-layer > .clickable-section { border: none !important; }
-      `;
-      clonedDoc.head.appendChild(style);
-    },
-  });
+  const onclone = (clonedDoc) => {
+    const style = clonedDoc.createElement("style");
+    style.textContent = `
+      .no-print { display: none !important; }
+      .clickable-section, .clickable-section * { outline: none !important; }
+      .manual-block-layer > .clickable-section { border: none !important; }
+    `;
+    clonedDoc.head.appendChild(style);
+  };
 
   const PAGE_WIDTH_MM = 297; // A3 portrait width (jaisa pehle tha)
-  const pageHeightMm = (PAGE_WIDTH_MM * canvas.height) / canvas.width;
-  const pdf = new jsPDF({
-    orientation: "portrait",
-    unit: "mm",
-    format: [PAGE_WIDTH_MM, pageHeightMm],
-    compress: true,
+  const canvases = [];
+  for (const target of collectPageElements(element)) {
+    // eslint-disable-next-line no-await-in-loop
+    canvases.push(await html2canvas(target, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: false,
+      backgroundColor: "#ffffff",
+      logging: false,
+      onclone,
+    }));
+  }
+
+  let pdf = null;
+  canvases.forEach((canvas, index) => {
+    const pageHeightMm = (PAGE_WIDTH_MM * canvas.height) / canvas.width;
+    if (index === 0) {
+      pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [PAGE_WIDTH_MM, pageHeightMm], compress: true });
+    } else {
+      pdf.addPage([PAGE_WIDTH_MM, pageHeightMm], "portrait");
+    }
+    pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, PAGE_WIDTH_MM, pageHeightMm);
   });
-  pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, PAGE_WIDTH_MM, pageHeightMm);
+  return { pdf, canvas: canvases[0], pageCount: canvases.length };
+};
+
+// ─── DOWNLOAD: element -> PDF file (browser me seedha download hota hai) ────
+export const downloadElementAsPdf = async (element, title = "e-paper") => {
+  const { pdf } = await buildPdfFromElement(element);
   pdf.save(`${safeFileName(title)}.pdf`);
+};
+
+// ─── PUBLISH: element -> { pdfFile, thumbnailFile } (e-paper form/server upload ke liye) ───
+// pdfFile = A3 PDF, thumbnailFile = page ka chhota JPEG preview (list me dikhne ke liye)
+export const elementToEPaperFiles = async (element, title = "e-paper") => {
+  const { pdf, canvas } = await buildPdfFromElement(element);
+  const name = safeFileName(title);
+  const pdfFile = new File([pdf.output("blob")], `${name}.pdf`, { type: "application/pdf" });
+
+  const THUMB_WIDTH = 480;
+  const thumbCanvas = document.createElement("canvas");
+  thumbCanvas.width = THUMB_WIDTH;
+  thumbCanvas.height = Math.round((canvas.height * THUMB_WIDTH) / canvas.width);
+  thumbCanvas.getContext("2d").drawImage(canvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
+  const thumbBlob = await new Promise((resolve) => thumbCanvas.toBlob(resolve, "image/jpeg", 0.85));
+  const thumbnailFile = thumbBlob ? new File([thumbBlob], `${name}-thumbnail.jpg`, { type: "image/jpeg" }) : null;
+
+  return { pdfFile, thumbnailFile };
 };
 
 // ─── DOWNLOAD: list page se (saved e-paper row) bina editor khole ───────────
@@ -113,8 +151,6 @@ export const downloadSavedEPaper = async (row = {}) => {
     adminOverrides,
     priorityLayout: selectedTemplate,
   });
-  const page = pages.find((item) => item.layoutName === selectedTemplate) || pages[0];
-  const LayoutComponent = LAYOUT_COMPONENTS[page.layoutName] || LayoutOne;
 
   const [{ createRoot }, { flushSync }] = await Promise.all([
     import("react-dom/client"),
@@ -130,12 +166,21 @@ export const downloadSavedEPaper = async (row = {}) => {
   try {
     flushSync(() => {
       root.render(
-        <LayoutComponent
-          sections={page.sections}
-          activeSection=""
-          onSelectSection={() => {}}
-          onSectionChange={() => {}}
-        />
+        <>
+          {pages.map((page) => {
+            const LayoutComponent = LAYOUT_COMPONENTS[page.layoutName] || LayoutOne;
+            return (
+              <div key={page.id} {...{ [PAGE_ATTR]: page.id }}>
+                <LayoutComponent
+                  sections={page.sections}
+                  activeSection=""
+                  onSelectSection={() => {}}
+                  onSectionChange={() => {}}
+                />
+              </div>
+            );
+          })}
+        </>
       );
     });
     await new Promise((resolve) => setTimeout(resolve, 300));

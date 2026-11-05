@@ -3,5 +3,6 @@
 export {
   buildBaseSections,
   downloadElementAsPdf,
+  elementToEPaperFiles,
   downloadSavedEPaper,
 } from "./PDFExporter.jsx";
