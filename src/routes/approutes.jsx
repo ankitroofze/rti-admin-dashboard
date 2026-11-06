@@ -172,6 +172,8 @@ import PaymentHistoryView from "../pages/payment-history/payment-history-view";
 import SubscriptionPurchasers from "../pages/subscription-purchasers/subscription-purchasers";
 import SubscriptionPurchasersView from "../pages/subscription-purchasers/subscription-purchasers-view";
 import SubscriptionSeats from "../pages/subscription-seats/subscription-seats";
+import Reports from "../pages/reports/reports";
+import ReportsView from "../pages/reports/reports-view";
 
 const moduleRoutes = [
   { slug: "dashboard", List: Dashboard, View: DashboardView, Deleted: DashboardDeleted, Status: DashboardStatus },
@@ -209,7 +211,8 @@ const moduleRoutes = [
   { slug: "reports-ads-view", List: ReportsAdsView, View: ReportsAdsViewView, Deleted: ReportsAdsViewDeleted },
     { slug: "profile-update-requests", List: ProfileUpdateRequests, View: ProfileUpdateRequestsView },
   { slug: "user-follows", List: UserFollows, View: UserFollowsView },
-  { slug: "user-blocks", List: UserBlocks, View: UserBlocksView }
+  { slug: "user-blocks", List: UserBlocks, View: UserBlocksView },
+  { slug: "reports", List: Reports, View: ReportsView }
 ];
 
 const isLoggedIn = hasAuthSession;

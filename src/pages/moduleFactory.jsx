@@ -534,7 +534,7 @@ const moduleConfig = {
       ["method", "Method"],
       ["status", "Status"],
     ],
-    actions: ["view", "approve", "reject", "delete"], // delete button sirf paid/rejected/cancelled par dikhta hai (ActionButtons)
+    actions: ["view", "invoice", "approve", "reject", "delete"], // delete button sirf paid/rejected/cancelled par dikhta hai (ActionButtons)
     details: [
       "withdrawalNumber", "userId", "userName", "amount", "method", "status",
       "accountHolder", "accountNumber", "ifsc", "upiId",
@@ -647,7 +647,7 @@ details: ["title", "role", "levelLabel", "price", "offerPrice", "credits", "days
     ["status", "Payment Status"],
     ["validityStatus", "Validity"],
   ],
-  actions: ["view"],   // read-only ledger — admin update/delete nahi karta
+  actions: ["view", "invoice"],   // read-only ledger — admin update/delete nahi karta, invoice download available
   details: [
     "id", "username", "userEmail", "type", "planTitle",
     "credits", "days", "amount", "status", "validityStatus",
@@ -1618,7 +1618,7 @@ const SUBSCRIPTION_API_SLUGS = ["ecommerce-subscription", "ads-subscription"];
 // const SUBSCRIPTION_API_SLUGS = ["ecommerce-subscription", "ads-subscription", "subscription-plan"];
 const isSubscriptionApiSlug = (slug) => SUBSCRIPTION_API_SLUGS.includes(slug);
 // product-enquiry: list + status => /admin-rti/ecom-enquiries (show/delete purane /rti-admin route par hi rehte hain)
-const ADMIN_RTI_API_SLUGS = ["user-follows", "user-blocks", "profile-update-requests", "wallets", "withdrawal", "product-enquiry"];
+const ADMIN_RTI_API_SLUGS = ["user-follows", "user-blocks", "profile-update-requests", "wallets", "withdrawal", "product-enquiry", "payment-history"];
 const isAdminRtiApiSlug = (slug) => ADMIN_RTI_API_SLUGS.includes(slug);
 const moduleClientForSlug = (slug) =>
   slug === "news" ? axiosClient
@@ -3430,32 +3430,99 @@ const setActiveRecord = (slug, row) => {
   sessionStorage.setItem(`${activeRecordKey(slug)}-snapshot`, JSON.stringify(row)); // NEW
 };
 
-const openWithdrawalInvoice = (row) => {
-  const subtotal = Number(row.amount || 0);
-  const gst = Number(row.gstAmount || 0);
-  const total = Number(row.totalAmount || subtotal + gst);
+const openWithdrawalInvoice = async (row, slug = "withdrawal") => {
+  let item = { ...row };
+  const isWithdrawal = slug === "withdrawal" || Boolean(item.withdrawalNumber || item.withdrawal_no || item.payoutReference);
+
+  // If it's a withdrawal, fetch the real detail from Admin RTI API: GET /admin-rti/withdrawals/{id}
+  if (isWithdrawal) {
+    const withdrawalId = item.id || item.withdrawal_id || item.withdrawalNumber;
+    if (withdrawalId) {
+      try {
+        const res = await adminRtiClient.get(API.WITHDRAWAL_SHOW(encodeURIComponent(withdrawalId)), {
+          headers: apiHeaders(),
+          timeout: 12000,
+        });
+        const fresh = res.data?.data || res.data?.withdrawal || res.data;
+        if (fresh && typeof fresh === "object") {
+          item = {
+            ...item,
+            ...fresh,
+            amount: fresh.amount ?? item.amount,
+            withdrawalNumber: fresh.withdrawal_no || fresh.withdrawal_number || fresh.reference_no || item.withdrawalNumber,
+            userName: fresh.user?.name || [fresh.user?.firstname, fresh.user?.lastname].filter(Boolean).join(" ").trim() || fresh.user_name || item.userName,
+            userEmail: fresh.user?.email || fresh.user_email || item.userEmail,
+            accountHolder: fresh.account_holder_name || fresh.account_holder || item.accountHolder,
+            accountNumber: fresh.account_number || item.accountNumber,
+            ifsc: fresh.ifsc || item.ifsc,
+            upiId: fresh.upi_id || item.upiId,
+            payoutReference: fresh.payout_reference || item.payoutReference,
+            payoutMode: fresh.payout_mode || fresh.method || item.payoutMode,
+            status: fresh.status || item.status,
+            paidAt: fresh.paid_at || item.paidAt,
+            createdAt: fresh.created_at || item.createdAt,
+          };
+        }
+      } catch (err) {
+        console.warn("Could not fetch fresh withdrawal detail from admin-rti:", err);
+      }
+    }
+  }
+
+  const rawAmount = String(item.amount || item.totalAmount || item.price || 0).replace(/[^0-9.]/g, "");
+  const subtotal = Number(rawAmount || 0);
+  const gst = Number(item.gstAmount || item.gst_amount || 0);
+  const total = Number(item.totalAmount || item.total_amount || (subtotal + gst));
+
+  const invoiceNumber = isWithdrawal
+    ? (item.withdrawalNumber || item.withdrawal_no || item.reference_no || item.id || "WTH")
+    : (item.razorpayPaymentId || item.razorpay_payment_id || item.paymentId || item.id || "PAY");
+
+  const invoiceDate = formatDisplayDate(item.paidAt || item.paid_at || item.purchaseDate || item.purchase_date || item.createdAt || item.created_at || new Date());
+  const status = String(item.status || "Completed");
+
+  const customerName = item.userName || item.username || item.user?.name || (item.userId ? `User #${item.userId}` : "Customer");
+  const customerEmail = item.userEmail || item.user?.email || item.email || "-";
+  const orderRef = isWithdrawal
+    ? (item.withdrawalNumber || item.id || "-")
+    : (item.razorpayOrderId || item.razorpay_order_id || item.orderId || "-");
+  const paymentRef = isWithdrawal
+    ? (item.payoutReference || item.payout_reference || item.reference_no || item.id || "-")
+    : (item.razorpayPaymentId || item.razorpay_payment_id || item.paymentId || "-");
+  const paymentMethod = isWithdrawal
+    ? (item.payoutMode || item.method || "Bank / UPI Payout")
+    : (item.paymentMethod || item.method || "Online Payment");
+
+  const itemName = isWithdrawal ? "Withdrawal Payout" : (item.planTitle || item.title || "Subscription Plan");
+  const itemDesc = isWithdrawal
+    ? `Withdrawal #${invoiceNumber} ${item.accountNumber ? `| A/C: ${item.accountNumber} (IFSC: ${item.ifsc || "-"})` : (item.upiId ? `| UPI: ${item.upiId}` : "")}`
+    : `${item.type || "Role"} Subscription ${item.credits ? `| Credits: ${item.credits}` : ""} ${item.days ? `| Validity: ${item.days} Days` : ""}`;
+
   const invoiceHtml = `
     <html>
       <head>
-        <title>Invoice ${row.transactionId || ""}</title>
+        <title>Invoice #${invoiceNumber}</title>
         <style>
-          body{font-family:Arial,sans-serif;margin:24px;color:#111827}.card{border:1px solid #ddd;border-radius:8px}.card-header{padding:14px 18px;border-bottom:1px solid #ddd}.card-body{padding:18px}.row{display:flex;flex-wrap:wrap;margin:0 -10px}.col{padding:10px;flex:1 1 240px}.right{text-align:right}.center{text-align:center}.brand{display:flex;align-items:center;gap:10px;margin-bottom:12px}.brand img{height:52px}.qr{width:110px}.table{width:100%;border-collapse:collapse;margin:18px 0}.table th,.table td{border-bottom:1px solid #e5e7eb;padding:10px;text-align:left}.table th.right,.table td.right{text-align:right}.table th.center,.table td.center{text-align:center}.summary{margin-left:auto;width:320px}.summary td{padding:8px;border-bottom:1px solid #e5e7eb}@media print{button{display:none}}
+          body{font-family:Arial,sans-serif;margin:24px;color:#111827}.card{border:1px solid #ddd;border-radius:8px}.card-header{padding:14px 18px;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;align-items:center}.card-body{padding:18px}.row{display:flex;flex-wrap:wrap;margin:0 -10px}.col{padding:10px;flex:1 1 240px}.right{text-align:right}.center{text-align:center}.brand{display:flex;align-items:center;gap:10px;margin-bottom:12px}.brand img{height:52px}.qr{width:110px}.table{width:100%;border-collapse:collapse;margin:18px 0}.table th,.table td{border-bottom:1px solid #e5e7eb;padding:10px;text-align:left}.table th.right,.table td.right{text-align:right}.table th.center,.table td.center{text-align:center}.summary{margin-left:auto;width:320px}.summary td{padding:8px;border-bottom:1px solid #e5e7eb}@media print{button{display:none}}
         </style>
       </head>
       <body>
         <div class="card">
-          <div class="card-header">Invoice <strong>${formatDisplayDate(row.paidAt || row.createdAt || new Date())}</strong><span style="float:right"><strong>Status:</strong> ${row.status || "Pending"}</span></div>
+          <div class="card-header">
+            <div>Invoice <strong>#${invoiceNumber}</strong> &nbsp;|&nbsp; Date: <strong>${invoiceDate}</strong></div>
+            <div><strong>Status:</strong> <span style="text-transform:capitalize;">${status}</span></div>
+          </div>
           <div class="card-body">
             <div class="row">
-              <div class="col"><h6>From:</h6><strong>RTI Admin Dashboard</strong><div>Roofze Digital Hub</div><div>Email: admin@rti.com</div><div>Phone: +91 98765 43210</div></div>
-              <div class="col"><h6>To:</h6><strong>${row.userId || "User"}</strong><div>Order: ${row.orderId || "-"}</div><div>Payment: ${row.paymentId || "-"}</div><div>Method: ${row.paymentMethod || "-"}</div></div>
-              <div class="col"><div class="brand"><img src="${logo}" /><strong>RTI</strong></div><span>Please verify exact amount:<strong style="display:block">₹${total}</strong><strong>${row.transactionId || "-"}</strong></span><br/><small>Generated from withdrawal details</small><div><img src="${qrcode}" class="qr" /></div></div>
+              <div class="col"><h6>From:</h6><strong>RTI Bharati Mahiti Adhikar</strong><div>Roofze Digital Hub</div><div>Email: admin@rti.com</div><div>Phone: +91 98765 43210</div></div>
+              <div class="col"><h6>To:</h6><strong>${customerName}</strong><div>Email: ${customerEmail}</div><div>Reference: ${orderRef}</div><div>Method: ${paymentMethod}</div></div>
+              <div class="col"><div class="brand"><img src="${logo}" /><strong>RTI</strong></div><span>Total Amount:<strong style="display:block;font-size:18px;">₹${total}</strong><strong>${paymentRef}</strong></span><br/><small>Generated from official admin ${isWithdrawal ? "withdrawal" : "subscription"} records</small><div><img src="${qrcode}" class="qr" /></div></div>
             </div>
             <table class="table"><thead><tr><th class="center">#</th><th>Item</th><th>Description</th><th class="right">Unit Cost</th><th class="center">Qty</th><th class="right">Total</th></tr></thead><tbody>
-              <tr><td class="center">1</td><td>Withdrawal</td><td>${row.transactionId || "Withdrawal request"}</td><td class="right">₹${subtotal}</td><td class="center">1</td><td class="right">₹${subtotal}</td></tr>
-              <tr><td class="center">2</td><td>GST</td><td>Tax Amount</td><td class="right">₹${gst}</td><td class="center">1</td><td class="right">₹${gst}</td></tr>
+              <tr><td class="center">1</td><td>${itemName}</td><td>${itemDesc}</td><td class="right">₹${subtotal}</td><td class="center">1</td><td class="right">₹${subtotal}</td></tr>
+              ${gst > 0 ? `<tr><td class="center">2</td><td>GST</td><td>Tax Amount</td><td class="right">₹${gst}</td><td class="center">1</td><td class="right">₹${gst}</td></tr>` : ""}
             </tbody></table>
-            <table class="summary"><tbody><tr><td><strong>Subtotal</strong></td><td class="right">₹${subtotal}</td></tr><tr><td><strong>GST</strong></td><td class="right">₹${gst}</td></tr><tr><td><strong>Total</strong></td><td class="right"><strong>₹${total}</strong></td></tr></tbody></table>
+            <table class="summary"><tbody><tr><td><strong>Subtotal</strong></td><td class="right">₹${subtotal}</td></tr>${gst > 0 ? `<tr><td><strong>GST</strong></td><td class="right">₹${gst}</td></tr>` : ""}<tr><td><strong>Total</strong></td><td class="right"><strong>₹${total}</strong></td></tr></tbody></table>
           </div>
         </div>
         <script>window.print()</script>
@@ -3488,7 +3555,7 @@ const ActionButtons = ({ slug, actions, row, onDelete, onStatus, onApprove, onRe
       </Link>
     )}
     {actions.includes("invoice") && (
-      <button type="button" onClick={() => openWithdrawalInvoice(row)} className="btn btn-secondary shadow btn-xs sharp">
+      <button type="button" onClick={() => openWithdrawalInvoice(row, slug)} className="btn btn-secondary shadow btn-xs sharp" title="Download Invoice">
         <i className="fa fa-download" />
       </button>
     )}
@@ -4802,8 +4869,18 @@ useEffect(() => {
       ) : (
         <>
           <div className="card">
-            <div className="card-header d-flex justify-content-between">
+            <div className="card-header d-flex justify-content-between align-items-center">
               <h4 className="card-title mb-0">{config.title} Details</h4>
+              {["withdrawal", "payment-history"].includes(slug) && (
+                <button
+                  type="button"
+                  onClick={() => openWithdrawalInvoice(row, slug)}
+                  className="btn btn-primary btn-sm"
+                >
+                  <i className="fa fa-download me-1" />
+                  Download Invoice
+                </button>
+              )}
             </div>
             <div className="card-body">
               {(row.image || row.profile_image) && slug !== "profile-update-requests" && (

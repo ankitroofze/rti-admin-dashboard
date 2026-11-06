@@ -210,6 +210,10 @@ PROFILE_UPDATE_REQUESTS_INDEX: '/users/pending-profiles',
 PROFILE_UPDATE_REQUESTS_APPROVE: (id) => `/users/${id}/approve-profile`,
 PROFILE_UPDATE_REQUESTS_REJECT: (id) => `/users/${id}/reject-profile`,
 
+// Reports (Admin RTI)
+REPORTS_INDEX: '/reports',
+REPORTS_SHOW: (id) => `/reports/${id}`,
+REPORTS_STATUS: (id) => `/reports/${id}/status`,
 
 };
 

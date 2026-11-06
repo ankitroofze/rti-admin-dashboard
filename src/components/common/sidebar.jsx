@@ -67,6 +67,11 @@ const MenuList = [
     iconStyle: <i className="fa fa-newspaper" />,
   },
   {
+    title: "Reports",
+    to: "/admin/reports",
+    iconStyle: <i className="fa fa-flag" />,
+  },
+  {
     title: "E-Commerce",
     iconStyle: <i className="fa fa-cart-shopping" />,
     content: [
