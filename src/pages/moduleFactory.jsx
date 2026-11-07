@@ -4203,6 +4203,36 @@ export const ModuleList = ({ slug }) => {
               </table>
             </div>
             <div className="rti-mobile-table">
+              {slug === "payment-history" && (
+                <div className="rti-mobile-inline-filters mb-3">
+                  <input className="form-control mb-2" type="search" placeholder="Search..." value={filters.search || ""} onChange={(event) => onFilterChange("search", event.target.value)} />
+                  <div className="row g-2 mb-2">
+                    <div className="col-6">
+                      <select className="form-control" value={filters.type || ""} onChange={(event) => onFilterChange("type", event.target.value)}>
+                        <option value="">All Types</option>
+                        {["Role", "Ads", "Ecom", "Quiz"].map((item) => <option key={item} value={item}>{item}</option>)}
+                      </select>
+                    </div>
+                    <div className="col-6">
+                      <select className="form-control" value={filters.status || ""} onChange={(event) => onFilterChange("status", event.target.value)}>
+                        <option value="">All Status</option>
+                        {["Created", "Paid", "Failed"].map((item) => <option key={item} value={item}>{item}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="row g-2">
+                    <div className="col-6">
+                      <input className="form-control" type="date" value={filters.dateFilter || ""} onChange={(event) => onFilterChange("dateFilter", event.target.value)} />
+                    </div>
+                    <div className="col-6">
+                      <input className="form-control" type="number" min="1" placeholder="User ID" value={filters.apiUserId || ""} onChange={(event) => onFilterChange("apiUserId", event.target.value)} />
+                    </div>
+                  </div>
+                  {Object.values(filters || {}).some((value) => String(value || "").trim()) && (
+                    <button type="button" className="btn btn-danger light btn-sm mt-2 w-100" onClick={resetFilters}>Remove Filters</button>
+                  )}
+                </div>
+              )}
               {isLoading && (
                 <div className="text-center py-4">
                   <span className="spinner-border spinner-border-sm me-2" />

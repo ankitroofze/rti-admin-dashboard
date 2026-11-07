@@ -173,19 +173,9 @@ const MenuList = [
     ],
   },
   {
-    title: "Offices Addresses",
-    to: "/admin/offices-addresses",
-    iconStyle: <i className="fa fa-building" />,
-  },
-  {
     title: "News Notification",
     to: "/admin/news-notification",
     iconStyle: <i className="fa fa-paper-plane" />,
-  },
-  {
-    title: "Contact Us",
-    to: "/admin/contact-us",
-    iconStyle: <i className="fa fa-phone" />,
   },
 ];
 

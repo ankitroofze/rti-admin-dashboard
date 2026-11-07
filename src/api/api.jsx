@@ -8,7 +8,9 @@ const API = {
    RESET_PASSWORD: '/forgot-password/reset',
    
    // Users Standard Routes
-   USERS: '/users',
+   USERS: '/users', 
+
+
    USERS_ADD: '/users',
 
    // Users Dynamic Routes

@@ -94,19 +94,11 @@ import QuizSubscriptionUserUpdate from "../pages/quiz-subscription-user/quiz-sub
 import QuizSubscriptionUserDelete from "../pages/quiz-subscription-user/quiz-subscription-user-delete";
 import QuizSubscriptionUserStatus from "../pages/quiz-subscription-user/quiz-subscription-user-status";
 
-import OfficesAddresses from "../pages/offices-addresses/offices-addresses";
-import OfficesAddressesView from "../pages/offices-addresses/offices-addresses-view";
-import OfficesAddressesAdd from "../pages/offices-addresses/offices-addresses-add";
-import OfficesAddressesUpdate from "../pages/offices-addresses/offices-addresses-update";
-import OfficesAddressesDeleted from "../pages/offices-addresses/offices-addresses-deleted";
 
 import Notification from "../pages/news-notification/notification";
 import NotificationView from "../pages/news-notification/notification-view";
 import NotificationDeleted from "../pages/news-notification/notification-deleted";
 
-import ContactUs from "../pages/contact-us/contact-us";
-import ContactUsView from "../pages/contact-us/contact-us-view";
-import ContactUsDeleted from "../pages/contact-us/contact-us-deleted";
 
 import EcommerceSubscription from "../pages/ecommerce-subscription/ecommerce-subscription";
 import EcommerceSubscriptionView from "../pages/ecommerce-subscription/ecommerce-subscription-view";
@@ -195,9 +187,7 @@ const moduleRoutes = [
   { slug: "quiz-subscription-create", List: QuizSubscriptionCreate, View: QuizSubscriptionCreateView, Add: QuizSubscriptionCreateAdd, Update: QuizSubscriptionCreateUpdate, Deleted: QuizSubscriptionCreateDeleted, Status: QuizSubscriptionCreateStatus },
   { slug: "quiz-subscription-by-user", List: QuizSubscriptionUser, View: QuizSubscriptionUserView, Add: QuizSubscriptionUserAdd, Update: QuizSubscriptionUserUpdate, Deleted: QuizSubscriptionUserDelete, Status: QuizSubscriptionUserStatus },
   { slug: "quiz-attempts", List: QuizAttempts, View: QuizAttemptsView },
-  { slug: "offices-addresses", List: OfficesAddresses, View: OfficesAddressesView, Add: OfficesAddressesAdd, Update: OfficesAddressesUpdate, Deleted: OfficesAddressesDeleted },
   { slug: "news-notification", List: Notification, View: NotificationView, Deleted: NotificationDeleted },
-  { slug: "contact-us", List: ContactUs, View: ContactUsView, Deleted: ContactUsDeleted },
   { slug: "ecommerce-subscription", List: EcommerceSubscription, View: EcommerceSubscriptionView, Add: EcommerceSubscriptionAdd, Update: EcommerceSubscriptionUpdate, Deleted: EcommerceSubscriptionDeleted, Status: EcommerceSubscriptionStatus },
   { slug: "ecom-buy", List: EcomBuy, View: EcomBuyView, Add: EcomBuyAdd, Update: EcomBuyUpdate, Deleted: EcomBuyDeleted, Status: EcomBuyStatus },
   { slug: "ecom-sell", List: EcomSell, View: EcomSellView, Add: EcomSellAdd, Update: EcomSellUpdate, Deleted: EcomSellDeleted, Status: EcomSellStatus },
