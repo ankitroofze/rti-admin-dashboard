@@ -28,11 +28,11 @@ const UPDATE_VIA_METHOD_SPOOF = true;
 /* ----------------------------- helpers ----------------------------- */
 
 const API_ORIGIN = (() => {
-  const raw = String(import.meta.env.VITE_API_BASE_URL || "https://rtiapi.roofze.in/api");
+  const raw = String(import.meta.env.VITE_API_BASE_URL || "https://189.72.144.238/api");
   try {
     return new URL(raw).origin;
   } catch {
-    return "https://rtiapi.roofze.in";
+    return "https://189.72.144.238";
   }
 })();
 

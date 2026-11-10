@@ -1757,7 +1757,7 @@ const normalizeStatusValue = (value) => {
   if (["active", "approved", "paid", "true", "1"].includes(normalized)) return 1;
   return 0;
 };
-const STORAGE_BASE = "https://rtiapi.roofze.in/storage/";
+const STORAGE_BASE = "https://189.72.144.238/storage/";
 const absoluteStorageUrl = (path) => {
   const value = String(path || "").trim();
   if (!value) return "";
