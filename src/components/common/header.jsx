@@ -46,7 +46,7 @@ const Header = ({ sidebarCollapsed = false, onToggleSidebar = () => {} }) => {
   // 🔥 CLEAN LOGOUT LOGIC: Interceptor handles the token automatically now!
   const handleLogout = async () => {
   try {
-    // ⚠️ Sirf '/logout' likhna hai, apiClient khud aage 'https://rtiapi.roofze.in/api/rti-admin' jod dega
+    // ⚠️ Sirf '/logout' likhna hai, apiClient khud aage 'https://189.72.144.238/api/rti-admin' jod dega
     await apiClient.post("/logout", {});
     toast.success("Logged out successfully");
   } catch (err) {

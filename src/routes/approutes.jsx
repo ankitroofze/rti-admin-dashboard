@@ -215,9 +215,18 @@ const ProtectedLayout = () => {
   return isLoggedIn() ? <AdminLayout /> : <Navigate to="/" replace />;
 };
 
+const getBasename = () => {
+  const viteBase = import.meta.env.BASE_URL ? import.meta.env.BASE_URL.replace(/\/+$/, "") : "";
+  if (viteBase && viteBase !== "") return viteBase;
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/RTI-Admin")) {
+    return "/RTI-Admin";
+  }
+  return "";
+};
+
 const AppRoutes = () => {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={getBasename()}>
       <Routes>
         <Route path="/" element={<PublicOnly><Login /></PublicOnly>} />
         <Route path="/forgot-password" element={<Forgot />} />

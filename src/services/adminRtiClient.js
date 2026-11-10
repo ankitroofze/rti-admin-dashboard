@@ -1,12 +1,21 @@
 import axios from "axios";
 import { clearAuthSession, getAuthToken } from "./authSession";
 
+const getAppLoginPath = () => {
+  const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
+  if (base && base !== "") return `${base}/`;
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/RTI-Admin")) {
+    return "/RTI-Admin/";
+  }
+  return "/";
+};
+
 // NOTE: rti-admin wale clients (axiosClient/apiClient/adminRouteClient) hamesha
 // baseURL ke end me "/rti-admin" force karte hain. Naye Admin RTI APIs
 // (user-follows, user-blocks, pending-profiles, approve/reject-profile) backend
 // par "/admin-rti" prefix ke neeche hain — isliye alag client chahiye.
 const normalizeAdminRtiUrl = (url) => {
-  const cleanUrl = String(url || "https://rtiapi.roofze.in/api").replace(/\/(rti-admin|admin-rti)\/?$/, "").replace(/\/+$/, "");
+  const cleanUrl = String(url || "https://189.72.144.238/api").replace(/\/(rti-admin|admin-rti)\/?$/, "").replace(/\/+$/, "");
   return `${cleanUrl}/admin-rti`;
 };
 
@@ -44,8 +53,9 @@ adminRtiClient.interceptors.response.use(
   (error) => {
     if ([401, 419].includes(error.response?.status)) {
       clearAuthSession();
-      if (window.location.pathname !== "/") {
-        window.location.replace("/");
+      const loginPath = getAppLoginPath();
+      if (window.location.pathname !== loginPath && window.location.pathname !== loginPath.replace(/\/$/, "")) {
+        window.location.replace(loginPath);
       }
     }
     if (error.response?.status === 409 && !error.response.data?.message) {

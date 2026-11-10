@@ -1,9 +1,18 @@
 import axios from "axios";
 import { clearAuthSession, getAuthToken } from "./authSession";
 
+const getAppLoginPath = () => {
+  const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
+  if (base && base !== "") return `${base}/`;
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/RTI-Admin")) {
+    return "/RTI-Admin/";
+  }
+  return "/";
+};
+
 const ADMIN_ROUTE_BASE_URL = import.meta.env.DEV
   ? "/rti-admin"
-  : "https://rtiapi.roofze.in/rti-admin";
+  : "https://189.72.144.238/api/rti-admin";
 
 const adminRouteClient = axios.create({
   baseURL: ADMIN_ROUTE_BASE_URL,
@@ -38,8 +47,9 @@ adminRouteClient.interceptors.response.use(
   (error) => {
     if ([401, 419].includes(error.response?.status)) {
       clearAuthSession();
-      if (window.location.pathname !== "/") {
-        window.location.replace("/");
+      const loginPath = getAppLoginPath();
+      if (window.location.pathname !== loginPath && window.location.pathname !== loginPath.replace(/\/$/, "")) {
+        window.location.replace(loginPath);
       }
     }
     return Promise.reject(error);
