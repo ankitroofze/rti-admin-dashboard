@@ -144,21 +144,6 @@ import AdsViewTracking from "../pages/ads-view-tracking/ads-view-tracking";
 import AdsViewTrackingView from "../pages/ads-view-tracking/ads-view-tracking-view";
 import AdsViewTrackingDeleted from "../pages/ads-view-tracking/ads-view-tracking-deleted";
 
-import ReportsProductEnquiry from "../pages/reports-product-enquiry/reports-product-enquiry";
-import ReportsProductEnquiryView from "../pages/reports-product-enquiry/reports-product-enquiry-view";
-import ReportsProductEnquiryDeleted from "../pages/reports-product-enquiry/reports-product-enquiry-deleted";
-
-import ReportsUserWise from "../pages/reports-user-wise/reports-user-wise";
-import ReportsUserWiseView from "../pages/reports-user-wise/reports-user-wise-view";
-import ReportsUserWiseDeleted from "../pages/reports-user-wise/reports-user-wise-deleted";
-
-import ReportsSubscription from "../pages/reports-subscription/reports-subscription";
-import ReportsSubscriptionView from "../pages/reports-subscription/reports-subscription-view";
-import ReportsSubscriptionDeleted from "../pages/reports-subscription/reports-subscription-deleted";
-
-import ReportsAdsView from "../pages/reports-ads-view/reports-ads-view";
-import ReportsAdsViewView from "../pages/reports-ads-view/reports-ads-view-view";
-import ReportsAdsViewDeleted from "../pages/reports-ads-view/reports-ads-view-deleted";
 import PaymentHistory from "../pages/payment-history/payment-history";
 import PaymentHistoryView from "../pages/payment-history/payment-history-view";
 import SubscriptionPurchasers from "../pages/subscription-purchasers/subscription-purchasers";
@@ -195,11 +180,7 @@ const moduleRoutes = [
   { slug: "ads-subscription", List: AdsSubscription, View: AdsSubscriptionView, Add: AdsSubscriptionAdd, Update: AdsSubscriptionUpdate, Deleted: AdsSubscriptionDeleted, Status: AdsSubscriptionStatus },
  { slug: "ads-management", List: AdsManagement, View: AdsManagementView, Add: AdsManagementAdd, Update: AdsManagementUpdate, Deleted: AdsManagementDeleted, Status: AdsManagementStatus },
   { slug: "ads-view-tracking", List: AdsViewTracking, View: AdsViewTrackingView, Deleted: AdsViewTrackingDeleted },
-  { slug: "reports-product-enquiry", List: ReportsProductEnquiry, View: ReportsProductEnquiryView, Deleted: ReportsProductEnquiryDeleted },
-  { slug: "reports-user-wise", List: ReportsUserWise, View: ReportsUserWiseView, Deleted: ReportsUserWiseDeleted },
-  { slug: "reports-subscription", List: ReportsSubscription, View: ReportsSubscriptionView, Deleted: ReportsSubscriptionDeleted },
-  { slug: "reports-ads-view", List: ReportsAdsView, View: ReportsAdsViewView, Deleted: ReportsAdsViewDeleted },
-    { slug: "profile-update-requests", List: ProfileUpdateRequests, View: ProfileUpdateRequestsView },
+  { slug: "profile-update-requests", List: ProfileUpdateRequests, View: ProfileUpdateRequestsView },
   { slug: "user-follows", List: UserFollows, View: UserFollowsView },
   { slug: "user-blocks", List: UserBlocks, View: UserBlocksView },
   { slug: "reports", List: Reports, View: ReportsView }

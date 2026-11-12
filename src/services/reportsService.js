@@ -234,6 +234,17 @@ export const clearActiveReport = () => {
 
 /* ------------------------------- API calls ------------------------- */
 
+const reportsMemoryCache = new Map();
+
+export const getCachedReports = (params = {}) => {
+  const key = `${params.type || "news"}_${params.status || "pending"}_${params.page || 1}_${params.per_page || 20}`;
+  const hit = reportsMemoryCache.get(key);
+  if (hit && Date.now() - hit.timestamp < 60000) {
+    return hit.data;
+  }
+  return null;
+};
+
 /**
  * Fetch reports list with filters and pagination
  * GET /admin-rti/reports?type=news&status=pending&per_page=20&page=1
@@ -253,7 +264,7 @@ export const getReports = async ({
   const endpoint = API.REPORTS_INDEX || "/reports";
   const response = await adminRtiClient.get(endpoint, {
     params,
-    timeout: 15000,
+    timeout: 10000,
   });
 
   const payload = response.data;
@@ -294,13 +305,17 @@ export const getReports = async ({
     (perPageVal > 0 ? Math.ceil(total / perPageVal) : 1)
   );
 
-  return {
+  const result = {
     rows,
     total,
     currentPage,
     lastPage: Math.max(1, lastPage),
     perPage: perPageVal,
   };
+  const key = `${type}_${status}_${page}_${per_page}`;
+  reportsMemoryCache.set(key, { timestamp: Date.now(), data: result });
+
+  return result;
 };
 
 /**
@@ -319,8 +334,10 @@ export const updateReportStatus = async (reportId, nextStatus, remarks = "") => 
   }
 
   const response = await adminRtiClient.post(endpoint, body, {
-    timeout: 15000,
+    timeout: 10000,
   });
+
+  reportsMemoryCache.clear();
 
   return {
     message: response.data?.message || `Report status updated to ${nextStatus}`,

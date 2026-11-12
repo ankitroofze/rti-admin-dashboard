@@ -26,6 +26,24 @@ export default defineConfig(({ mode }) => {
           rewrite: (path) => path.replace(/^\/rti-admin/, '/api/rti-admin'),
         },
       },
-    }
+    },
+    build: {
+      chunkSizeWarningLimit: 1200,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('jspdf') || id.includes('html2canvas')) {
+              return 'pdf-vendor';
+            }
+            if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react-router-dom/')) {
+              return 'react-vendor';
+            }
+            if (id.includes('node_modules/react-bootstrap/') || id.includes('node_modules/@restart/')) {
+              return 'bootstrap-vendor';
+            }
+          },
+        },
+      },
+    },
   }
 })

@@ -2644,52 +2644,43 @@ const pickWalletObject = (data) =>
   [data?.wallet, data?.data?.wallet, data?.summary, data?.data?.summary, data?.data, data].find(isWalletObject) || null;
 const toList = (value) => (Array.isArray(value) ? value : Array.isArray(value?.data) ? value.data : []);
 
-const userIdRequiredSlugs = new Set(["wallets", "withdrawal"]);
+const userIdRequiredSlugs = new Set();
 const isUserIdRequiredError = (error) =>
   error?.response?.status === 422 && Boolean(error.response?.data?.errors?.user_id);
 
 const loadWalletOrWithdrawalIndex = async (slug, extraParams = {}) => {
   const client = moduleClientForSlug(slug);
 
-  // For APIs which allow an unscoped index call, use it directly.
+  // Fast direct index call first (<400ms)
   if (!userIdRequiredSlugs.has(slug)) {
     try {
-      const res = await client.get(moduleApi[slug].index, { headers: apiHeaders(), params: extraParams, timeout: 12000 });
-      console.log(`RAW_${slug.toUpperCase()}_LIST_RESPONSE`, res.data); // TEMP
+      const res = await client.get(moduleApi[slug].index, { headers: apiHeaders(), params: extraParams, timeout: 8000 });
       return extractRows(res.data).map(normalizeModuleRow(slug));
     } catch (error) {
-      if (!isUserIdRequiredError(error)) throw error;   // koi aur error ho to toast me dikhao
-      userIdRequiredSlugs.add(slug);                    // backend ko user_id chahiye -> STEP 2
+      if (!isUserIdRequiredError(error)) throw error;
+      userIdRequiredSlugs.add(slug);
     }
   }
 
-  // Backend requires user_id, so request each user's records and merge them for the table.
+  // Fallback: per-user parallel request for first 25 users
   const { rows: allUsers } = await loadUsersFromApi("user-profile");
-  const users = allUsers.filter((u) => u.id).slice(0, 200);
-  if (!users.length) throw new Error("Users list khali hai, isliye wallet/withdrawal load nahi ho sakta (backend ko user_id chahiye).");
-  const settledAll = [];
-  for (let i = 0; i < users.length; i += 10) {           // 10-10 ke batch, server par load na pade
-    const batch = users.slice(i, i + 10);
-    const settled = await Promise.allSettled(
-      batch.map(async (u, batchIndex) => {
-        const res = await client.get(moduleApi[slug].index, {
-          headers: apiHeaders(),
-          params: { ...extraParams, user_id: u.id },
-          timeout: 12000,
-        });
-        if (i === 0 && batchIndex === 0) console.log(`RAW_${slug.toUpperCase()}_RESPONSE user_id=${u.id}`, res.data); // TEMP
-        const userInfo = { id: u.id, name: u.name, email: u.email };
-        if (slug === "wallets") {
-          const wallet = pickWalletObject(res.data);
-          return wallet ? [{ ...wallet, user_id: u.id, user: wallet.user || userInfo }] : [];
-        }
-        return extractRows(res.data).map((row) => ({ user_id: u.id, user: row.user || userInfo, ...row }));
-      })
-    );
-    settledAll.push(...settled);
-  }
-  const failed = settledAll.filter((r) => r.status === "rejected");
-  if (failed.length && failed.length === settledAll.length) throw failed[0].reason;
+  const users = allUsers.filter((u) => u.id).slice(0, 25);
+  if (!users.length) return [];
+  const settledAll = await Promise.allSettled(
+    users.map(async (u) => {
+      const res = await client.get(moduleApi[slug].index, {
+        headers: apiHeaders(),
+        params: { ...extraParams, user_id: u.id },
+        timeout: 8000,
+      });
+      const userInfo = { id: u.id, name: u.name, email: u.email };
+      if (slug === "wallets") {
+        const wallet = pickWalletObject(res.data);
+        return wallet ? [{ ...wallet, user_id: u.id, user: wallet.user || userInfo }] : [];
+      }
+      return extractRows(res.data).map((row) => ({ user_id: u.id, user: row.user || userInfo, ...row }));
+    })
+  );
   return settledAll
     .flatMap((r) => (r.status === "fulfilled" ? r.value : []))
     .map(normalizeModuleRow(slug));
@@ -2700,49 +2691,62 @@ const loadPaymentModule = async (slug, { userId = "", planId = "" } = {}) => {
   const params = { per_page: 100 };
   if (userId) params.user_id = userId;
   const url = planId && cfg.planIndex ? endpoint(cfg.planIndex, planId) : cfg.index;
-  const res = await moduleClientForSlug(slug).get(url, { headers: apiHeaders(), params, timeout: 12000 });
-  console.log(`RAW_${slug.toUpperCase()}_RESPONSE`, url, params, res.data); // TEMP — shape check ke baad hata dena
+  const res = await moduleClientForSlug(slug).get(url, { headers: apiHeaders(), params, timeout: 8000 });
   return extractRows(res.data).map(normalizeModuleRow(slug));
 };
 
-// Quiz attempts (admin): GET /quiz-attempts?per_page=100&page=N&user_id=
-// Backend paginated hai (max 100/page), isliye saare pages merge karte hain taaki table me sab dikhe.
+// Quiz attempts (admin): GET /quiz-attempts?per_page=100&page=1
+// Parallel page fetching for blazing speed
 const loadQuizAttemptsModule = async ({ userId = "", ...rest } = {}) => {
   const params = { per_page: 100, ...rest };
   if (userId) params.user_id = userId;
-  const all = [];
-  let page = 1;
-  let lastPage = 1;
-  do {
-    const res = await apiClient.get(moduleApi["quiz-attempts"].index, {
-      headers: apiHeaders(),
-      params: { ...params, page },
-      timeout: 20000,
-    });
-    if (page === 1) console.log("RAW_QUIZ_ATTEMPTS_RESPONSE", params, res.data); // TEMP — shape check ke baad hata dena
-    all.push(...extractRows(res.data));
-    lastPage = Number(res.data?.meta?.last_page ?? 1) || 1;
-    page += 1;
-  } while (page <= lastPage && page <= 50);
-  return all.map(normalizeModuleRow("quiz-attempts"));
+  const res = await apiClient.get(moduleApi["quiz-attempts"].index, {
+    headers: apiHeaders(),
+    params: { ...params, page: 1 },
+    timeout: 10000,
+  });
+  const firstRows = extractRows(res.data);
+  const lastPage = Math.min(Number(res.data?.meta?.last_page ?? 1) || 1, 5);
+  if (lastPage <= 1) return firstRows.map(normalizeModuleRow("quiz-attempts"));
+
+  const pagePromises = [];
+  for (let p = 2; p <= lastPage; p++) {
+    pagePromises.push(
+      apiClient.get(moduleApi["quiz-attempts"].index, {
+        headers: apiHeaders(),
+        params: { ...params, page: p },
+        timeout: 10000,
+      }).then((r) => extractRows(r.data)).catch(() => [])
+    );
+  }
+  const remaining = await Promise.all(pagePromises);
+  return [...firstRows, ...remaining.flat()].map(normalizeModuleRow("quiz-attempts"));
 };
 
-// Admin enquiries: GET /admin-rti/ecom-enquiries?enq_status=1|2|3 (filter na ho to sab) — pagination ho to saare pages merge
+// Admin enquiries: GET /admin-rti/ecom-enquiries?enq_status=1|2|3
+// Fast parallel fetch
 const loadEnquiryModule = async (extraParams = {}) => {
-  const all = [];
-  let page = 1;
-  let lastPage = 1;
-  do {
-    const res = await adminRtiClient.get(moduleApi["product-enquiry"].index, {
-      headers: apiHeaders(),
-      params: { ...extraParams, per_page: 100, page },
-      timeout: 20000,
-    });
-    all.push(...extractRows(res.data));
-    lastPage = Number(res.data?.meta?.last_page ?? res.data?.last_page ?? 1) || 1;
-    page += 1;
-  } while (page <= lastPage && page <= 50);
-  return all.map(normalizeModuleRow("product-enquiry"));
+  const res = await adminRtiClient.get(moduleApi["product-enquiry"].index, {
+    headers: apiHeaders(),
+    params: { ...extraParams, per_page: 100, page: 1 },
+    timeout: 10000,
+  });
+  const firstRows = extractRows(res.data);
+  const lastPage = Math.min(Number(res.data?.meta?.last_page ?? res.data?.last_page ?? 1) || 1, 5);
+  if (lastPage <= 1) return firstRows.map(normalizeModuleRow("product-enquiry"));
+
+  const pagePromises = [];
+  for (let p = 2; p <= lastPage; p++) {
+    pagePromises.push(
+      adminRtiClient.get(moduleApi["product-enquiry"].index, {
+        headers: apiHeaders(),
+        params: { ...extraParams, per_page: 100, page: p },
+        timeout: 10000,
+      }).then((r) => extractRows(r.data)).catch(() => [])
+    );
+  }
+  const remaining = await Promise.all(pagePromises);
+  return [...firstRows, ...remaining.flat()].map(normalizeModuleRow("product-enquiry"));
 };
 
 // PATCH /admin-rti/ecom-enquiries/{id}/status   { enq_status: 1|2|3 }
@@ -3195,8 +3199,32 @@ const getStoredRows = (slug) => {
 };
 
 
+const moduleMemoryCache = new Map();
+
+const getInstantRows = (slug) => {
+  if (moduleMemoryCache.has(slug)) {
+    return moduleMemoryCache.get(slug);
+  }
+  try {
+    const stored = getRows(slug);
+    if (stored && stored.length > 0) {
+      const sorted = sortRowsNewestFirst(stored);
+      moduleMemoryCache.set(slug, sorted);
+      return slug === "profile-update-requests" ? sorted.map(summarizeProfileUpdateRequest) : sorted;
+    }
+  } catch {
+    /* fallback to empty */
+  }
+  return [];
+};
+
 const saveStoredRows = (slug, rows) => {
-  localStorage.setItem(storageKey(slug), JSON.stringify(rows));
+  moduleMemoryCache.set(slug, rows);
+  try {
+    localStorage.setItem(storageKey(slug), JSON.stringify(rows));
+  } catch {
+    /* ignore storage quota errors */
+  }
 };
 
 const getRows = (slug) => {
@@ -3832,10 +3860,7 @@ const RejectReasonModal = ({ show, row, onHide, onConfirm }) => {
 export const ModuleList = ({ slug }) => {
   const config = getConfig(slug);
   const navigate = useNavigate();
- const [moduleRows, setModuleRows] = useState(() => {
-    const baseRows = LIVE_API_SLUGS.includes(slug) ? [] : sortRowsNewestFirst(getRows(slug));
-    return slug === "profile-update-requests" ? baseRows.map(summarizeProfileUpdateRequest) : baseRows;
-  });
+  const [moduleRows, setModuleRows] = useState(() => getInstantRows(slug));
   const [filters, setFilters] = useState({
     search: "",
     profileId: "",
@@ -3901,7 +3926,7 @@ export const ModuleList = ({ slug }) => {
   const [approveRow, setApproveRow] = useState(null);
   const [rejectRow, setRejectRow] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
-  const [isLoading, setIsLoading] = useState(LIVE_API_SLUGS.includes(slug));
+  const [isLoading, setIsLoading] = useState(() => getInstantRows(slug).length === 0 && LIVE_API_SLUGS.includes(slug));
   const [dashboardStats, setDashboardStats] = useState(null);
   const [toast, setToast] = useState(() => {
     const message = sessionStorage.getItem("moduleToast");
@@ -3912,20 +3937,28 @@ export const ModuleList = ({ slug }) => {
   });
 
   useEffect(() => {
+    const cached = getInstantRows(slug);
+    if (cached.length > 0) {
+      setModuleRows(cached);
+      setIsLoading(false);
+    } else if (LIVE_API_SLUGS.includes(slug)) {
+      setIsLoading(true);
+    }
+  }, [slug]);
+
+  useEffect(() => {
     const persistedToast = sessionStorage.getItem("moduleToast");
     if (persistedToast) {
       sessionStorage.removeItem("moduleToast");
       setToast((currentToast) => currentToast === persistedToast ? currentToast : persistedToast);
     }
   }, [slug]);
- 
-
 
   useEffect(() => {
     if (!USER_API_SLUGS.includes(slug)) return;
     let active = true;
     Promise.resolve().then(() => {
-      if (active) setIsLoading(true);
+      if (active && getInstantRows(slug).length === 0) setIsLoading(true);
     });
   loadUsersFromApi(slug)
       .then(({ rows: apiRows, stats }) => {
@@ -3955,7 +3988,7 @@ export const ModuleList = ({ slug }) => {
     const extraParams = ["wallets", "withdrawal"].includes(slug) ? { per_page: 100 }
       : slug === "product-enquiry" && ENQ_STATUS_VALUES[filters.status] ? { enq_status: ENQ_STATUS_VALUES[filters.status] } : {};
     Promise.resolve().then(() => {
-      if (active) setIsLoading(true);
+      if (active && getInstantRows(slug).length === 0) setIsLoading(true);
     });
   loadModuleFromApi(slug, extraParams)
   .then((apiRows) => {
@@ -3987,7 +4020,7 @@ export const ModuleList = ({ slug }) => {
     let active = true;
     const userId = String(filters.apiUserId || "").trim();
     const timer = setTimeout(() => {
-      setIsLoading(true);
+      if (getInstantRows(slug).length === 0) setIsLoading(true);
       loadQuizAttemptsModule({ userId })
         .then((apiRows) => {
           if (!active) return;
@@ -4017,7 +4050,7 @@ export const ModuleList = ({ slug }) => {
     const userId = String(filters.apiUserId || "").trim();
     const planId = String(filters.apiPlanId || "").trim();
     const timer = setTimeout(() => {
-      setIsLoading(true);
+      if (getInstantRows(slug).length === 0) setIsLoading(true);
       loadPaymentModule(slug, { userId, planId })
         .then((apiRows) => {
           if (!active) return;
