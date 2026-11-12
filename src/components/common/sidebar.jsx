@@ -125,28 +125,6 @@ const MenuList = [
     ],
   },
   {
-    title: "Reports List",
-    iconStyle: <i className="fa fa-chart-column" />,
-    content: [
-      {
-        title: "Product Enquiry Reports",
-        to: "/admin/reports-product-enquiry",
-      },
-      {
-        title: "User Wise Reports",
-        to: "/admin/reports-user-wise",
-      },
-      {
-        title: "Subscription Reports",
-        to: "/admin/reports-subscription",
-      },
-      {
-        title: "Ads View Reports",
-        to: "/admin/reports-ads-view",
-      },
-    ],
-  },
-  {
     title: "Quiz",
     iconStyle: <i className="fa fa-circle-question" />,
     content: [

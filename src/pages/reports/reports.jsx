@@ -10,6 +10,7 @@ import {
   TYPE_CONFIG,
   formatReportDate,
   getApiErrorMessage,
+  getCachedReports,
   getReports,
   setActiveReport,
   updateReportStatus,
@@ -91,9 +92,23 @@ const Reports = () => {
 
   const notify = (message, variant = "success") => setToast({ message, variant });
 
-  // Load Reports from Server
+  // Load Reports from Server (instant SWR display)
   const loadReports = useCallback(async () => {
-    setLoading(true);
+    const cached = getCachedReports({
+      type: activeType,
+      status: activeStatus,
+      per_page: perPage,
+      page,
+    });
+    if (cached) {
+      setRows(cached.rows || []);
+      setTotal(cached.total || 0);
+      setLastPage(cached.lastPage || 1);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     try {
       const result = await getReports({
         type: activeType,
@@ -105,8 +120,10 @@ const Reports = () => {
       setTotal(result.total || 0);
       setLastPage(result.lastPage || 1);
     } catch (error) {
-      notify(getApiErrorMessage(error, "Failed to load reports. Please try again."), "error");
-      setRows([]);
+      if (!cached) {
+        notify(getApiErrorMessage(error, "Failed to load reports. Please try again."), "error");
+        setRows([]);
+      }
     } finally {
       setLoading(false);
     }
