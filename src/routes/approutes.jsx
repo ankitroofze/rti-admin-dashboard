@@ -153,7 +153,7 @@ import Reports from "../pages/reports/reports";
 import ReportsView from "../pages/reports/reports-view";
 
 const moduleRoutes = [
-  { slug: "dashboard", List: Dashboard, View: DashboardView, Deleted: DashboardDeleted, Status: DashboardStatus },
+  { slug: "dashboard", List: Dashboard, View: DashboardView, Update: ProfileUpdate, Deleted: DashboardDeleted, Status: DashboardStatus },
   { slug: "user-profile", List: UserProfile, View: ProfileView, Add: ProfileAdd, Update: ProfileUpdate, Deleted: ProfileDeleted, Status: ProfileStatus },
   { slug: "network", List: Network, View: NetworkView, Deleted: NetworkDeleted, Status: NetworkStatus },
   { slug: "wallets", List: Wallets, View: WalletsView, Deleted: WalletsDeleted },

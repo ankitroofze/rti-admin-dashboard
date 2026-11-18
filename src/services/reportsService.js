@@ -320,8 +320,8 @@ export const getReports = async ({
 
 /**
  * Update report status
- * POST /admin-rti/reports/{reportId}/status
- * Body: { "status": "resolved" }
+ * PATCH /admin-rti/reports/{reportId}/status
+ * Body: { "status": "resolved", "admin_remarks": "optional" }
  */
 export const updateReportStatus = async (reportId, nextStatus, remarks = "") => {
   if (!reportId) throw new Error("Report ID is required");
@@ -333,7 +333,7 @@ export const updateReportStatus = async (reportId, nextStatus, remarks = "") => 
     body.admin_remarks = remarks;
   }
 
-  const response = await adminRtiClient.post(endpoint, body, {
+  const response = await adminRtiClient.patch(endpoint, body, {
     timeout: 10000,
   });
 

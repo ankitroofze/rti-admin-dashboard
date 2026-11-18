@@ -125,6 +125,24 @@ const readFileAsDataUrl = (file) => new Promise((resolve) => {
   reader.readAsDataURL(file);
 });
 
+const dataUrlToFile = (dataUrl, filename = "profile_image.jpg") => {
+  if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:")) return null;
+  try {
+    const arr = dataUrl.split(",");
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, { type: mime });
+  } catch {
+    return null;
+  }
+};
+
 const formatDisplayDate = (value) => {
   if (!value) return "";
   const normalized = String(value).replace("T", " ");
@@ -423,6 +441,7 @@ const moduleConfig = {
       ["profileImage", "Profile"],
       ["name", "Name"],
       ["phone", "Phone"],
+      ["planName", "Subscription Plan"],
       ["status", "Status"],
     ],
     actions: ["view", "update", "status", "delete"],
@@ -455,6 +474,7 @@ const moduleConfig = {
       ["profileImage", "Profile Image"],
       ["name", "Name"],
       ["phone", "Phone Number"],
+      ["planName", "Subscription Plan"],
       ["status", "Status"],
     ],
     actions: ["view", "update", "status", "delete"],
@@ -1044,6 +1064,10 @@ const labels = {
   id: "ID",
   userId: "User ID",
   profileId: "Profile ID",
+  planName: "Subscription Plan",
+  subscription_plans: "Subscription Plans",
+  subscriptionDate: "Subscription Date",
+  subscriptionStatus: "Subscription Status",
   firstname: "First Name",
   lastname: "Last Name",
   profile_image: "Profile Image",
@@ -1294,6 +1318,7 @@ const requestStatusBadge = (status) => {
     approved: ["success", "Approved"],
     paid: ["success", "Paid"],
     active: ["success", "Active"],
+    inactive: ["danger", "Inactive"],
     processing: ["info", "Processing"],
     rejected: ["danger", "Rejected"],
     cancelled: ["secondary", "Cancelled"],
@@ -1301,6 +1326,42 @@ const requestStatusBadge = (status) => {
   };
   const [variant, label] = map[normalized] || ["warning", normalized.charAt(0).toUpperCase() + normalized.slice(1)];
   return <span className={`badge light badge-${variant}`}>{label}</span>;
+};
+
+const normalizePaymentStatus = (value, fallback) => {
+  const candidate = value !== undefined && value !== null && value !== "" ? value : fallback;
+  if (candidate === undefined || candidate === null || candidate === "") return "Unpaid";
+
+  const v = String(candidate).trim().toLowerCase();
+  if (v === "paid" || v === "1" || v === "success" || v === "completed" || v === "active" || v === "approved") {
+    return "Paid";
+  }
+  if (v === "cancel" || v === "cancelled" || v === "canceled") {
+    return "Cancelled";
+  }
+  if (v === "failed" || v === "fail" || v === "error" || v === "rejected") {
+    return "Failed";
+  }
+  if (v === "unpaid" || v === "pending" || v === "created" || v === "initiated" || v === "0" || v === "inactive") {
+    return "Unpaid";
+  }
+  if (v === "refunded") {
+    return "Refunded";
+  }
+  return String(candidate).charAt(0).toUpperCase() + String(candidate).slice(1);
+};
+
+const paymentStatusBadge = (status) => {
+  const norm = normalizePaymentStatus(status);
+  const map = {
+    Paid: "success",
+    Unpaid: "warning",
+    Cancelled: "secondary",
+    Failed: "danger",
+    Refunded: "info",
+  };
+  const variant = map[norm] || "secondary";
+  return <span className={`badge light badge-${variant}`}>{norm}</span>;
 };
 
 const getConfig = (slug) => {
@@ -1373,7 +1434,6 @@ const moduleApi = {
     update: API.QUIZ_UPDATE,
     delete: API.QUIZ_DELETE,
     restore: API.QUIZ_RESTORE,
-    status: API.QUIZ_STATUS, 
   },
   "ecommerce-subscription": {
     index: API.ECOM_SUBSCRIPTION_INDEX,
@@ -1701,6 +1761,8 @@ const extractRows = (payload) => {
     payload?.data?.subscription_plans,  
      payload?.ads_details,
     payload?.data?.ads_details,
+    payload?.role_subscriptions,
+    payload?.data?.role_subscriptions,
     payload?.role_subscription_plans,          // 👈 add
     payload?.data?.role_subscription_plans,     // 👈 add
       payload?.referrals,                         // ✅ NEW: /admin/referrals list ke liye
@@ -1825,19 +1887,179 @@ const lastname = row.lastname || row.last_name || row.lastName || (rawName.split
     updatedAt: formatDisplayDate(row.updatedAt || row.updated_at) || "",
     status: normalizeStatus(row.status ?? row.is_active ?? row.active),
     userType: row.userType || row.user_type || row.type || "",
-  // ✅ NEW: user ka active role subscription — backend jo bhi shape bheje
-    // (subscription_plan / role_subscription object, ya flat fields), sabse try karte hain
-    planName: row.planName || row.plan_name || row.subscription_plan?.plan_name || row.subscription_plan?.title || row.role_subscription?.plan_name || row.role_subscription?.title || "",
-    subscriptionDate: formatDisplayDate(
-      row.subscriptionDate || row.subscription_date
-      || row.subscription_plan?.purchased_at || row.subscription_plan?.created_at
-      || row.role_subscription?.purchased_at || row.role_subscription?.created_at
-    ) || "",
-    subscriptionStatus: normalizeStatus(
-      row.subscriptionStatus || row.subscription_status
-      || row.subscription_plan?.status || row.role_subscription?.status
-      || (row.is_subscribed !== undefined ? row.is_subscribed : "")
-    ),
+    // ✅ User subscription plans — support array of plans, single object, or flat fields
+    ...(() => {
+      const candidates = [
+        row.role_subscriptions,
+        row.roleSubscriptions,
+        row.subscription_plans,
+        row.subscriptionPlans,
+        row.role_subscription_plans,
+        row.subscriptions,
+        row.user_subscriptions,
+        row.plans,
+      ];
+      const mergedList = [];
+      const seenIds = new Set();
+      candidates.forEach((cand) => {
+        const items = Array.isArray(cand) ? cand : (cand && typeof cand === "object" ? [cand] : []);
+        items.forEach((item) => {
+          if (!item || typeof item !== "object") return;
+          const key = String(item.id || item.plan_id || item.plan_name || JSON.stringify(item));
+          if (!seenIds.has(key)) {
+            seenIds.add(key);
+            mergedList.push(item);
+          }
+        });
+      });
+
+      let planArray = mergedList;
+      if (!planArray.length) {
+        const singleObj =
+          row.role_subscription ||
+          row.subscription_plan ||
+          row.subscriptionPlan ||
+          (row.subscription_plans && typeof row.subscription_plans === "object" && !Array.isArray(row.subscription_plans) ? row.subscription_plans : null) ||
+          (row.role_subscriptions && typeof row.role_subscriptions === "object" && !Array.isArray(row.role_subscriptions) ? row.role_subscriptions : null);
+        if (singleObj && Object.keys(singleObj).length > 0) {
+          planArray = [singleObj];
+        }
+      }
+
+      const parsedSubPlans = planArray.map((p, idx) => {
+        const pivot = p.pivot || {};
+        const planName =
+          p.plan_name ||
+          p.planName ||
+          p.title ||
+          p.name ||
+          p.role_name ||
+          p.role ||
+          pivot.plan_name ||
+          pivot.title ||
+          `Plan #${p.id || idx + 1}`;
+        const planId = p.plan_id ?? p.planId ?? pivot.plan_id ?? "";
+        const planType = p.plan_type || p.planType || pivot.plan_type || "role";
+        const roleIdRaw = p.role_id ?? p.roleId ?? pivot.role_id ?? "";
+        const roleLabel =
+          p.role ||
+          p.role_name ||
+          pivot.role ||
+          pivot.role_name ||
+          (roleIdRaw !== "" && roleIdRaw !== undefined && roleIdRaw !== null
+            ? (String(roleIdRaw) === "0" ? OPEN_ROLE_LABEL : (roleLabelById[Number(roleIdRaw)] || `Role #${roleIdRaw}`))
+            : "");
+        const price = p.price ?? p.amount ?? p.cost ?? pivot.price ?? pivot.amount ?? "";
+        const offerPrice = p.offer_price ?? p.offerPrice ?? "";
+        const days = p.days ?? p.validity ?? pivot.days ?? "";
+        const credits = p.credits ?? pivot.credits ?? "";
+        const rawStatus = p.status ?? pivot.status ?? p.is_active ?? "active";
+        const status = normalizeStatus(rawStatus);
+        const paymentStatusRaw = p.payment_status ?? p.paymentStatus ?? pivot.payment_status;
+        const paymentStatus = paymentStatusRaw !== undefined && paymentStatusRaw !== null && paymentStatusRaw !== ""
+          ? (String(paymentStatusRaw) === "1" || String(paymentStatusRaw).toLowerCase() === "paid" ? "Paid" : "Pending")
+          : "";
+        const purchasedAt = formatDisplayDate(
+          pivot.purchased_at ||
+          pivot.created_at ||
+          pivot.start_date ||
+          p.purchased_at ||
+          p.created_at ||
+          p.start_date ||
+          p.subscription_date
+        ) || "";
+        const startDate = formatDisplayDate(pivot.start_date || p.start_date || pivot.created_at || p.created_at) || "";
+        const endDate = formatDisplayDate(pivot.end_date || p.end_date) || "";
+
+        return {
+          id: p.id || pivot.subscription_plan_id || pivot.id || String(idx + 1),
+          planId,
+          planName,
+          title: planName,
+          planType,
+          roleId: roleIdRaw,
+          role: roleLabel,
+          price,
+          offerPrice,
+          days,
+          credits,
+          status,
+          paymentStatus,
+          purchasedAt,
+          startDate,
+          endDate,
+          level: p.level || p.location_level || "",
+          raw: p,
+        };
+      });
+
+      const fallbackPlanName =
+        row.planName ||
+        row.plan_name ||
+        row.subscription_plan?.plan_name ||
+        row.subscription_plan?.title ||
+        row.role_subscription?.plan_name ||
+        row.role_subscription?.title ||
+        "";
+
+      if (!parsedSubPlans.length && fallbackPlanName) {
+        parsedSubPlans.push({
+          id: "1",
+          planName: fallbackPlanName,
+          title: fallbackPlanName,
+          price: row.price || "",
+          offerPrice: "",
+          days: row.days || "",
+          credits: "",
+          status: normalizeStatus(
+            row.subscriptionStatus ||
+            row.subscription_status ||
+            row.subscription_plan?.status ||
+            row.role_subscription?.status ||
+            (row.is_subscribed !== undefined ? row.is_subscribed : "active")
+          ),
+          purchasedAt: formatDisplayDate(
+            row.subscriptionDate ||
+            row.subscription_date ||
+            row.subscription_plan?.purchased_at ||
+            row.subscription_plan?.created_at ||
+            row.role_subscription?.purchased_at ||
+            row.role_subscription?.created_at
+          ) || "",
+          startDate: "",
+          endDate: "",
+          role: "",
+          level: "",
+          raw: row,
+        });
+      }
+
+      const activePlan = parsedSubPlans.find((p) => p.status === "Active") || parsedSubPlans[0];
+      const primaryPlanName = parsedSubPlans.length > 0
+        ? parsedSubPlans.map((p) => p.planName).filter(Boolean).join(", ")
+        : fallbackPlanName;
+
+      const subscriptionDate = activePlan?.purchasedAt || activePlan?.startDate || formatDisplayDate(
+        row.subscriptionDate || row.subscription_date
+        || row.subscription_plan?.purchased_at || row.subscription_plan?.created_at
+        || row.role_subscription?.purchased_at || row.role_subscription?.created_at
+      ) || "";
+
+      const subscriptionStatus = activePlan?.status || normalizeStatus(
+        row.subscriptionStatus || row.subscription_status
+        || row.subscription_plan?.status || row.role_subscription?.status
+        || (row.is_subscribed !== undefined ? row.is_subscribed : "")
+      );
+
+      return {
+        planName: primaryPlanName,
+        subscription_plans: parsedSubPlans,
+        role_subscriptions: parsedSubPlans,
+        subscription_plan: activePlan?.raw || row.subscription_plan || null,
+        subscriptionDate,
+        subscriptionStatus,
+      };
+    })(),
     bio: row.bio || row.description || "",
   };
 };
@@ -2087,8 +2309,8 @@ if (PURCHASER_SLUGS.includes(slug)) {
 
 if (slug === "payment-history") {
   const typeRaw = String(row.module || row.subscription_type || row.type || "").toLowerCase();
-  const statusRaw = String(row.status || row.payment_status || "created").toLowerCase();
-  const statusLabel = statusRaw === "paid" ? "Paid" : statusRaw === "failed" ? "Failed" : "Created";
+  const rawStatus = row.payment_status ?? row.paymentStatus ?? row.status ?? "unpaid";
+  const statusLabel = normalizePaymentStatus(rawStatus, row.status);
   const validityRaw = String(row.validity_status || "").toLowerCase();
   const seat = row.seat && typeof row.seat === "object" ? row.seat : null;
   return {
@@ -2300,10 +2522,22 @@ if (slug === "user-blocks") {
 
 
 if (slug === "wallets") {
-  console.log("RAW_WALLET_ROW", row); // TEMP — fields verify karke hata dena
   const u = row.user && typeof row.user === "object" ? row.user : {};
   const walletUserId = row.user_id ?? row.userId ?? u.id ?? "";
   const frozen = row.is_frozen === true || Number(row.is_frozen) === 1;
+  let userStatus = "";
+  if (walletUserId) {
+    const userProfiles = getStoredRows("user-profile");
+    const matchedUser = userProfiles.find((usr) => String(usr.id || usr.userId || usr.user_id || "") === String(walletUserId));
+    if (matchedUser && matchedUser.status) {
+      userStatus = matchedUser.status;
+    }
+  }
+  if (!userStatus) {
+    userStatus = u.status || row.user_status || row.userStatus || row.status || "Active";
+  }
+  const isInactive = String(userStatus).trim().toLowerCase() === "inactive" || String(row.status || "").trim().toLowerCase() === "inactive";
+  const finalStatus = frozen ? "Frozen" : isInactive ? "Inactive" : "Active";
   return {
     ...row,
     _rowKey: String(walletUserId || `wallet-${index}`),
@@ -2320,7 +2554,7 @@ if (slug === "wallets") {
     lockedBalance: formatMoney(row.locked_balance),
     withdrawnBalance: formatMoney(row.withdrawn_balance),
     totalEarned: formatMoney(row.total_earned),
-    status: frozen ? "Frozen" : "Active",
+    status: finalStatus,
     frozenReason: row.frozen_reason || row.freeze_reason || "",
     createdAt: formatDisplayDate(row.created_at || row.createdAt) || "",
   };
@@ -2422,7 +2656,7 @@ const dashboardStatsFromPayload = (payload) => {
   };
 };
 
-const userPayloadFromRecord = (record = {}) => {
+const userPayloadFromRecord = (record = {}, form = null) => {
   const payload = new FormData();
   const firstName = record.firstname || record.name || record.username || "";
   const lastName = record.lastname || "";
@@ -2435,9 +2669,27 @@ const userPayloadFromRecord = (record = {}) => {
   payload.append("phone", record.phone || record.mobileNumber || "");
   payload.append("state", record.state || "");
   payload.append("district", record.district || "");
-payload.append("taluka", record.taluka || "");
+  payload.append("taluka", record.taluka || "");
   payload.append("village", record.village || "");
-  if (record.profile_image) payload.append("profile_image", record.profile_image);
+
+  const fileInput = form?.elements?.image?.files?.[0] || form?.elements?.profile_image?.files?.[0];
+  let imageFile = fileInput instanceof File && fileInput.size ? fileInput : null;
+  if (!imageFile && record.image && typeof record.image === "string" && record.image.startsWith("data:")) {
+    imageFile = dataUrlToFile(record.image, "profile_image.jpg");
+  }
+  if (!imageFile && record.profile_image && typeof record.profile_image === "string" && record.profile_image.startsWith("data:")) {
+    imageFile = dataUrlToFile(record.profile_image, "profile_image.jpg");
+  }
+
+  if (imageFile instanceof File && imageFile.size) {
+    payload.append("profile_image", imageFile);
+    payload.append("image", imageFile);
+  } else if (record.profile_image && typeof record.profile_image !== "string") {
+    payload.append("profile_image", record.profile_image);
+  } else if (record.profile_image && typeof record.profile_image === "string" && !record.profile_image.startsWith("data:")) {
+    payload.append("profile_image", record.profile_image);
+  }
+
   if (record.password) payload.append("password", record.password);
   payload.append("status", normalizeStatusValue(record.status));
   payload.append("bio", record.bio || record.description || "");
@@ -2448,19 +2700,54 @@ payload.append("taluka", record.taluka || "");
 const loadUsersFromApi = async (slug) => {
   if (slug === "dashboard") {
     const dashboardResponse = await apiClient.get(API.DASHBOARD, { headers: apiHeaders(), timeout: 12000 });
-    let rows = extractRows(dashboardResponse.data).map(normalizeUserRow);
-    if (!rows.length) {
-      const usersResponse = await apiClient.get(API.USERS, { headers: apiHeaders(), timeout: 12000 });
-      rows = extractRows(usersResponse.data).map(normalizeUserRow);
+    const payload = dashboardResponse.data;
+    const rootPlans = [
+      payload?.subscription_plans,
+      payload?.data?.subscription_plans,
+      payload?.role_subscriptions,
+      payload?.data?.role_subscriptions,
+      payload?.role_subscription_plans,
+      payload?.data?.role_subscription_plans,
+      payload?.subscriptions,
+      payload?.data?.subscriptions,
+      payload?.user_subscriptions,
+      payload?.data?.user_subscriptions,
+    ].find((arr) => Array.isArray(arr) && arr.length > 0) || [];
+
+    const plansByUserId = {};
+    if (rootPlans.length > 0) {
+      rootPlans.forEach((plan) => {
+        const uId = String(plan.user_id ?? plan.userId ?? plan.pivot?.user_id ?? "");
+        if (uId) {
+          if (!plansByUserId[uId]) plansByUserId[uId] = [];
+          plansByUserId[uId].push(plan);
+        }
+      });
     }
-    return { rows, stats: dashboardStatsFromPayload(dashboardResponse.data) };
+
+    let rawUsers = extractRows(payload);
+    if (!rawUsers.length) {
+      const usersResponse = await apiClient.get(API.USERS, { headers: apiHeaders(), timeout: 12000 });
+      rawUsers = extractRows(usersResponse.data);
+    }
+
+    const rows = rawUsers.map((userRow, index) => {
+      const uId = String(userRow.id || userRow.user_id || userRow.userId || "");
+      const attachedPlans = plansByUserId[uId];
+      if (attachedPlans && (!userRow.subscription_plans || !userRow.subscription_plans.length) && (!userRow.role_subscriptions || !userRow.role_subscriptions.length)) {
+        return normalizeUserRow({ ...userRow, subscription_plans: attachedPlans, role_subscriptions: attachedPlans }, index);
+      }
+      return normalizeUserRow(userRow, index);
+    });
+
+    return { rows, stats: dashboardStatsFromPayload(payload) };
   }
   const response = await apiClient.get(API.USERS, { headers: apiHeaders(), timeout: 12000 });
   return { rows: extractRows(response.data).map(normalizeUserRow), stats: null };
 };
 
-const saveUserToApi = async (record, mode, currentRow = {}) => {
-  const payload = userPayloadFromRecord(record);
+const saveUserToApi = async (record, mode, currentRow = {}, form = null) => {
+  const payload = userPayloadFromRecord(record, form);
   const config = { headers: apiHeaders(), timeout: 12000 };
   try {
     const requestPayload = spoofedFormData(mode === "Add" ? "POST" : "PUT", payload);
@@ -2468,16 +2755,33 @@ const saveUserToApi = async (record, mode, currentRow = {}) => {
       ? await apiClient.post(API.USERS_ADD, requestPayload, config)
       : await apiClient.post(endpoint(API.USERS_UPDATE, currentRow), requestPayload, config);
     const apiRow = response.data?.user || response.data?.data?.user || response.data?.data || response.data;
-   const mergedRow = { ...record };
-if (apiRow && typeof apiRow === "object") {
-  Object.entries(apiRow).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") mergedRow[key] = value;
-  });
-}
-["state", "district", "taluka", "village"].forEach((key) => {
-  if (!mergedRow[key] && record[key]) mergedRow[key] = record[key]; // 👈 add this block
-});
-return normalizeUserRow(mergedRow);
+    const mergedRow = { ...record };
+    if (apiRow && typeof apiRow === "object") {
+      Object.entries(apiRow).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") mergedRow[key] = value;
+      });
+    }
+    const roleSubs = response.data?.role_subscriptions || response.data?.roleSubscriptions || response.data?.data?.role_subscriptions || response.data?.subscription_plans;
+    if (roleSubs) {
+      mergedRow.role_subscriptions = roleSubs;
+      mergedRow.subscription_plans = roleSubs;
+    }
+    ["state", "district", "taluka", "village"].forEach((key) => {
+      if (!mergedRow[key] && record[key]) mergedRow[key] = record[key];
+    });
+
+    const selectedImg = record.image || record.imageUrl || record.profile_image;
+    const apiImg = apiRow?.profile_image_url || apiRow?.profile_image || apiRow?.image;
+    const oldImg = currentRow?.profile_image_url || currentRow?.profile_image || currentRow?.image;
+    if (apiImg && apiImg !== oldImg) {
+      mergedRow.image = absoluteStorageUrl(apiImg);
+      mergedRow.profile_image = apiImg;
+    } else if (selectedImg) {
+      mergedRow.image = selectedImg;
+      mergedRow.profile_image = selectedImg;
+    }
+
+    return normalizeUserRow(mergedRow);
   } catch (error) {
     if (!isMissingApiRoute(error)) throw error;
     return normalizeUserRow({ ...currentRow, ...record });
@@ -2673,7 +2977,7 @@ const loadWalletOrWithdrawalIndex = async (slug, extraParams = {}) => {
         params: { ...extraParams, user_id: u.id },
         timeout: 8000,
       });
-      const userInfo = { id: u.id, name: u.name, email: u.email };
+      const userInfo = { id: u.id, name: u.name, email: u.email, status: u.status };
       if (slug === "wallets") {
         const wallet = pickWalletObject(res.data);
         return wallet ? [{ ...wallet, user_id: u.id, user: wallet.user || userInfo }] : [];
@@ -2898,10 +3202,62 @@ const deleteModuleFromApi = (slug, row) => {
   return client.post(endpoint(moduleApi[slug]?.delete, row), payload, requestConfig);
 };
 
-const STATUS_ONE_TWO_SLUGS = ["ecommerce-subscription", "payment-history", "ecom-sell"];
+const STATUS_ONE_TWO_SLUGS = ["ecommerce-subscription", "ecom-sell"];
 const usesOneTwoStatus = (slug) => STATUS_ONE_TWO_SLUGS.includes(slug);
 
+const updateQuizStatusInApi = async (row, status) => {
+  const quizId = resolveRecordIdentifier(row);
+  const nextStatusValue = normalizeStatusValue(status);
+  const config = { headers: apiHeaders(), timeout: 12000 };
+
+  let quizData = { ...row };
+  if (!quizData.title && quizId) {
+    try {
+      const res = await apiClient.get(API.QUIZ_SHOW(quizId), config);
+      const fetched = extractSavedRow(res.data, "quiz");
+      if (fetched && typeof fetched === "object") {
+        quizData = { ...fetched, ...quizData };
+      }
+    } catch (e) {
+      console.warn("Could not fetch quiz details before status update:", e);
+    }
+  }
+
+  const payload = new FormData();
+  payload.append("status", nextStatusValue);
+  payload.append("_method", "PUT");
+  if (quizData.title) payload.append("title", quizData.title);
+  if (quizData.subject) payload.append("subject", quizData.subject);
+  if (quizData.difficulty) payload.append("difficulty", quizData.difficulty);
+  const testTypeVal = testTypeIdMap[quizData.testType] || quizData.testType || quizData.test_type;
+  if (testTypeVal) payload.append("test_type", testTypeVal);
+  if (quizData.timeLimit || quizData.time_in_min) payload.append("time_in_min", quizData.timeLimit || quizData.time_in_min);
+  if (quizData.marks) payload.append("marks", quizData.marks);
+  if (quizData.groupKey || quizData.group_key) payload.append("group_key", quizData.groupKey || quizData.group_key);
+
+  const targetUrl = endpoint(API.QUIZ_UPDATE, quizId || quizData);
+  console.log("QUIZ_STATUS_UPDATE_REQUEST", {
+    identifier: quizId,
+    endpoint: targetUrl,
+    method: "POST",
+    payload: Object.fromEntries(payload.entries()),
+  });
+
+  try {
+    return await apiClient.post(targetUrl, payload, config);
+  } catch (err) {
+    if (err?.response?.status === 405 || isMissingApiRoute(err)) {
+      const patchPayload = spoofedFormData("PATCH", { status: nextStatusValue });
+      return await apiClient.post(targetUrl, patchPayload, config);
+    }
+    throw err;
+  }
+};
+
 const updateModuleStatusInApi = async (slug, row, status) => {
+  if (slug === "quiz") {
+    return updateQuizStatusInApi(row, status);
+  }
   const endpoints = moduleApi[slug];
   const payload = new FormData();
   payload.append("status", usesOneTwoStatus(slug) ? (isPositiveStatus(status) ? 1 : 2) : normalizeStatusValue(status));
@@ -3249,6 +3605,34 @@ const updateStoredRow = (slug, updatedRow) => {
   saveStoredRows(slug, nextRows);
   return nextRows;
 };
+
+const syncUserWalletStatus = (userId, userStatus) => {
+  if (!userId) return;
+  const targetId = String(userId);
+  const normalizedStatus = String(userStatus || "").trim().toLowerCase() === "active" ? "Active" : "Inactive";
+  try {
+    const walletRows = getRows("wallets");
+    let updatedAny = false;
+    const updatedWalletRows = walletRows.map((wallet) => {
+      const wUserId = String(wallet.userId || wallet.user_id || wallet.id || "");
+      if (wUserId === targetId) {
+        updatedAny = true;
+        const frozen = wallet.is_frozen === true || Number(wallet.is_frozen) === 1;
+        return {
+          ...wallet,
+          status: frozen ? "Frozen" : normalizedStatus,
+          user: typeof wallet.user === "object" ? { ...wallet.user, status: normalizedStatus } : wallet.user,
+        };
+      }
+      return wallet;
+    });
+    if (updatedAny) {
+      saveStoredRows("wallets", updatedWalletRows);
+    }
+  } catch (err) {
+    console.warn("Failed to sync wallet status for user:", targetId, err);
+  }
+};
 // const activeRow = (slug) => {
 //   const rows = getRows(slug);
 //   const activeKey = sessionStorage.getItem(activeRecordKey(slug));
@@ -3294,7 +3678,8 @@ const mobileSecondaryText = (row = {}) => {
 };
 
 const mobileMetaText = (row = {}) =>
-  row.phone || row.contact || row.email || row.category || row.location || row.amount || row.views || row.totalViews || row.totalEnquiries || row.days || row.createdAt || row.date || row.viewDate || "";
+  (row.planName ? `${row.planName} • ` : "") +
+  (row.phone || row.contact || row.email || row.category || row.location || row.amount || row.views || row.totalViews || row.totalEnquiries || row.days || row.createdAt || row.date || row.viewDate || "");
 
 const isPositiveStatus = (status) => normalizeStatus(status) === "Active";
 const nextStatusForSlug = (slug, status = "Active") => {
@@ -3344,7 +3729,7 @@ const FilterBar = ({ filters = [], values, onChange, onReset, slug }) => {
   : slug === "quiz-attempts" ? ["Completed", "In Progress"]
   : slug === "profile-update-requests" ? ["Pending", "Approved", "Rejected"]
   : slug === "product-enquiry" ? ["New", "Review", "Closed"]
- : PAYMENT_LIST_SLUGS.includes(slug) ? ["Created", "Paid", "Failed"]
+ : PAYMENT_LIST_SLUGS.includes(slug) ? ["Paid", "Unpaid", "Cancelled", "Failed"]
   : ["Active", "Inactive"];
   const selectFilters = {
     state: ["State", stateOptions],
@@ -3573,12 +3958,26 @@ const ActionButtons = ({ slug, actions, row, onDelete, onStatus, onApprove, onRe
   return (
     <div className="rti-action-buttons" onClick={(event) => event.stopPropagation()}>
     {actions.includes("view") && (
-      <Link to={`/admin/${slug}/view`} className="btn btn-info shadow btn-xs sharp" onClick={() => setActiveRecord(slug, row)}>
+      <Link
+        to={`/admin/${linkSlug}/view`}
+        className="btn btn-info shadow btn-xs sharp"
+        onClick={() => {
+          setActiveRecord(slug, row);
+          setActiveRecord(linkSlug, row);
+        }}
+      >
         <i className="fa fa-eye" />
       </Link>
     )}
     {actions.includes("update") && (
-      <Link to={`/admin/${slug}/update`} className="btn btn-primary shadow btn-xs sharp" onClick={() => setActiveRecord(slug, row)}>
+      <Link
+        to={`/admin/${linkSlug}/update`}
+        className="btn btn-primary shadow btn-xs sharp"
+        onClick={() => {
+          setActiveRecord(slug, row);
+          setActiveRecord(linkSlug, row);
+        }}
+      >
         <i className="fas fa-pen" />
       </Link>
     )}
@@ -3660,6 +4059,9 @@ const CellValue = ({ field, row, slug, onImage, onEnquiryStatus, enquiryBusyId }
     );
   }
    if (field === "status") {
+    if (PAYMENT_LIST_SLUGS.includes(slug)) {
+      return paymentStatusBadge(row.status);
+    }
     return ["profile-update-requests", "withdrawal", "wallets"].includes(slug) ? requestStatusBadge(row.status) : statusBadge(row.status);
   }
   if (field === "attemptStatus") {
@@ -3670,6 +4072,35 @@ const CellValue = ({ field, row, slug, onImage, onEnquiryStatus, enquiryBusyId }
     const normalizedResult = String(row.result || "").toLowerCase();
     const variant = normalizedResult === "pass" ? "success" : normalizedResult === "fail" ? "danger" : "secondary";
     return <span className={`badge light badge-${variant}`}>{row.result || "-"}</span>;
+  }
+  if (field === "planName") {
+    const plans = Array.isArray(row.role_subscriptions) && row.role_subscriptions.length > 0
+      ? row.role_subscriptions
+      : (Array.isArray(row.subscription_plans) && row.subscription_plans.length > 0
+        ? row.subscription_plans
+        : (row.planName
+          ? [{ planName: row.planName, status: row.subscriptionStatus }]
+          : []));
+    if (!plans.length) {
+      return <span className="text-muted">-</span>;
+    }
+    return (
+      <div className="d-flex flex-wrap gap-1 align-items-center">
+        {plans.map((p, idx) => {
+          const isActive = String(p.status || "").toLowerCase() === "active" || p.is_active === true || String(p.status) === "1";
+          const pName = p.planName || p.plan_name || p.title || p.name || `Plan #${idx + 1}`;
+          return (
+            <span
+              key={idx}
+              className={`badge badge-sm light ${isActive ? "badge-primary" : "badge-secondary"}`}
+              title={p.status ? `Status: ${p.status}` : ""}
+            >
+              {pName}
+            </span>
+          );
+        })}
+      </div>
+    );
   }
   const fallbackValue = field === "name" ? [row.firstname, row.lastname].filter(Boolean).join(" ").trim() || row.username || "" : "";
   const value = row[field] || fallbackValue || "-";
@@ -4085,7 +4516,8 @@ export const ModuleList = ({ slug }) => {
         cardFilter === "premium" &&
         row.userType !== "Premium" &&
         row.planName !== "Premium" &&
-        row.subscriptionStatus !== "Active"
+        row.subscriptionStatus !== "Active" &&
+        !(Array.isArray(row.subscription_plans) && row.subscription_plans.length > 0)
       ) return false;
       if (cardFilter === "new" && !String(row.createdDate || row.createdAt || "").includes("13 May 2026")) return false;
       if (filters.search && !haystack.includes(filters.search.toLowerCase())) return false;
@@ -4096,8 +4528,20 @@ export const ModuleList = ({ slug }) => {
       if (filters.profileId && !String(row.profileId || "").toLowerCase().includes(filters.profileId.toLowerCase())) return false;
       if (filters.name && !String(row.name || row.username || "").toLowerCase().includes(filters.name.toLowerCase())) return false;
       if (filters.phone && !String(row.phone || row.mobileNumber || "").includes(filters.phone)) return false;
-      if (filters.status && row.status !== filters.status) return false;
-      if (filters.filterStatus && row.status !== filters.filterStatus) return false;
+      if (filters.status) {
+        if (PAYMENT_LIST_SLUGS.includes(slug)) {
+          if (normalizePaymentStatus(row.status) !== normalizePaymentStatus(filters.status)) return false;
+        } else if (row.status !== filters.status) {
+          return false;
+        }
+      }
+      if (filters.filterStatus) {
+        if (PAYMENT_LIST_SLUGS.includes(slug)) {
+          if (normalizePaymentStatus(row.status) !== normalizePaymentStatus(filters.filterStatus)) return false;
+        } else if (row.status !== filters.filterStatus) {
+          return false;
+        }
+      }
       if (filters.userType && row.userType !== filters.userType) return false;
       if (filters.subject && row.subject !== filters.subject) return false;
       if (filters.difficulty && row.difficulty !== filters.difficulty) return false;
@@ -4249,7 +4693,7 @@ export const ModuleList = ({ slug }) => {
                     <div className="col-6">
                       <select className="form-control" value={filters.status || ""} onChange={(event) => onFilterChange("status", event.target.value)}>
                         <option value="">All Status</option>
-                        {["Created", "Paid", "Failed"].map((item) => <option key={item} value={item}>{item}</option>)}
+                        {["Paid", "Unpaid", "Cancelled", "Failed"].map((item) => <option key={item} value={item}>{item}</option>)}
                       </select>
                     </div>
                   </div>
@@ -4278,7 +4722,7 @@ export const ModuleList = ({ slug }) => {
                   <div className="card-body">
                     <div className="d-flex justify-content-between gap-2">
                       <strong>{mobilePrimaryText(row)}</strong>
-                      {row.status && (["wallets", "withdrawal"].includes(slug) ? requestStatusBadge(row.status) : slug === "quiz-attempts" ? CellValue({ field: "attemptStatus", row }) : statusBadge(row.status))}
+                      {row.status && (PAYMENT_LIST_SLUGS.includes(slug) ? paymentStatusBadge(row.status) : ["wallets", "withdrawal"].includes(slug) ? requestStatusBadge(row.status) : slug === "quiz-attempts" ? CellValue({ field: "attemptStatus", row }) : statusBadge(row.status))}
                     </div>
                     <p className="mb-1">{mobileSecondaryText(row) || row.id || "-"}</p>
                     <p className="mb-3">{mobileMetaText(row) || "-"}</p>
@@ -4385,15 +4829,23 @@ export const ModuleList = ({ slug }) => {
           logStatusChange(rowToUpdate, nextStatus);
           try {
           if (slug === "user-profile" || slug === "dashboard") {
-  await updateUserStatusInApi(rowToUpdate, nextStatus);
-} else if (slug === "quiz-subscription-create") {          // 👈 NAYA
-  await updateQuizSubscriptionPlanStatusInApi(rowToUpdate, nextStatus);
-} else if (MODULE_API_SLUGS.includes(slug)) {
-  await updateModuleStatusInApi(slug, rowToUpdate, nextStatus);
-}
+            await updateUserStatusInApi(rowToUpdate, nextStatus);
+            syncUserWalletStatus(rowToUpdate?.id || rowToUpdate?.userId, nextStatus);
+          } else if (slug === "quiz-subscription-create") {
+            await updateQuizSubscriptionPlanStatusInApi(rowToUpdate, nextStatus);
+          } else if (slug === "quiz") {
+            await updateQuizStatusInApi(rowToUpdate, nextStatus);
+          } else if (MODULE_API_SLUGS.includes(slug)) {
+            await updateModuleStatusInApi(slug, rowToUpdate, nextStatus);
+          }
             setModuleRows((currentRows) => {
               const nextRows = currentRows.map((item) => resolveRecordIdentifier(item) === resolveRecordIdentifier(rowToUpdate) ? { ...item, status: nextStatus } : item);
               saveStoredRows(slug, nextRows);
+              if (slug === "user-profile") {
+                saveStoredRows("dashboard", nextRows);
+              } else if (slug === "dashboard") {
+                saveStoredRows("user-profile", nextRows);
+              }
               return nextRows;
             });
             setStatusRow(null);
@@ -4491,9 +4943,11 @@ const DetailGrid = ({ fields, row, onStatus, slug }) => (
           <small className="text-muted d-block">{labels[field] || field}</small>
           <strong>
           {field === "status" ? (
-  ["profile-update-requests", "withdrawal", "wallets"].includes(slug)
-    ? requestStatusBadge(row[field])
-    : <StatusToggle status={row[field] || "Active"} onClick={onStatus} />
+  PAYMENT_LIST_SLUGS.includes(slug)
+    ? paymentStatusBadge(row[field])
+    : ["profile-update-requests", "withdrawal", "wallets"].includes(slug)
+      ? requestStatusBadge(row[field])
+      : <StatusToggle status={row[field] || "Active"} onClick={onStatus} />
 ) : field === "pdfFiles" ? (
               <a href={pdfHref(row, field) || "#"} target="_blank" rel="noreferrer" aria-disabled={!pdfHref(row, field)}>
                 <i className="fa fa-file-pdf me-1" />
@@ -4530,7 +4984,56 @@ const DetailGrid = ({ fields, row, onStatus, slug }) => (
 
 const ProfileDetailLayout = ({ row, config, onImage, onStatus }) => {
   const displayName = row.name || [row.firstname, row.lastname].filter(Boolean).join(" ").trim() || row.username || "User";
- const detailFields = config.profileView ? [...config.details.filter((field) => !["firstname", "lastname", "profile_image"].includes(field)), "pendingPhone", "pendingBio", "pendingProfileImage"].filter((field) => !field.startsWith("pending") || row[field]) : config.details;
+  const detailFields = config.profileView ? [...config.details.filter((field) => !["firstname", "lastname", "profile_image"].includes(field)), "pendingPhone", "pendingBio", "pendingProfileImage"].filter((field) => !field.startsWith("pending") || row[field]) : config.details;
+
+  const subscriptions = Array.isArray(row.role_subscriptions) && row.role_subscriptions.length
+    ? row.role_subscriptions
+    : (Array.isArray(row.subscription_plans) && row.subscription_plans.length
+      ? row.subscription_plans
+      : (Array.isArray(row.subscriptions) && row.subscriptions.length ? row.subscriptions : []));
+  const activeSub = subscriptions.find((s) => s.status === "Active" || s.is_active === true || String(s.status) === "1") || subscriptions[0];
+
+  const getSubField = (sub, field) => {
+    if (!sub) return "";
+    switch (field) {
+      case "planName":
+        return sub.planName || sub.plan_name || sub.title || sub.name || "-";
+      case "planId":
+        return sub.planId ?? sub.plan_id ?? "";
+      case "planType":
+        return sub.planType || sub.plan_type || "role";
+      case "price":
+        return sub.price ?? sub.amount ?? "";
+      case "startDate":
+        return formatDisplayDate(sub.startDate || sub.start_date) || "-";
+      case "endDate":
+        return formatDisplayDate(sub.endDate || sub.end_date) || "-";
+      case "paymentStatus": {
+        const ps = sub.paymentStatus ?? sub.payment_status;
+        if (ps !== undefined && ps !== null && ps !== "") {
+          return (String(ps) === "1" || String(ps).toLowerCase() === "paid") ? "Paid" : "Pending";
+        }
+        return "-";
+      }
+      case "status": {
+        const s = sub.status ?? sub.is_active;
+        return normalizeStatus(s);
+      }
+      case "purchasedAt":
+        return formatDisplayDate(sub.purchasedAt || sub.purchased_at || sub.created_at || sub.createdAt) || "-";
+      case "role": {
+        if (sub.role) return sub.role;
+        if (sub.role_name) return sub.role_name;
+        const roleIdRaw = sub.roleId ?? sub.role_id;
+        if (roleIdRaw !== undefined && roleIdRaw !== null && roleIdRaw !== "") {
+          return String(roleIdRaw) === "0" ? OPEN_ROLE_LABEL : (roleLabelById[Number(roleIdRaw)] || `Role #${roleIdRaw}`);
+        }
+        return "-";
+      }
+      default:
+        return sub[field] ?? "-";
+    }
+  };
 
   return (
     <div className="card rti-profile-details-card">
@@ -4551,11 +5054,29 @@ const ProfileDetailLayout = ({ row, config, onImage, onStatus }) => {
         <DetailGrid fields={detailFields} row={row} onStatus={onStatus} />
         {config.profileView && (
           <div className="row mt-3">
-         <div className="col-xl-6">
+            <div className="col-xl-6">
               <h5>Subscription Plan</h5>
-              <p><strong>Plan Name:</strong> {row.planName || "-"}</p>
-              <p><strong>Purchased Date:</strong> {row.subscriptionDate || "-"}</p>
-              <p><strong>Status:</strong> {statusBadge(row.subscriptionStatus || "Inactive")}</p>
+              <p className="mb-1"><strong>Plan Name:</strong> {row.planName || getSubField(activeSub, "planName") || "-"}</p>
+              {getSubField(activeSub, "price") ? (
+                <p className="mb-1"><strong>Price:</strong> {formatMoney(getSubField(activeSub, "price"))}</p>
+              ) : null}
+              {getSubField(activeSub, "role") && getSubField(activeSub, "role") !== "-" ? (
+                <p className="mb-1"><strong>Role:</strong> {getSubField(activeSub, "role")}</p>
+              ) : null}
+              {(getSubField(activeSub, "startDate") !== "-" || getSubField(activeSub, "endDate") !== "-") ? (
+                <p className="mb-1"><strong>Validity:</strong> {getSubField(activeSub, "startDate")} to {getSubField(activeSub, "endDate")}</p>
+              ) : (
+                <p className="mb-1"><strong>Purchased Date:</strong> {row.subscriptionDate || getSubField(activeSub, "purchasedAt") || "-"}</p>
+              )}
+              {getSubField(activeSub, "paymentStatus") !== "-" ? (
+                <p className="mb-1">
+                  <strong>Payment Status:</strong>{" "}
+                  <span className={`badge light badge-${getSubField(activeSub, "paymentStatus") === "Paid" ? "success" : "warning"}`}>
+                    {getSubField(activeSub, "paymentStatus")}
+                  </span>
+                </p>
+              ) : null}
+              <p className="mb-1"><strong>Status:</strong> {statusBadge(row.subscriptionStatus || getSubField(activeSub, "status") || "Inactive")}</p>
             </div>
             {(row.userIdPdfUrl || row.certificatePdfUrl || row.appointmentLetterPdfUrl) && <div className="col-xl-6">
               <h5>Documents</h5>
@@ -4574,6 +5095,93 @@ const ProfileDetailLayout = ({ row, config, onImage, onStatus }) => {
             </div>}
             <div className="col-12 mt-3">
               <p className="mb-0 text-dark"><strong>Bio:-</strong> {row.bio || "-"}</p>
+            </div>
+
+            {/* Role Subscriptions Section */}
+            <div className="col-12 mt-4">
+              <div className="d-flex align-items-center justify-content-between mb-2">
+                <h5 className="mb-0">
+                  <i className="fa fa-id-card me-2 text-primary" />
+                  Role Subscriptions
+                </h5>
+                {subscriptions.length > 0 && (
+                  <span className="badge badge-primary light">
+                    {subscriptions.length} {subscriptions.length === 1 ? "Plan" : "Plans"}
+                  </span>
+                )}
+              </div>
+              <div className="table-responsive border rounded">
+                <table className="table table-hover table-striped mb-0">
+                  <thead className="table-light">
+                    <tr>
+                      <th>ID</th>
+                      <th>Plan Name</th>
+                      <th>Plan Type</th>
+                      <th>Role</th>
+                      <th>Price</th>
+                      <th>Start Date</th>
+                      <th>End Date</th>
+                      <th>Payment Status</th>
+                      <th>Status</th>
+                      <th>Purchased On</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subscriptions.length > 0 ? (
+                      subscriptions.map((sub, idx) => {
+                        const planId = getSubField(sub, "planId");
+                        const planName = getSubField(sub, "planName");
+                        const planType = getSubField(sub, "planType");
+                        const role = getSubField(sub, "role");
+                        const price = getSubField(sub, "price");
+                        const startDate = getSubField(sub, "startDate");
+                        const endDate = getSubField(sub, "endDate");
+                        const paymentStatus = getSubField(sub, "paymentStatus");
+                        const status = getSubField(sub, "status");
+                        const createdAt = getSubField(sub, "purchasedAt");
+
+                        return (
+                          <tr key={sub.id || idx}>
+                            <td><strong>#{sub.id || idx + 1}</strong></td>
+                            <td>
+                              <strong className="text-dark">{planName}</strong>
+                              {planId ? <small className="text-muted d-block">Plan ID: {planId}</small> : null}
+                            </td>
+                            <td>
+                              <span className="badge light badge-info text-capitalize">{planType}</span>
+                            </td>
+                            <td>
+                              <span>{role}</span>
+                            </td>
+                            <td>
+                              <strong className="text-success">{formatMoney(price)}</strong>
+                            </td>
+                            <td>{startDate}</td>
+                            <td>{endDate}</td>
+                            <td>
+                              {paymentStatus !== "-" ? (
+                                <span className={`badge light badge-${paymentStatus === "Paid" ? "success" : "warning"}`}>
+                                  {paymentStatus}
+                                </span>
+                              ) : "-"}
+                            </td>
+                            <td>
+                              {statusBadge(status)}
+                            </td>
+                            <td>{createdAt}</td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={10} className="text-center py-3 text-muted">
+                          No role subscriptions found for this user.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -4730,7 +5338,8 @@ useEffect(() => {
       if (slug === "user-profile" || slug === "dashboard") {
         if (!row.id) return;
         const response = await apiClient.get(API.USERS_SHOW(row.id), { headers: apiHeaders(), timeout: 12000 });
-        const apiRow = response.data?.user || response.data?.data?.user || response.data?.data || response.data;
+        const resData = response.data || {};
+        const apiRow = resData?.user || resData?.data?.user || resData?.data || resData;
         if (!active) return;
         const fetchedId = String(apiRow?.id ?? apiRow?.user_id ?? "");
         const currentId = resolveRecordIdentifier(row);
@@ -4742,6 +5351,27 @@ useEffect(() => {
         Object.entries(apiRow || {}).forEach(([key, value]) => {
           if (value !== undefined && value !== null && value !== "") mergedRow[key] = value;
         });
+
+        // ✅ Attach role_subscriptions / subscription_plans returned at root of response or under user
+        const roleSubs =
+          resData.role_subscriptions ||
+          resData.roleSubscriptions ||
+          resData.data?.role_subscriptions ||
+          resData.data?.roleSubscriptions ||
+          resData.subscription_plans ||
+          resData.subscriptionPlans ||
+          resData.subscriptions ||
+          resData.user_subscriptions ||
+          apiRow.role_subscriptions ||
+          apiRow.roleSubscriptions ||
+          apiRow.subscription_plans ||
+          apiRow.subscriptionPlans;
+
+        if (roleSubs) {
+          mergedRow.role_subscriptions = roleSubs;
+          mergedRow.subscription_plans = roleSubs;
+        }
+
         const normalized = normalizeUserRow(mergedRow);
         setRow(normalized);
         updateStoredRow(slug, normalized);
@@ -4923,7 +5553,7 @@ useEffect(() => {
           <i className="fa fa-arrow-left me-2" />
           Back
         </Link>
-        {slug !== "user-profile" && <h3 className="mb-0">{config.title} Details</h3>}
+        {slug !== "user-profile" && slug !== "dashboard" && <h3 className="mb-0">{config.title} Details</h3>}
       </div>
       {slug === "quiz" ? (
         <QuizDetail row={row} onStatus={() => setConfirmStatus(true)} />
@@ -4969,13 +5599,24 @@ useEffect(() => {
           try {
             if (slug === "user-profile" || slug === "dashboard") {
               await updateUserStatusInApi(row, nextStatus);
+              syncUserWalletStatus(row?.id || row?.userId, nextStatus);
+            } else if (slug === "quiz-subscription-create") {
+              await updateQuizSubscriptionPlanStatusInApi(row, nextStatus);
+            } else if (slug === "quiz") {
+              await updateQuizStatusInApi(row, nextStatus);
             } else if (MODULE_API_SLUGS.includes(slug)) {
               await updateModuleStatusInApi(slug, row, nextStatus);
             }
             setRow((current) => {
               const updated = { ...current, status: nextStatus };
               updateStoredRow(slug, updated);
+              if (slug === "user-profile") {
+                updateStoredRow("dashboard", updated);
+              } else if (slug === "dashboard") {
+                updateStoredRow("user-profile", updated);
+              }
               sessionStorage.setItem(activeRecordKey(slug), rowKey(updated));
+              sessionStorage.setItem(activeRecordKey(dataSlug(slug)), rowKey(updated));
               return updated;
             });
             setConfirmStatus(false);
@@ -5871,7 +6512,10 @@ useEffect(() => {
 
 // }
 if (slug === "user-profile" || slug === "dashboard") {
-  record = await saveUserToApi(localRecord, mode, currentRow);
+  record = await saveUserToApi(localRecord, mode, currentRow, form);
+  if (record?.status) {
+    syncUserWalletStatus(record?.id || record?.userId, record.status);
+  }
 } else if (slug === "question-bank") {
   record = await saveQuestionBankToApi(localRecord, mode, currentRow);
 } else if (slug === "quiz") {
@@ -5892,7 +6536,15 @@ const nextRows = mode === "Add"
     ? currentRows.map((item) => rowKey(item) === currentKey ? record : item)
     : [record, ...currentRows];
 saveStoredRows(slug, nextRows);
+if (slug === "user-profile") {
+  saveStoredRows("dashboard", nextRows);
+} else if (slug === "dashboard") {
+  saveStoredRows("user-profile", nextRows);
+}
               sessionStorage.setItem(activeRecordKey(slug), rowKey(record));
+              sessionStorage.setItem(`${activeRecordKey(slug)}-snapshot`, JSON.stringify(record));
+              sessionStorage.setItem(activeRecordKey(dataSlug(slug)), rowKey(record));
+              sessionStorage.setItem(`${activeRecordKey(dataSlug(slug))}-snapshot`, JSON.stringify(record));
               setToast("");
               sessionStorage.setItem("moduleToast", `${pickRecordTitle(record)} ${mode === "Add" ? "added" : "updated"} successfully`);
               navigate(`/admin/${slug}`);
@@ -5905,7 +6557,7 @@ saveStoredRows(slug, nextRows);
             <div className="row">
               <div className="col-xl-6">
                 {allFields.slice(0, Math.ceil(allFields.length / 2)).map(renderField)}
-                {config.form === "user" && <ImageUpload title="Profile Image Upload" value={currentRow.image} />}
+                {config.form === "user" && <ImageUpload title="Profile Image Upload" value={currentRow.image || currentRow.profile_image} />}
               </div>
               <div className="col-xl-6">
                 {allFields.slice(Math.ceil(allFields.length / 2)).map(renderField)}
@@ -6059,12 +6711,21 @@ export const ModuleStatus = ({ slug }) => {
                    try {
               if (slug === "user-profile" || slug === "dashboard") {
                 await updateUserStatusInApi(row, nextStatus);
+                syncUserWalletStatus(row?.id || row?.userId, nextStatus);
               } else if (slug === "quiz-subscription-create") {
                 await updateQuizSubscriptionPlanStatusInApi(row, nextStatus);
+              } else if (slug === "quiz") {
+                await updateQuizStatusInApi(row, nextStatus);
               } else if (MODULE_API_SLUGS.includes(slug)) {
                 await updateModuleStatusInApi(slug, row, nextStatus);
               }
-              updateStoredRow(slug, { ...row, status: nextStatus });
+              const updated = { ...row, status: nextStatus };
+              updateStoredRow(slug, updated);
+              if (slug === "user-profile") {
+                updateStoredRow("dashboard", updated);
+              } else if (slug === "dashboard") {
+                updateStoredRow("user-profile", updated);
+              }
               sessionStorage.setItem("moduleToast", `${pickRecordTitle(row)} status updated successfully`);
               navigate(`/admin/${slug}`);
             } catch (error) {

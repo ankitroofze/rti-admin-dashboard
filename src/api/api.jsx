@@ -26,7 +26,7 @@ const API = {
    QUIZ_UPDATE : (quiz) => `/quiz-types/${quiz}`,
    QUIZ_DELETE : (quiz) => `/quiz-types/${quiz}`,
    QUIZ_RESTORE : (quiz) => `/quiz-types/${quiz}/restore`,
-   QUIZ_STATUS: (quiz) => `/quiz-types/${quiz}/status`,
+   QUIZ_STATUS: (quiz) => `/quiz-types/${quiz}`,
 
    // Payment History (admin combined role + ads + ecom + quiz ledger)
 PAYMENT_HISTORY_INDEX: '/payment-history',
