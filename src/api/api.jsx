@@ -126,6 +126,14 @@ ECOM_DETAIL_UPDATE: (item) => `/ecom-details/${item}`,
 ECOM_DETAIL_STATUS: (item) => `/ecom-details/${item}/status`,
 ECOM_DETAIL_DELETE: (item) => `/ecom-details/${item}`,
 
+// Ecom Buy Routes  (⚠️ backend ka route alag ho to sirf yahan badlo)
+ECOM_BUY_INDEX: '/ecom-buys',
+ECOM_BUY_ADD: '/ecom-buys',
+ECOM_BUY_SHOW: (item) => `/ecom-buys/${item}`,
+ECOM_BUY_UPDATE: (item) => `/ecom-buys/${item}`,
+ECOM_BUY_STATUS: (item) => `/ecom-buys/${item}/status`,
+ECOM_BUY_DELETE: (item) => `/ecom-buys/${item}`,
+
 // Ecom Enquiry Routes
 ECOM_ENQUIRY_INDEX: '/ecom-enquiries',
 ECOM_ENQUIRY_SHOW: (enquiry) => `/ecom-enquiries/${enquiry}`,

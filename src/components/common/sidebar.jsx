@@ -83,14 +83,6 @@ const MenuList = [
         title: "Ecom Subscription Purchasers",
         to: "/admin/ecom-subscription-purchasers",
       },
-      // {
-      //   title: "Buy",
-      //   to: "/admin/ecom-buy",
-      // },
-      {
-        title: "Sell",
-        to: "/admin/ecom-sell",
-      },
       {
         title: "Product Enquiry",
         to: "/admin/product-enquiry",

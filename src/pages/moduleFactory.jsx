@@ -676,7 +676,28 @@ details: ["title", "role", "levelLabel", "price", "offerPrice", "credits", "days
 },
 
 
-  /* "ecom-buy" module intentionally removed so Buy modules are hidden */
+  "ecom-buy": {
+    title: "Buy",
+    add: true,
+    filters: ["search", "status"],
+    rows: [], // dummy data removed — dynamic API data expected
+    columns: [
+      ["sr", "Sr.No"],
+      ["user_id", "User ID"],
+      ["title", "Product"],
+      ["buyerName", "Buyer"],
+      ["category", "Category"],
+      ["quantity", "Quantity"],
+      ["price", "Price"],
+      ["status", "Status"],
+    ],
+    actions: ["view", "update", "delete", "status"],
+    details: [
+      "id", "user_id", "ecomSubId", "title", "buyerName", "buyerEmail", "buyerPhone", "contact", "category",
+      "location", "price", "quantity", "startDate", "endDate", "productImage", "description", "status", "createdAt", "updatedAt",
+    ],
+    form: "ecomBuy",
+  },
   "ecom-sell": {
     title: "Sell",
     add: true,
@@ -1061,6 +1082,15 @@ details: ["title", "role", "levelLabel", "price", "offerPrice", "credits", "days
 };
 
 const labels = {
+  user_id: "User ID",
+  ecomSubId: "Ecom Subscription ID",
+  buyerName: "Buyer",
+  buyerEmail: "Buyer Email",
+  buyerPhone: "Buyer Phone",
+  sellerName: "Seller",
+  contact: "Contact Number",
+  location: "City",
+  quantity: "Quantity",
   id: "ID",
   userId: "User ID",
   profileId: "Profile ID",
@@ -1385,7 +1415,7 @@ const USER_API_SLUGS = ["dashboard", "user-profile"];
 // const MODULE_API_SLUGS = ["news", "quiz", "ecommerce-subscription", "ads-subscription", "subscription-plan", "ecom-sell", "product-enquiry", "ads-management"]
 const MODULE_API_SLUGS = [
   "news", "quiz", "ecommerce-subscription", "ads-subscription",
-  "subscription-plan", "ecom-sell", "product-enquiry", "ads-management",
+  "subscription-plan", "ecom-buy", "ecom-sell", "product-enquiry", "ads-management",
   "reports-product-enquiry", "reports-user-wise", "reports-subscription", "reports-ads-view",
   "advertisement", "wallets", "withdrawal", "offices-addresses",
   "news-notification", "contact-us", "ads-view-tracking",
@@ -1539,6 +1569,16 @@ const moduleApi = {
   restore: API.SUBSCRIPTION_PLAN_RESTORE,
   singular: "subscription_plan",
   collection: "subscription_plans",
+},
+"ecom-buy": {
+  index: API.ECOM_BUY_INDEX,
+  add: API.ECOM_BUY_ADD,
+  show: API.ECOM_BUY_SHOW,
+  update: API.ECOM_BUY_UPDATE,
+  delete: API.ECOM_BUY_DELETE,
+  status: API.ECOM_BUY_STATUS,
+  singular: "ecom_buy",
+  collection: "ecom_buys",
 },
 "ecom-sell": {
   index: API.ECOM_DETAIL_INDEX,
@@ -1717,6 +1757,14 @@ const extractRows = (payload) => {
   
   const candidates = [
     payload?.ecom_enquiries,
+    payload?.ecom_buys,
+    payload?.data?.ecom_buys,
+    payload?.ecom_buy_details,
+    payload?.data?.ecom_buy_details,
+    payload?.buy_details,
+    payload?.data?.buy_details,
+    payload?.buys,
+    payload?.data?.buys,
     payload?.ecom_details,
     payload?.data?.ecom_details,
     payload?.data?.ecom_enquiries,
@@ -2179,6 +2227,46 @@ if (slug === "question-bank") {
       explanation: row.explation ?? row.explanation ?? "",
       marks: row.marks || "",
     }],
+  };
+}
+
+if (slug === "ecom-buy") {
+  // Backend response ke saare fields yahan map hote hain; nested "user" object se buyer ki details aati hain
+  const u = row.user || row.buyer || {};
+  const buyerFullName = [u.firstname, u.lastname].filter(Boolean).join(" ").trim();
+  const firstImage = Array.isArray(row.images)
+    ? (typeof row.images[0] === "string" ? row.images[0] : row.images[0]?.url || row.images[0]?.image || row.images[0]?.path || "")
+    : "";
+  const priceText = row.price ?? row.budget ?? (
+    row.min_price != null || row.max_price != null
+      ? `${row.min_price ?? ""}${row.min_price != null && row.max_price != null ? " - " : ""}${row.max_price ?? ""}`
+      : ""
+  );
+  return {
+    ...row,
+    _rowKey: String(row.id || `ecom-buy-${index}`),
+    sr: row.sr || index + 1,
+    id: row.id || "",
+    user_id: row.user_id ?? u.id ?? "",
+    ecomSubId: row.ecom_sub_id ?? row.ecomSubId ?? "",
+    title: row.product_name || row.title || row.name || "-",
+    productName: row.product_name || row.title || "",
+    buyerName: row.buyer_name || row.buyerName || u.name || buyerFullName || row.username || row.user_name || "-",
+    buyerEmail: u.email || row.email || row.buyer_email || "",
+    buyerPhone: u.phone || u.mobile || row.phone || row.buyer_phone || "",
+    category: (typeof row.category === "object" && row.category ? row.category.name || row.category.title : row.category) || row.category_name || "",
+    quantity: row.quantity ?? "",
+    price: priceText ?? "",
+    location: row.city || row.location || "",
+    contact: row.conatct || row.contact || row.mobile_number || "",
+    description: row.description || "",
+    image: row.image || firstImage || "",
+    productImage: row.image || firstImage || "",
+    startDate: formatDisplayDate(row.start_date) || "",
+    endDate: formatDisplayDate(row.end_date) || "",
+    status: normalizeStatus(row.status),
+    createdAt: formatDisplayDate(row.created_at) || "",
+    updatedAt: formatDisplayDate(row.updated_at) || "",
   };
 }
 
@@ -2882,6 +2970,24 @@ if (slug === "ads-management") {
   return payload;
 }
 
+if (slug === "ecom-buy") {
+  append("ecom_sub_id", record.ecomSubId);
+  append("category", record.category);
+  append("product_name", record.title);
+  append("quantity", record.quantity);
+  append("price", record.price);
+  append("city", record.location);
+  append("conatct", record.contact);     // ⚠️ backend ka typo "conatct" waisa hi rakha (sell jaisa)
+  append("start_date", record.startDate ? toDateInputValue(record.startDate) : "");
+  append("end_date", record.endDate ? toDateInputValue(record.endDate) : "");
+  append("description", record.description);
+  append("status", normalizeStatusValue(record.status));
+  const buyImageFile = formData.get("images");
+  if (buyImageFile instanceof File && buyImageFile.size) append("images[]", buyImageFile);
+  console.log("MODULE_FORM_DATA", Object.fromEntries(payload.entries()));
+  return payload;
+}
+
 if (slug === "ecom-sell") {
   append("ecom_sub_id", record.ecomSubId);
   append("category", record.category);
@@ -2909,7 +3015,8 @@ if (slug === "ecom-sell") {
     append("days", record.days);
     append("price", record.price);
     append("offer_price", record.offerPrice || record.offer_price);
-    append("status", normalizeStatusValue(record.status));
+    // ads-subscription / ecommerce-subscription: Active = 1, Inactive = 2
+    append("status", usesOneTwoStatus(slug) ? (isPositiveStatus(record.status) ? 1 : 2) : normalizeStatusValue(record.status));
     console.log("MODULE_FORM_DATA", Object.fromEntries(payload.entries()));
     return payload;
   }
@@ -3202,7 +3309,9 @@ const deleteModuleFromApi = (slug, row) => {
   return client.post(endpoint(moduleApi[slug]?.delete, row), payload, requestConfig);
 };
 
-const STATUS_ONE_TWO_SLUGS = ["ecommerce-subscription", "ecom-sell"];
+// Backend convention: 1 = Active, 2 = Inactive. Pehle "ads-subscription" yahan nahi tha, isliye
+// Inactive par 0 jata tha aur reload ke baad status wapas inactive/purana dikhta tha.
+const STATUS_ONE_TWO_SLUGS = ["ecommerce-subscription", "ads-subscription", "ecom-sell", "ecom-buy"];
 const usesOneTwoStatus = (slug) => STATUS_ONE_TWO_SLUGS.includes(slug);
 
 const updateQuizStatusInApi = async (row, status) => {
@@ -3254,29 +3363,77 @@ const updateQuizStatusInApi = async (row, status) => {
   }
 };
 
+// ads-subscription (/subscription-plans/{id}/status): backend status endpoint "2" ko invalid maanta hai
+// (422 "The selected status is invalid."), isliye yahan Active = 1, Inactive = 0 bhejte hain.
+// Agar backend sirf 1/2 accept kare to neeche retry automatically alternate value try karega.
+const STATUS_ENDPOINT_ZERO_ONE_SLUGS = ["ads-subscription"];
+
+const resolveStatusRequestValue = (slug, status) => {
+  if (STATUS_ENDPOINT_ZERO_ONE_SLUGS.includes(slug)) {
+    return isPositiveStatus(status) ? 1 : 0;
+  }
+  return usesOneTwoStatus(slug) ? (isPositiveStatus(status) ? 1 : 2) : normalizeStatusValue(status);
+};
+
 const updateModuleStatusInApi = async (slug, row, status) => {
   if (slug === "quiz") {
     return updateQuizStatusInApi(row, status);
   }
   const endpoints = moduleApi[slug];
-  const payload = new FormData();
-  payload.append("status", usesOneTwoStatus(slug) ? (isPositiveStatus(status) ? 1 : 2) : normalizeStatusValue(status));
-  payload.append("_method", "PATCH");
+  const buildStatusPayload = (value) => {
+    const payload = new FormData();
+    payload.append("status", value);
+    payload.append("_method", "PATCH");
+    return payload;
+  };
+  const statusValue = resolveStatusRequestValue(slug, status);
+  const payload = buildStatusPayload(statusValue);
   const client = moduleClientForSlug(slug);
   const requestConfig = slug === "news"
     ? { headers: buildMultipartHeaders(), timeout: 12000 }
     : { headers: apiHeaders(), timeout: 12000 };
+  const targetUrl = endpoints?.status ? endpoint(endpoints.status, row) : endpoint(endpoints.update, row);
+  // ads-subscription: backend contract = real PATCH + JSON body { status: 1 | 0 } (Authorization interceptor se)
+  const usesJsonPatch = STATUS_ENDPOINT_ZERO_ONE_SLUGS.includes(slug) && Boolean(endpoints?.status);
+  const sendStatus = (value, formPayload) =>
+    usesJsonPatch
+      ? client.patch(targetUrl, { status: value }, requestConfig)
+      : client.post(targetUrl, formPayload, requestConfig);
   console.log("STATUS_UPDATE_REQUEST", {
     resource: slug,
     identifier: resolveRecordIdentifier(row),
-    endpoint: endpoints?.status ? endpoint(endpoints.status, row) : endpoint(endpoints.update, row),
-    method: "POST",
-    payload: Object.fromEntries(payload.entries()),
+    endpoint: targetUrl,
+    method: usesJsonPatch ? "PATCH" : "POST",
+    payload: usesJsonPatch ? { status: statusValue } : Object.fromEntries(payload.entries()),
   });
-  if (endpoints?.status) {
-    return client.post(endpoint(endpoints.status, row), payload, requestConfig);
+  // Server ne jo status actually save kiya wo response me aata hai (subscription_plan.status).
+  // Agar wo hamare bheje hue status se match nahi karta to success mat dikhao (refresh par wapas badal jata hai).
+  const verifySavedStatus = (res) => {
+    if (!STATUS_ENDPOINT_ZERO_ONE_SLUGS.includes(slug)) return res;
+    const saved = res?.data?.subscription_plan?.status ?? res?.data?.data?.status;
+    if (saved === undefined || saved === null) return res;
+    const wantActive = isPositiveStatus(status);
+    const savedActive = Number(saved) === 1;
+    console.log("STATUS_UPDATE_RESPONSE", { resource: slug, requested: wantActive ? 1 : 0, savedByServer: saved });
+    if (wantActive !== savedActive) {
+      throw new Error(
+        `Server ne status ${saved} save kiya, jabki ${wantActive ? "Active (1)" : "Inactive (0)"} chahiye tha. Backend status update logic check karein.`
+      );
+    }
+    return res;
+  };
+
+  try {
+    return verifySavedStatus(await sendStatus(statusValue, payload));
+  } catch (err) {
+    // 422 "selected status is invalid" -> ads-subscription par alternate value (0 <-> 2) ek baar retry
+    const statusInvalid = err?.response?.status === 422 && err?.response?.data?.errors?.status;
+    if (statusInvalid && STATUS_ENDPOINT_ZERO_ONE_SLUGS.includes(slug) && statusValue !== 1) {
+      const altValue = statusValue === 0 ? 2 : 0;
+      return verifySavedStatus(await sendStatus(altValue, buildStatusPayload(altValue)));
+    }
+    throw err;
   }
-  return client.post(endpoint(endpoints.update, row), payload, requestConfig);
 };
 
 const restoreQuizFromApi = (row) =>
@@ -6024,6 +6181,20 @@ const formFields = {
   ["Status", "status", "select", ["Active", "Inactive"]],
 ],
 
+  ecomBuy: [
+  ["Ecom Subscription ID", "ecom-sub-id"],
+  ["Category", "category"],
+  ["Product Title", "title"],
+  ["Quantity", "quantity", "number"],
+  ["Price", "price", "number"],
+  ["City", "city"],
+  ["Contact Number", "contact", "tel"],
+  ["Start Date", "start-date", "date"],
+  ["End Date", "end-date", "date"],
+  ["Images", "images", "file"],
+  ["Description", "description", "textarea"],
+  ["Status", "status", "select", ["Active", "Inactive"]],
+],
   ecomSell: [
   ["Ecom Subscription ID", "ecom-sub-id"],
   ["Category", "category"],
